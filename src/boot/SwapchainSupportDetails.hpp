@@ -13,15 +13,15 @@
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-struct SwapChainSupportDetails {
+struct SwapchainSupportDetails {
   vk::SurfaceCapabilitiesKHR capabilities;
   std::vector<vk::SurfaceFormatKHR> formats;
   std::vector<vk::PresentModeKHR> presentModes;
 
-  SwapChainSupportDetails() = delete;
-  SwapChainSupportDetails(const SwapChainSupportDetails&&) = delete;
+  SwapchainSupportDetails() = delete;
+  SwapchainSupportDetails(const SwapchainSupportDetails&&) = delete;
 
-  SwapChainSupportDetails(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) {
+  SwapchainSupportDetails(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface) {
     capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     formats = physicalDevice.getSurfaceFormatsKHR(surface);
     presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
@@ -47,13 +47,13 @@ struct SwapChainSupportDetails {
     return vk::PresentModeKHR::eFifo;
   }
 
-  vk::Extent2D chooseSwapExtent(uint32_t fallbackWidth, uint32_t fallbackHeight) const {
+  vk::Extent2D chooseSwapExtent(vk::Extent2D fallbackExtent) const {
     if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
       return capabilities.currentExtent;
     } else {
       return vk::Extent2D(
-        std::clamp(fallbackWidth, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-        std::clamp(fallbackHeight, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+        std::clamp(fallbackExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+        std::clamp(fallbackExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
       );
     }
   }

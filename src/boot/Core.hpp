@@ -5,7 +5,6 @@
 #ifndef FOXTALK_TEST_CORE_H
 #define FOXTALK_TEST_CORE_H
 
-#include <functional>
 #include <iostream>
 #include <set>
 #include <vector>
@@ -17,7 +16,7 @@
 
 #include "CoreRenderer.hpp"
 #include "QueueFamilies.hpp"
-#include "SwapChainSupportDetails.hpp"
+#include "SwapchainSupportDetails.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -169,11 +168,8 @@ class Core {
 
       ///// LOGICAL DEVICE ///////////////////////////////////////////////////////
       std::vector<float> queuePriorities { 1.0f };
-      std::set<uint32_t> uniqueQueueFamilies = {
-          _queueFamilyIndices.graphicsFamily.value(),
-          _queueFamilyIndices.presentFamily.value()
-      };
-
+      std::vector<uint32_t> queueFamilyIndices = _queueFamilyIndices.indices();
+      std::set<uint32_t> uniqueQueueFamilies { queueFamilyIndices.begin(), queueFamilyIndices.end() };
 
       std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
       for(auto queueFamily : uniqueQueueFamilies) {
@@ -205,11 +201,40 @@ class Core {
       _presentQueue  = device().getQueue(_queueFamilyIndices.presentFamily.value(), 0);
 
       ///// SWAPCHAIN ////////////////////////////////////////////////////////////-
-      SwapChainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
+      SwapchainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
+      auto surfaceFormat = swapChainSupportDetails.chooseSwapSurfaceFormat();
+      auto presentMode   = swapChainSupportDetails.chooseSwapPresentMode();
+      _swapchainExtent   = swapChainSupportDetails.chooseSwapExtent(coreRenderer().getFramebufferSize());
+
+      uint32_t imageCount = swapChainSupportDetails.capabilities.minImageCount + 1;
+      if(swapChainSupportDetails.capabilities.maxImageCount > 0 && imageCount > swapChainSupportDetails.capabilities.maxImageCount) {
+        imageCount = swapChainSupportDetails.capabilities.maxImageCount;
+      }
+
+      vk::SwapchainCreateInfoKHR swapchainCreateInfo(
+          {}, outputSurface(), imageCount, surfaceFormat.format, surfaceFormat.colorSpace,
+          _swapchainExtent, 1, vk::ImageUsageFlagBits::eColorAttachment);
+
+      if(_queueFamilyIndices.graphicsFamily != _queueFamilyIndices.presentFamily) {
+        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eConcurrent);
+        swapchainCreateInfo.setQueueFamilyIndices(queueFamilyIndices);
+      } else {
+        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eExclusive);
+      }
+      
+      swapchainCreateInfo.setPreTransform(swapChainSupportDetails.capabilities.currentTransform);
+      swapchainCreateInfo.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
+
+      _swapchain = device().createSwapchainKHR(swapchainCreateInfo);
+
+      ///// SWAPCHAIN IMAGES /////////////////////////////////////////////////////-
+      _swapchainImages = device().getSwapchainImagesKHR(swapchain());
+      _swapchainImageFormat = surfaceFormat.format;
     };
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      _device.destroySwapchainKHR(_swapchain);
       _device.destroy();
       
 #ifndef NDEBUG
@@ -248,6 +273,10 @@ class Core {
       return *_coreRenderer;
     }
 
+    const vk::SwapchainKHR swapchain() const {
+      return _swapchain;
+    }
+
 private:
     CoreRenderer *_coreRenderer;
 
@@ -257,6 +286,10 @@ private:
     vk::Queue _graphicsQueue;
     vk::Queue _presentQueue;
     vk::SurfaceKHR _outputSurface;
+    vk::SwapchainKHR _swapchain;
+    std::vector<vk::Image> _swapchainImages;
+    vk::Extent2D _swapchainExtent;
+    vk::Format _swapchainImageFormat;
 
     QueueFamiliyIndices _queueFamilyIndices;
 

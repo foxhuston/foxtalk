@@ -65,6 +65,7 @@ public:
     while(!glfwWindowShouldClose(window)) {
       glfwPollEvents();
     }
+    std::cout << "glfw should close!" << std::endl;
   }
 
   ~Glfw() {
