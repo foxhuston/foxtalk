@@ -5,7 +5,9 @@
 #ifndef FOXTALK_TEST_CORE_H
 #define FOXTALK_TEST_CORE_H
 
+#include <functional>
 #include <iostream>
+#include <optional>
 #include <vulkan/vulkan.hpp>
 #include <vector>
 #include <vulkan/vulkan_core.h>
@@ -39,7 +41,10 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT( VkInstance instance,
 
 class Core {
   public:
-    Core(std::vector<const char*> extensions) {
+    Core(
+        std::vector<const char*> extensions,
+        std::function<int(vk::PhysicalDeviceProperties)> rankPhysicalDevice
+    ) {
       ///// INFO LOGGING /////
       auto availableExtensions = vk::enumerateInstanceExtensionProperties();
       std::cout << "Available Extensions:" << std::endl;
@@ -82,6 +87,8 @@ class Core {
 
       ///// INSTANCE CREATED! ////////////////////////////////////////////////////
 
+      ///// VALIDATION LAYERS ////////////////////////////////////////////////////
+
 #ifndef NDEBUG
       pfnVkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>( instance().getProcAddr( "vkCreateDebugUtilsMessengerEXT" ) );
       if ( !pfnVkCreateDebugUtilsMessengerEXT )
@@ -101,18 +108,40 @@ class Core {
           {},
           vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
             | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
-            | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo
-            | vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose,
+            /* | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo */
+            /* | vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose */
+          ,
           vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
             | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
-            | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+            | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance
+          ,
           Core::debugCallback
       );
 
       _debugUtilsMessenger = _instance.createDebugUtilsMessengerEXT(debugUtilsCreationInfo);
+
+      ///// PHYSICAL DEVICE //////////////////////////////////////////////////////
+      std::cout << "Found Physical Devices:" << std::endl;
+      auto physicalDevices = instance().enumeratePhysicalDevices();
+
+      _physicalDevice = physicalDevices[0];
+      int max_score = 0;
+      for(const auto& pd : physicalDevices) {
+        auto props = pd.getProperties();
+        auto score = rankPhysicalDevice(props);
+        std::cout << "\t" << props.deviceName << " (score " << score << ")" << std::endl;
+        if(score > max_score) {
+          _physicalDevice = pd;
+          max_score = score;
+        }
+      }
+
+      std::cout << "Selected " << _physicalDevice.getProperties().deviceName << std::endl;
+
     };
 #endif
 
+    ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
 #ifndef NDEBUG
       _instance.destroyDebugUtilsMessengerEXT(_debugUtilsMessenger);
@@ -120,11 +149,18 @@ class Core {
       _instance.destroy();
     };
 
+    ///// GETTERS & SETTERS //////////////////////////////////////////////////////
     const vk::Instance instance() {
       return _instance;
     }
+
+    const vk::PhysicalDevice physicalDevice() {
+      return _physicalDevice;
+    }
+
 private:
     vk::Instance _instance;
+    vk::PhysicalDevice _physicalDevice;
 
 #ifndef NDEBUG
     vk::DebugUtilsMessengerEXT _debugUtilsMessenger;
@@ -135,9 +171,24 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData) {
 
-        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+      switch(messageSeverity) {
+      case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+        std::cerr << "\x1b[38:5:7m [Verbose]: ";
+        break;
+      case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+        std::cerr << "\x1b[38:5:85m [Info]: ";
+        break;
+      case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+        std::cerr << "\x1b[38:5:226m [Warning]: ";
+        break;
+      default:
+        std::cerr << "\x1b[38:5:197m [Error]: ";
+        break;
+      }
 
-        return VK_FALSE;
+      std::cerr << pCallbackData->pMessage << "\x1b[m" << std::endl;
+
+      return VK_FALSE;
     }
 #endif
 };

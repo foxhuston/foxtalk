@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_structs.hpp>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -23,7 +24,11 @@ public:
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
     std::vector<const char*> requiredExtensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-    _core = new Core(requiredExtensions);
+    _core = new Core(
+        requiredExtensions,
+        // Take the first physical device.
+        [](vk::PhysicalDeviceProperties props) { return 0; }
+      );
   }
 
   Core& core() const {
