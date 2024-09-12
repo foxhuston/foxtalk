@@ -7,10 +7,12 @@
 
 #include <functional>
 #include <iostream>
+#include <set>
 #include <vector>
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
 #include "QueueFamilies.hpp"
@@ -43,9 +45,10 @@ class Core {
   public:
     Core(
         std::vector<const char*> extensions,
-        std::function<int(const vk::PhysicalDevice&)> rankPhysicalDevice
+        std::function<int(const vk::PhysicalDevice&)> rankPhysicalDevice,
+        std::function<vk::SurfaceKHR(const vk::Instance&)> createRenderSurface
     ) {
-      ///// INFO LOGGING /////
+      ///// BOOT LOGGING /////////////////////////////////////////////////////////
       auto availableExtensions = vk::enumerateInstanceExtensionProperties();
       std::cout << "Available Extensions:" << std::endl;
       for(const auto& extension : availableExtensions) {
@@ -58,7 +61,7 @@ class Core {
         std::cout << "\t" << layer.layerName << std::endl;
       }
 
-      ///// SETUP ////////////
+      ///// INITIAL SETUP ////////////////////////////////////////////////////////
       vk::ApplicationInfo appInfo(
           "Dust",
           vk::makeApiVersion(0, 0, 1, 0),
@@ -85,7 +88,8 @@ class Core {
 
       _instance = vk::createInstance(instanceInfo);
 
-      ///// INSTANCE CREATED! ////////////////////////////////////////////////////
+      ///// CREATE SURFACE ///////////////////////////////////////////////////////
+      _outputSurface = createRenderSurface(instance());
 
       ///// VALIDATION LAYERS ////////////////////////////////////////////////////
 
@@ -145,6 +149,10 @@ class Core {
           _queueFamilyIndices.graphicsFamily = i;
         }
 
+        if(physicalDevice().getSurfaceSupportKHR(i, outputSurface())) {
+          _queueFamilyIndices.presentFamily = i;
+        }
+
         if(_queueFamilyIndices.isComplete()) {
           break;
         }
@@ -156,13 +164,22 @@ class Core {
 
       ///// LOGICAL DEVICE ///////////////////////////////////////////////////////
       std::vector<float> queuePriorities { 1.0f };
-      vk::DeviceQueueCreateInfo queueCreateInfo(
-          {},
+      std::set<uint32_t> uniqueQueueFamilies = {
           _queueFamilyIndices.graphicsFamily.value(),
-          queuePriorities
-          );
+          _queueFamilyIndices.presentFamily.value()
+      };
+
+
+      std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+      for(auto queueFamily : uniqueQueueFamilies) {
+        queueCreateInfos.push_back(
+          vk::DeviceQueueCreateInfo(
+              {},
+              _queueFamilyIndices.graphicsFamily.value(),
+              queuePriorities
+              ));
+      }
           
-      std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos { queueCreateInfo };
       vk::PhysicalDeviceFeatures physicalDeviceFeatures;
       vk::DeviceCreateInfo deviceCreateInfo(
           {}
@@ -176,6 +193,7 @@ class Core {
 
       ///// LOGICAL DEVICE QUEUES ////////////////////////////////////////////////
       _graphicsQueue = device().getQueue(_queueFamilyIndices.graphicsFamily.value(), 0);
+      _presentQueue  = device().getQueue(_queueFamilyIndices.presentFamily.value(), 0);
     };
 #endif
 
@@ -186,6 +204,7 @@ class Core {
 #ifndef NDEBUG
       _instance.destroyDebugUtilsMessengerEXT(_debugUtilsMessenger);
 #endif
+      _instance.destroySurfaceKHR(_outputSurface);
       _instance.destroy();
     };
 
@@ -206,11 +225,21 @@ class Core {
       return _graphicsQueue;
     }
 
+    const vk::Queue presentQueue() const {
+      return _presentQueue;
+    }
+
+    const vk::SurfaceKHR outputSurface() const {
+      return _outputSurface;
+    }
+
 private:
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
     vk::Device _device;
     vk::Queue _graphicsQueue;
+    vk::Queue _presentQueue;
+    vk::SurfaceKHR _outputSurface;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
