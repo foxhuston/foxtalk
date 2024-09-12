@@ -27,7 +27,7 @@ public:
     _core = new Core(
         requiredExtensions,
         // Take the first physical device.
-        [](vk::PhysicalDeviceProperties props) { return 0; }
+        [](const vk::PhysicalDevice& pd) { return 0; }
       );
   }
 

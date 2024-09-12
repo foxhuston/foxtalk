@@ -7,13 +7,12 @@
 
 #include <functional>
 #include <iostream>
-#include <optional>
-#include <vulkan/vulkan.hpp>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
+
+#include "QueueFamilies.hpp"
 
 
 #ifndef NDEBUG
@@ -43,7 +42,7 @@ class Core {
   public:
     Core(
         std::vector<const char*> extensions,
-        std::function<int(vk::PhysicalDeviceProperties)> rankPhysicalDevice
+        std::function<int(const vk::PhysicalDevice&)> rankPhysicalDevice
     ) {
       ///// INFO LOGGING /////
       auto availableExtensions = vk::enumerateInstanceExtensionProperties();
@@ -127,9 +126,8 @@ class Core {
       _physicalDevice = physicalDevices[0];
       int max_score = 0;
       for(const auto& pd : physicalDevices) {
-        auto props = pd.getProperties();
-        auto score = rankPhysicalDevice(props);
-        std::cout << "\t" << props.deviceName << " (score " << score << ")" << std::endl;
+        auto score = rankPhysicalDevice(pd);
+        std::cout << "\t" << pd.getProperties().deviceName << " (score " << score << ")" << std::endl;
         if(score > max_score) {
           _physicalDevice = pd;
           max_score = score;
@@ -137,6 +135,23 @@ class Core {
       }
 
       std::cout << "Selected " << _physicalDevice.getProperties().deviceName << std::endl;
+
+      ///// QUEUE FAMILIES ///////////////////////////////////////////////////////
+      auto queueFamilies = physicalDevice().getQueueFamilyProperties();
+      int i = 0;
+      for(const auto& qf : queueFamilies) {
+        if(qf.queueFlags & vk::QueueFlagBits::eGraphics) {
+          _queueFamilyIndices.graphicsFamily = i;
+        }
+
+        if(_queueFamilyIndices.isComplete()) {
+          break;
+        }
+
+        i++;
+      }
+
+      assert(_queueFamilyIndices.isComplete());
 
     };
 #endif
@@ -161,6 +176,7 @@ class Core {
 private:
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
+    QueueFamiliyIndices _queueFamilyIndices;
 
 #ifndef NDEBUG
     vk::DebugUtilsMessengerEXT _debugUtilsMessenger;
