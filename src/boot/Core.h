@@ -11,6 +11,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 #include "QueueFamilies.hpp"
 
@@ -153,11 +154,35 @@ class Core {
 
       assert(_queueFamilyIndices.isComplete());
 
+      ///// LOGICAL DEVICE ///////////////////////////////////////////////////////
+      std::vector<float> queuePriorities { 1.0f };
+      vk::DeviceQueueCreateInfo queueCreateInfo(
+          {},
+          _queueFamilyIndices.graphicsFamily.value(),
+          queuePriorities
+          );
+          
+      std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos { queueCreateInfo };
+      vk::PhysicalDeviceFeatures physicalDeviceFeatures;
+      vk::DeviceCreateInfo deviceCreateInfo(
+          {}
+          , queueCreateInfos
+          , validationLayers
+          , { }
+          , &physicalDeviceFeatures
+          );
+
+      _device = physicalDevice().createDevice(deviceCreateInfo);
+
+      ///// LOGICAL DEVICE QUEUES ////////////////////////////////////////////////
+      _graphicsQueue = device().getQueue(_queueFamilyIndices.graphicsFamily.value(), 0);
     };
 #endif
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      _device.destroy();
+      
 #ifndef NDEBUG
       _instance.destroyDebugUtilsMessengerEXT(_debugUtilsMessenger);
 #endif
@@ -165,17 +190,28 @@ class Core {
     };
 
     ///// GETTERS & SETTERS //////////////////////////////////////////////////////
-    const vk::Instance instance() {
+    const vk::Instance& instance() const {
       return _instance;
     }
 
-    const vk::PhysicalDevice physicalDevice() {
+    const vk::PhysicalDevice& physicalDevice() const {
       return _physicalDevice;
+    }
+
+    const vk::Device& device() const {
+      return _device;
+    }
+
+    const vk::Queue graphicsQueue() const {
+      return _graphicsQueue;
     }
 
 private:
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
+    vk::Device _device;
+    vk::Queue _graphicsQueue;
+
     QueueFamiliyIndices _queueFamilyIndices;
 
 #ifndef NDEBUG
