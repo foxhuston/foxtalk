@@ -15,8 +15,9 @@
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
+#include "CoreRenderer.hpp"
 #include "QueueFamilies.hpp"
-
+#include "SwapChainSupportDetails.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -43,11 +44,12 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT( VkInstance instance,
 
 class Core {
   public:
-    Core(
-        std::vector<const char*> extensions,
-        std::function<int(const vk::PhysicalDevice&)> rankPhysicalDevice,
-        std::function<vk::SurfaceKHR(const vk::Instance&)> createRenderSurface
-    ) {
+    Core(const Core &) = delete;
+    Core(Core &&) = delete;
+    Core &operator=(const Core &) = delete;
+    Core &operator=(Core &&) = delete;
+
+    Core(CoreRenderer *cr) : _coreRenderer{cr} {
       ///// BOOT LOGGING /////////////////////////////////////////////////////////
       auto availableExtensions = vk::enumerateInstanceExtensionProperties();
       std::cout << "Available Extensions:" << std::endl;
@@ -70,6 +72,7 @@ class Core {
           VK_API_VERSION_1_3
       );
 
+      std::vector<const char*> extensions = coreRenderer().extensions();
       std::vector<const char*> validationLayers {};
 
 #ifndef NDEBUG
@@ -89,7 +92,7 @@ class Core {
       _instance = vk::createInstance(instanceInfo);
 
       ///// CREATE SURFACE ///////////////////////////////////////////////////////
-      _outputSurface = createRenderSurface(instance());
+      _outputSurface = coreRenderer().createRenderSurface(instance());
 
       ///// VALIDATION LAYERS ////////////////////////////////////////////////////
 
@@ -123,15 +126,17 @@ class Core {
       );
 
       _debugUtilsMessenger = _instance.createDebugUtilsMessengerEXT(debugUtilsCreationInfo);
+#endif
 
       ///// PHYSICAL DEVICE //////////////////////////////////////////////////////
       std::cout << "Found Physical Devices:" << std::endl;
       auto physicalDevices = instance().enumeratePhysicalDevices();
 
+      // TODO: Check physical device for swapchain support...
       _physicalDevice = physicalDevices[0];
       int max_score = 0;
       for(const auto& pd : physicalDevices) {
-        auto score = rankPhysicalDevice(pd);
+        auto score = coreRenderer().rankPhysicalDevice(pd);
         std::cout << "\t" << pd.getProperties().deviceName << " (score " << score << ")" << std::endl;
         if(score > max_score) {
           _physicalDevice = pd;
@@ -179,13 +184,17 @@ class Core {
               queuePriorities
               ));
       }
+
+      std::vector<const char*> enabledExtensions {
+        vk::KHRSwapchainExtensionName
+      };
           
       vk::PhysicalDeviceFeatures physicalDeviceFeatures;
       vk::DeviceCreateInfo deviceCreateInfo(
           {}
           , queueCreateInfos
           , validationLayers
-          , { }
+          , enabledExtensions
           , &physicalDeviceFeatures
           );
 
@@ -194,8 +203,10 @@ class Core {
       ///// LOGICAL DEVICE QUEUES ////////////////////////////////////////////////
       _graphicsQueue = device().getQueue(_queueFamilyIndices.graphicsFamily.value(), 0);
       _presentQueue  = device().getQueue(_queueFamilyIndices.presentFamily.value(), 0);
+
+      ///// SWAPCHAIN ////////////////////////////////////////////////////////////-
+      SwapChainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
     };
-#endif
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
@@ -233,7 +244,13 @@ class Core {
       return _outputSurface;
     }
 
+    CoreRenderer& coreRenderer() const {
+      return *_coreRenderer;
+    }
+
 private:
+    CoreRenderer *_coreRenderer;
+
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
     vk::Device _device;
