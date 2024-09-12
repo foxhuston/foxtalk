@@ -200,7 +200,7 @@ class Core {
       _graphicsQueue = device().getQueue(_queueFamilyIndices.graphicsFamily.value(), 0);
       _presentQueue  = device().getQueue(_queueFamilyIndices.presentFamily.value(), 0);
 
-      ///// SWAPCHAIN ////////////////////////////////////////////////////////////-
+      ///// SWAPCHAIN ////////////////////////////////////////////////////////////
       SwapchainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
       auto surfaceFormat = swapChainSupportDetails.chooseSwapSurfaceFormat();
       auto presentMode   = swapChainSupportDetails.chooseSwapPresentMode();
@@ -227,13 +227,36 @@ class Core {
 
       _swapchain = device().createSwapchainKHR(swapchainCreateInfo);
 
-      ///// SWAPCHAIN IMAGES /////////////////////////////////////////////////////-
+      ///// SWAPCHAIN IMAGES /////////////////////////////////////////////////////
       _swapchainImages = device().getSwapchainImagesKHR(swapchain());
       _swapchainImageFormat = surfaceFormat.format;
+
+      ///// SWAPCHAIN IMAGE VIEWS ////////////////////////////////////////////////
+      for(auto& image : swapchainImages()) {
+        vk::ImageViewCreateInfo imageViewCreateInfo(
+            {}, image, vk::ImageViewType::e2D, swapchainImageFormat());
+
+        imageViewCreateInfo.components.setR(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setG(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setB(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setA(vk::ComponentSwizzle::eIdentity);
+
+        imageViewCreateInfo.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
+        imageViewCreateInfo.subresourceRange.setBaseMipLevel(0);
+        imageViewCreateInfo.subresourceRange.setLevelCount(1);
+        imageViewCreateInfo.subresourceRange.setBaseArrayLayer(0);
+        imageViewCreateInfo.subresourceRange.setLayerCount(1);
+
+        _swapchainImageViews.push_back(device().createImageView(imageViewCreateInfo));
+      }
     };
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      for(auto imageView : _swapchainImageViews) {
+        _device.destroyImageView(imageView);
+      }
+
       _device.destroySwapchainKHR(_swapchain);
       _device.destroy();
       
@@ -277,6 +300,22 @@ class Core {
       return _swapchain;
     }
 
+    const std::vector<vk::Image> swapchainImages() const {
+      return _swapchainImages;
+    }
+
+    const vk::Extent2D swapchainExtent() const {
+      return _swapchainExtent;
+    }
+
+    const vk::Format swapchainImageFormat() const {
+      return _swapchainImageFormat;
+    }
+
+    const std::vector<vk::ImageView> swapchainImageViews() const {
+      return _swapchainImageViews;
+    }
+
 private:
     CoreRenderer *_coreRenderer;
 
@@ -290,6 +329,7 @@ private:
     std::vector<vk::Image> _swapchainImages;
     vk::Extent2D _swapchainExtent;
     vk::Format _swapchainImageFormat;
+    std::vector<vk::ImageView> _swapchainImageViews;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
