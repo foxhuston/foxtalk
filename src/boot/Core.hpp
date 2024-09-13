@@ -45,6 +45,8 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT( VkInstance instance,
 
 #endif
 
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
 class Core {
   public:
     Core(const Core &) = delete;
@@ -442,43 +444,50 @@ class Core {
 
       _commandPool = device().createCommandPool(commandPoolCreateInfo);
 
-      ///// COMMAND BUFFER /////////////////////////////////////////////////////
+      ///// COMMAND BUFFERS ////////////////////////////////////////////////////
       vk::CommandBufferAllocateInfo commandBufferAllocateInfo {
         _commandPool
         , vk::CommandBufferLevel::ePrimary
-        , 1
+        , MAX_FRAMES_IN_FLIGHT
       };
 
-      _commandBuffer = _device.allocateCommandBuffers(commandBufferAllocateInfo)[0];
+      _commandBuffers = _device.allocateCommandBuffers(commandBufferAllocateInfo);
 
       ///// SYNCHRONIZATION OBJECTS ////////////////////////////////////////////
-      _imageAvailableSemaphore = _device.createSemaphore({});
-      _renderFinishedSemaphore = _device.createSemaphore({});
-      _inFlightFence = _device.createFence({
-        vk::FenceCreateFlagBits::eSignaled
-      });
+      for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        _imageAvailableSemaphores.push_back(_device.createSemaphore({}));
+        _renderFinishedSemaphores.push_back(_device.createSemaphore({}));
+        _inFlightFences.push_back(_device.createFence({
+          vk::FenceCreateFlagBits::eSignaled
+        }));
+      }
     };
 
     ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
     void withRenderPass(std::function<void(const vk::CommandBuffer&)> drawCalls) {
       ///// SYNC ///////////////////////////////////////////////////////////////
-      device().waitForFences(_inFlightFence, vk::True, UINT64_MAX);
-      device().resetFences(_inFlightFence);
+      auto inFlightFence = _inFlightFences[_currentFrame];
+      auto imageAvailableSemaphore = _imageAvailableSemaphores[_currentFrame];
+      auto renderFinishedSemaphore = _renderFinishedSemaphores[_currentFrame];
+      auto commandBuffer = _commandBuffers[_currentFrame];
+
+      device().waitForFences(inFlightFence, vk::True, UINT64_MAX);
+      device().resetFences(inFlightFence);
 
       ///// ACQUIRE IMAGE //////////////////////////////////////////////////////
-      imageIndex = device().acquireNextImageKHR(
+      uint32_t imageIndex = device().acquireNextImageKHR(
           swapchain()
           , UINT64_MAX
-          , _imageAvailableSemaphore).value;
+          , imageAvailableSemaphore).value;
 
       ///// BEGIN RECORDING ////////////////////////////////////////////////////
-      _commandBuffer.reset();
+      commandBuffer.reset();
 
       vk::CommandBufferBeginInfo beginInfo { };
-      _commandBuffer.begin(beginInfo);
+      commandBuffer.begin(beginInfo);
 
       std::vector<vk::ClearValue> clearValues { {{0.0f, 0.0f, 0.0f, 0.0f }} };
-      auto fb = currentSwapchainFramebuffer();
+      auto fb = _swapchainFramebuffers[imageIndex];
       vk::RenderPassBeginInfo renderPassBeginInfo {
         _renderPass
         , fb
@@ -486,25 +495,21 @@ class Core {
         , clearValues
       };
 
-      _commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+      commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
       // TODO: Maybe a vulkan pipeline == a material??
       //       I think maybe everything from here to endRenderPass might should be 
       //       in the actual drawables...
-      _commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _graphicsPipeline);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _graphicsPipeline);
 
-      std::vector<vk::Viewport> viewports {
-        {
+      commandBuffer.setViewport(0, {{
           0.0f
           , 0.0f
           , static_cast<float>(swapchainExtent().width)
           , static_cast<float>(swapchainExtent().height)
           , 0.0f
           , 1.0f
-        }
-      };
-
-      _commandBuffer.setViewport(0, viewports);
+        }});
 
       std::vector<vk::Rect2D> scissors {
         {
@@ -513,48 +518,53 @@ class Core {
         }
       };
 
-      _commandBuffer.setScissor(0, scissors);
-      drawCalls(commandBuffer());
-      _commandBuffer.endRenderPass();
-      _commandBuffer.end();
+      commandBuffer.setScissor(0, scissors);
+      drawCalls(commandBuffer);
+      commandBuffer.endRenderPass();
+      commandBuffer.end();
 
       ///// END RECORDING / SUBMIT /////////////////////////////////////////////
 
-      std::vector<vk::Semaphore> waitSemaphores { _imageAvailableSemaphore };
       std::vector<vk::PipelineStageFlags> waitStageMask {
         vk::PipelineStageFlagBits::eColorAttachmentOutput
       };
-      std::vector<vk::CommandBuffer> waitCommandBuffers { _commandBuffer };
-      std::vector<vk::Semaphore> signalSemaphores { _renderFinishedSemaphore };
       std::vector<vk::SubmitInfo> submitInfos {
         {
-          waitSemaphores
+          imageAvailableSemaphore
           , waitStageMask
-          , waitCommandBuffers
-          , signalSemaphores
+          , commandBuffer
+          , renderFinishedSemaphore
         }
       };
 
-      _graphicsQueue.submit(submitInfos, _inFlightFence);
+      _graphicsQueue.submit(submitInfos, inFlightFence);
 
       ///// PRESENT ////////////////////////////////////////////////////////////
-      std::vector<vk::SwapchainKHR> swapchains { _swapchain };
-      std::vector<uint32_t> imageIndices { imageIndex };
       vk::PresentInfoKHR presentInfo {
-        signalSemaphores
-        , swapchains
-        , imageIndices
+        renderFinishedSemaphore
+        , _swapchain
+        , imageIndex
       };
 
       presentQueue().presentKHR(presentInfo);
 
     }
 
+    void incrementFrame() {
+      _currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
-      _device.destroyFence(_inFlightFence);
-      _device.destroySemaphore(_renderFinishedSemaphore);
-      _device.destroySemaphore(_imageAvailableSemaphore);
+      for(auto fence : _inFlightFences) {
+        _device.destroyFence(fence);
+      }
+      for(auto semaphore : _renderFinishedSemaphores) {
+        _device.destroySemaphore(semaphore);
+      }
+      for(auto semaphore : _imageAvailableSemaphores) {
+        _device.destroySemaphore(semaphore);
+      }
 
       _device.destroyCommandPool(_commandPool);
 
@@ -636,18 +646,10 @@ class Core {
       return _swapchainFramebuffers;
     }
 
-    const vk::Framebuffer currentSwapchainFramebuffer() const {
-      return _swapchainFramebuffers[imageIndex];
-    }
-
-    const vk::CommandBuffer commandBuffer() const {
-      return _commandBuffer;
-    }
-
 private:
     CoreRenderer *_coreRenderer;
 
-    uint32_t imageIndex = 0;
+    uint32_t _currentFrame = 0;
 
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
@@ -666,16 +668,16 @@ private:
     vk::PipelineLayout _pipelineLayout;
     vk::Pipeline _graphicsPipeline;
     vk::CommandPool _commandPool;
-    vk::CommandBuffer _commandBuffer;
+    std::vector<vk::CommandBuffer> _commandBuffers;
 
     Shader *_vertexShader;
     Shader *_fragmentShader;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
-    vk::Semaphore _imageAvailableSemaphore;
-    vk::Semaphore _renderFinishedSemaphore;
-    vk::Fence _inFlightFence;
+    std::vector<vk::Semaphore> _imageAvailableSemaphores;
+    std::vector<vk::Semaphore> _renderFinishedSemaphores;
+    std::vector<vk::Fence> _inFlightFences;
 
 #ifndef NDEBUG
     vk::DebugUtilsMessengerEXT _debugUtilsMessenger;
