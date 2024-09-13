@@ -7,17 +7,13 @@
 
 #include <fstream>
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
-#include "boot/Core.hpp"
+#include "Core.hpp"
 
 class Shader {
   public:
     Shader(const Shader &) = delete;
-    Shader(Shader &&) = delete;
     Shader &operator=(const Shader &) = delete;
-    Shader &operator=(Shader &&) = delete;
 
     Shader(Core *__core, const std::string &fileName) : _core{__core} {
       auto shader_code = readFile(fileName);

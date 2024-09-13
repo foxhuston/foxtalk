@@ -6,7 +6,6 @@ int main() {
   Glfw container {}; // TODO: write VK_KHR_DISPLAY_EXTENSION version
 
   Core core(&container);
-  Foxtalk app(&core);
 
   container.mainLoop();
 

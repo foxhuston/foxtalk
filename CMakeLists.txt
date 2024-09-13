@@ -41,7 +41,9 @@ endfunction()
 
 #TODO: This is probably not the way to do it.
 include_directories(${OpenCV_INCLUDE_DIRS})
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME}
+  src/main.cpp
+)
 
 compile_shader(${PROJECT_NAME}
         ENV vulkan

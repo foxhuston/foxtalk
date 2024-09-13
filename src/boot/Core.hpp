@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
@@ -17,6 +18,7 @@
 #include "CoreRenderer.hpp"
 #include "QueueFamilies.hpp"
 #include "SwapchainSupportDetails.hpp"
+#include "GraphicsPipeline.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -39,7 +41,6 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT( VkInstance instance,
 }
 
 #endif
-
 
 class Core {
   public:
@@ -249,6 +250,25 @@ class Core {
 
         _swapchainImageViews.push_back(device().createImageView(imageViewCreateInfo));
       }
+
+      ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
+      for(auto& view : swapchainImageViews()) {
+        std::vector<vk::ImageView> attachments { view };
+
+        vk::FramebufferCreateInfo framebufferCreateInfo {
+          {}
+          , {}
+          , attachments
+          , swapchainExtent().width
+          , swapchainExtent().height
+          , 1
+        };
+
+        _swapchainFramebuffers.push_back(device().createFramebuffer(framebufferCreateInfo));
+      }
+
+      ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
+      _graphicsPipeline = GraphicsPipeline(&this);
     };
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
@@ -316,6 +336,10 @@ class Core {
       return _swapchainImageViews;
     }
 
+    const std::vector<vk::Framebuffer> swapchainFramebuffers() const {
+      return _swapchainFramebuffers;
+    }
+
 private:
     CoreRenderer *_coreRenderer;
 
@@ -330,6 +354,9 @@ private:
     vk::Extent2D _swapchainExtent;
     vk::Format _swapchainImageFormat;
     std::vector<vk::ImageView> _swapchainImageViews;
+    std::vector<vk::Framebuffer> _swapchainFramebuffers;
+
+    GraphicsPipeline _graphicsPipeline;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
