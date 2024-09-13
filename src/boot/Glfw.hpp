@@ -7,6 +7,7 @@
 
 #include "CoreRenderer.hpp"
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan.hpp>
@@ -61,9 +62,10 @@ public:
         static_cast<uint32_t>(height));
   };
 
-  void mainLoop() {
+  void mainLoop(std::function<void(void)> appTick) {
     while(!glfwWindowShouldClose(window)) {
       glfwPollEvents();
+      appTick();
     }
     std::cout << "glfw should close!" << std::endl;
   }

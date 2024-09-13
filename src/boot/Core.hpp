@@ -5,12 +5,17 @@
 #ifndef FOXTALK_TEST_CORE_H
 #define FOXTALK_TEST_CORE_H
 
+#include <functional>
 #include <iostream>
 #include <set>
 #include <vector>
 
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 #include "CoreRenderer.hpp"
 #include "QueueFamilies.hpp"
@@ -414,12 +419,71 @@ class Core {
       //       `VKResult`s didn't?
       _graphicsPipeline = _device.createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
 
-      ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
+      ///// COMMAND POOL ///////////////////////////////////////////////////////
+      vk::CommandPoolCreateInfo commandPoolCreateInfo {
+        vk::CommandPoolCreateFlagBits::eResetCommandBuffer
+        , _queueFamilyIndices.graphicsFamily.value()
+      };
 
+      _commandPool = device().createCommandPool(commandPoolCreateInfo);
+
+      ///// COMMAND BUFFER /////////////////////////////////////////////////////
+      vk::CommandBufferAllocateInfo commandBufferAllocateInfo {
+        _commandPool
+        , vk::CommandBufferLevel::ePrimary
+        , 1
+      };
+
+      _commandBuffer = _device.allocateCommandBuffers(commandBufferAllocateInfo)[0];
     };
+
+    void withRenderPass(std::function<void(const vk::CommandBuffer&)> drawCalls) {
+      std::vector<vk::ClearValue> clearValues { {{0.0f, 0.0f, 0.0f, 0.0f }} };
+
+      vk::RenderPassBeginInfo renderPassBeginInfo {
+        _renderPass
+        , _swapchainFramebuffers[imageIndex]
+        , { {0, 0}, _swapchainExtent }
+        , clearValues
+      };
+
+      _commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+
+      // TODO: Maybe a vulkan pipeline == a material??
+      //       I think maybe everything from here to endRenderPass might should be 
+      //       in the actual drawables...
+      _commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _graphicsPipeline);
+
+      std::vector<vk::Viewport> viewports {
+        {
+          0.0f
+          , 0.0f
+          , static_cast<float>(swapchainExtent().width)
+          , static_cast<float>(swapchainExtent().height)
+          , 0.0f
+          , 1.0f
+        }
+      };
+
+      _commandBuffer.setViewport(0, viewports);
+
+      std::vector<vk::Rect2D> scissors {
+        {
+          {0, 0}
+          , swapchainExtent()
+        }
+      };
+
+      _commandBuffer.setScissor(0, scissors);
+      drawCalls(commandBuffer());
+      _commandBuffer.endRenderPass();
+      _commandBuffer.end();
+    }
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      _device.destroyCommandPool(_commandPool);
+
       for(auto fb : _swapchainFramebuffers) {
         _device.destroyFramebuffer(fb);
       }
@@ -498,8 +562,14 @@ class Core {
       return _swapchainFramebuffers;
     }
 
+    const vk::CommandBuffer commandBuffer() const {
+      return _commandBuffer;
+    }
+
 private:
     CoreRenderer *_coreRenderer;
+
+    uint32_t imageIndex;
 
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
@@ -517,6 +587,8 @@ private:
     vk::RenderPass _renderPass;
     vk::PipelineLayout _pipelineLayout;
     vk::Pipeline _graphicsPipeline;
+    vk::CommandPool _commandPool;
+    vk::CommandBuffer _commandBuffer;
 
     Shader *_vertexShader;
     Shader *_fragmentShader;

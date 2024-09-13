@@ -7,7 +7,12 @@ int main() {
 
   Core core(&container);
 
-  container.mainLoop();
+  container.mainLoop([&core]() {
+    core.withRenderPass([](const vk::CommandBuffer &cmdBuffer) {
+        cmdBuffer.draw(3, 1, 0, 0);
+    });
+  });
+
 
   return 0;
 }
