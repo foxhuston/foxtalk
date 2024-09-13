@@ -296,8 +296,9 @@ class Core {
       _renderPass = _device.createRenderPass(renderPassCreateInfo);
 
       ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
-      for(auto& view : swapchainImageViews()) {
-        std::vector<vk::ImageView> attachments { view };
+      for(auto& imageView : swapchainImageViews()) {
+        std::cout << "TMP DEBUG Creating swapchain imageview..." << std::endl;
+        std::vector<vk::ImageView> attachments { imageView };
 
         vk::FramebufferCreateInfo framebufferCreateInfo {
           {}
@@ -310,6 +311,8 @@ class Core {
 
         _swapchainFramebuffers.push_back(device().createFramebuffer(framebufferCreateInfo));
       }
+
+      std::cout << "TMP DEBUG SWAPCHAIN FRAMEBUFFER COUNT: " << _swapchainFramebuffers.size() << std::endl;
 
       ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
       std::cout << "TMP DEBUG SHADER LOAD START" << std::endl;
@@ -440,9 +443,14 @@ class Core {
     void withRenderPass(std::function<void(const vk::CommandBuffer&)> drawCalls) {
       std::vector<vk::ClearValue> clearValues { {{0.0f, 0.0f, 0.0f, 0.0f }} };
 
+      vk::CommandBufferBeginInfo beginInfo { };
+      _commandBuffer.begin(beginInfo);
+
+      auto fb = currentSwapchainFramebuffer();
+      std::cout << "TMP DEBUG CURRENT SWAPCHAIN FB " << fb << std::endl;
       vk::RenderPassBeginInfo renderPassBeginInfo {
         _renderPass
-        , _swapchainFramebuffers[imageIndex]
+        , fb
         , { {0, 0}, _swapchainExtent }
         , clearValues
       };
@@ -562,6 +570,10 @@ class Core {
       return _swapchainFramebuffers;
     }
 
+    const vk::Framebuffer currentSwapchainFramebuffer() const {
+      return _swapchainFramebuffers[imageIndex];
+    }
+
     const vk::CommandBuffer commandBuffer() const {
       return _commandBuffer;
     }
@@ -569,7 +581,7 @@ class Core {
 private:
     CoreRenderer *_coreRenderer;
 
-    uint32_t imageIndex;
+    uint32_t imageIndex = 0;
 
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
