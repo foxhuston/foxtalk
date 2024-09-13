@@ -206,55 +206,7 @@ class Core {
       _graphicsQueue = device().getQueue(_queueFamilyIndices.graphicsFamily.value(), 0);
       _presentQueue  = device().getQueue(_queueFamilyIndices.presentFamily.value(), 0);
 
-      ///// SWAPCHAIN ////////////////////////////////////////////////////////////
-      SwapchainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
-      auto surfaceFormat = swapChainSupportDetails.chooseSwapSurfaceFormat();
-      auto presentMode   = swapChainSupportDetails.chooseSwapPresentMode();
-      _swapchainExtent   = swapChainSupportDetails.chooseSwapExtent(coreRenderer().getFramebufferSize());
-
-      uint32_t imageCount = swapChainSupportDetails.capabilities.minImageCount + 1;
-      if(swapChainSupportDetails.capabilities.maxImageCount > 0 && imageCount > swapChainSupportDetails.capabilities.maxImageCount) {
-        imageCount = swapChainSupportDetails.capabilities.maxImageCount;
-      }
-
-      vk::SwapchainCreateInfoKHR swapchainCreateInfo(
-          {}, outputSurface(), imageCount, surfaceFormat.format, surfaceFormat.colorSpace,
-          _swapchainExtent, 1, vk::ImageUsageFlagBits::eColorAttachment);
-
-      if(_queueFamilyIndices.graphicsFamily != _queueFamilyIndices.presentFamily) {
-        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eConcurrent);
-        swapchainCreateInfo.setQueueFamilyIndices(queueFamilyIndices);
-      } else {
-        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eExclusive);
-      }
-      
-      swapchainCreateInfo.setPreTransform(swapChainSupportDetails.capabilities.currentTransform);
-      swapchainCreateInfo.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
-
-      _swapchain = device().createSwapchainKHR(swapchainCreateInfo);
-
-      ///// SWAPCHAIN IMAGES /////////////////////////////////////////////////////
-      _swapchainImages = device().getSwapchainImagesKHR(swapchain());
-      _swapchainImageFormat = surfaceFormat.format;
-
-      ///// SWAPCHAIN IMAGE VIEWS ////////////////////////////////////////////////
-      for(auto& image : swapchainImages()) {
-        vk::ImageViewCreateInfo imageViewCreateInfo(
-            {}, image, vk::ImageViewType::e2D, swapchainImageFormat());
-
-        imageViewCreateInfo.components.setR(vk::ComponentSwizzle::eIdentity);
-        imageViewCreateInfo.components.setG(vk::ComponentSwizzle::eIdentity);
-        imageViewCreateInfo.components.setB(vk::ComponentSwizzle::eIdentity);
-        imageViewCreateInfo.components.setA(vk::ComponentSwizzle::eIdentity);
-
-        imageViewCreateInfo.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
-        imageViewCreateInfo.subresourceRange.setBaseMipLevel(0);
-        imageViewCreateInfo.subresourceRange.setLevelCount(1);
-        imageViewCreateInfo.subresourceRange.setBaseArrayLayer(0);
-        imageViewCreateInfo.subresourceRange.setLayerCount(1);
-
-        _swapchainImageViews.push_back(device().createImageView(imageViewCreateInfo));
-      }
+      createSwapchain();
 
       ///// COLOR ATTACHMENT DESCRIPTION ///////////////////////////////////////
       std::vector<vk::AttachmentDescription> colorAttachmentDescriptions {
@@ -309,24 +261,7 @@ class Core {
 
       _renderPass = _device.createRenderPass(renderPassCreateInfo);
 
-      ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
-      for(auto& imageView : swapchainImageViews()) {
-        std::cout << "TMP DEBUG Creating swapchain imageview..." << std::endl;
-        std::vector<vk::ImageView> attachments { imageView };
-
-        vk::FramebufferCreateInfo framebufferCreateInfo {
-          {}
-          , _renderPass
-          , attachments
-          , swapchainExtent().width
-          , swapchainExtent().height
-          , 1
-        };
-
-        _swapchainFramebuffers.push_back(device().createFramebuffer(framebufferCreateInfo));
-      }
-
-      std::cout << "TMP DEBUG SWAPCHAIN FRAMEBUFFER COUNT: " << _swapchainFramebuffers.size() << std::endl;
+      createFramebuffers();
 
       ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
       std::cout << "TMP DEBUG SHADER LOAD START" << std::endl;
@@ -461,6 +396,11 @@ class Core {
           vk::FenceCreateFlagBits::eSignaled
         }));
       }
+
+      ///// RESIZE NOTIFICATIONS ///////////////////////////////////////////////
+      cr->setResizeCallback([this](auto w, auto h) {
+        this->_framebufferResized = true;
+      });
     };
 
     ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
@@ -472,14 +412,29 @@ class Core {
       auto commandBuffer = _commandBuffers[_currentFrame];
 
       device().waitForFences(inFlightFence, vk::True, UINT64_MAX);
-      device().resetFences(inFlightFence);
 
       ///// ACQUIRE IMAGE //////////////////////////////////////////////////////
-      uint32_t imageIndex = device().acquireNextImageKHR(
+      auto nextImageResult = device().acquireNextImageKHR(
           swapchain()
           , UINT64_MAX
-          , imageAvailableSemaphore).value;
+          , imageAvailableSemaphore);
 
+      switch(nextImageResult.result) {
+        case vk::Result::eErrorOutOfDateKHR:
+          recreateSwapchain();
+          return;
+
+        case vk::Result::eSuccess:
+        case vk::Result::eSuboptimalKHR:
+          break;
+
+        default:
+          throw std::runtime_error("Failed to acquire swapchain image!");
+      }
+
+      uint32_t imageIndex = nextImageResult.value;
+
+      device().resetFences(inFlightFence);
       ///// BEGIN RECORDING ////////////////////////////////////////////////////
       commandBuffer.reset();
 
@@ -546,16 +501,29 @@ class Core {
         , imageIndex
       };
 
-      presentQueue().presentKHR(presentInfo);
+      auto presentQueueResult = presentQueue().presentKHR(presentInfo);
 
+      if(presentQueueResult == vk::Result::eErrorOutOfDateKHR
+          || presentQueueResult == vk::Result::eSuboptimalKHR
+          || _framebufferResized) {
+        _framebufferResized = false;
+        recreateSwapchain();
+      } else if (presentQueueResult != vk::Result::eSuccess) {
+          throw std::runtime_error("Failed to present swapchain image!");
+      }
     }
 
     void incrementFrame() {
       _currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
+    void notifyFramebufferResized() {
+      _framebufferResized = true;
+    }
+
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+
       for(auto fence : _inFlightFences) {
         _device.destroyFence(fence);
       }
@@ -568,9 +536,7 @@ class Core {
 
       _device.destroyCommandPool(_commandPool);
 
-      for(auto fb : _swapchainFramebuffers) {
-        _device.destroyFramebuffer(fb);
-      }
+      cleanupSwapchain();
 
       delete _vertexShader;
       delete _fragmentShader;
@@ -579,11 +545,6 @@ class Core {
       _device.destroyPipelineLayout(_pipelineLayout);
       _device.destroyRenderPass(_renderPass);
 
-      for(auto imageView : _swapchainImageViews) {
-        _device.destroyImageView(imageView);
-      }
-
-      _device.destroySwapchainKHR(_swapchain);
       _device.destroy();
       
 #ifndef NDEBUG
@@ -650,6 +611,7 @@ private:
     CoreRenderer *_coreRenderer;
 
     uint32_t _currentFrame = 0;
+    bool _framebufferResized = false;
 
     vk::Instance _instance;
     vk::PhysicalDevice _physicalDevice;
@@ -678,6 +640,102 @@ private:
     std::vector<vk::Semaphore> _imageAvailableSemaphores;
     std::vector<vk::Semaphore> _renderFinishedSemaphores;
     std::vector<vk::Fence> _inFlightFences;
+
+
+    void createSwapchain() {
+      ///// SWAPCHAIN ////////////////////////////////////////////////////////////
+      SwapchainSupportDetails swapChainSupportDetails(physicalDevice(), outputSurface());
+      auto surfaceFormat = swapChainSupportDetails.chooseSwapSurfaceFormat();
+      auto presentMode   = swapChainSupportDetails.chooseSwapPresentMode();
+      _swapchainExtent   = swapChainSupportDetails.chooseSwapExtent(coreRenderer().getFramebufferSize());
+
+      uint32_t imageCount = swapChainSupportDetails.capabilities.minImageCount + 1;
+      if(swapChainSupportDetails.capabilities.maxImageCount > 0 && imageCount > swapChainSupportDetails.capabilities.maxImageCount) {
+        imageCount = swapChainSupportDetails.capabilities.maxImageCount;
+      }
+
+      vk::SwapchainCreateInfoKHR swapchainCreateInfo(
+          {}, outputSurface(), imageCount, surfaceFormat.format, surfaceFormat.colorSpace,
+          _swapchainExtent, 1, vk::ImageUsageFlagBits::eColorAttachment);
+
+      if(_queueFamilyIndices.graphicsFamily != _queueFamilyIndices.presentFamily) {
+        std::vector<uint32_t> queueFamilyIndices = _queueFamilyIndices.indices();
+
+        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eConcurrent);
+        swapchainCreateInfo.setQueueFamilyIndices(queueFamilyIndices);
+      } else {
+        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eExclusive);
+      }
+      
+      swapchainCreateInfo.setPreTransform(swapChainSupportDetails.capabilities.currentTransform);
+      swapchainCreateInfo.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
+
+      _swapchain = device().createSwapchainKHR(swapchainCreateInfo);
+
+      ///// SWAPCHAIN IMAGES /////////////////////////////////////////////////////
+      _swapchainImages = device().getSwapchainImagesKHR(swapchain());
+      _swapchainImageFormat = surfaceFormat.format;
+
+      ///// SWAPCHAIN IMAGE VIEWS ////////////////////////////////////////////////
+      for(auto& image : swapchainImages()) {
+        vk::ImageViewCreateInfo imageViewCreateInfo(
+            {}, image, vk::ImageViewType::e2D, swapchainImageFormat());
+
+        imageViewCreateInfo.components.setR(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setG(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setB(vk::ComponentSwizzle::eIdentity);
+        imageViewCreateInfo.components.setA(vk::ComponentSwizzle::eIdentity);
+
+        imageViewCreateInfo.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
+        imageViewCreateInfo.subresourceRange.setBaseMipLevel(0);
+        imageViewCreateInfo.subresourceRange.setLevelCount(1);
+        imageViewCreateInfo.subresourceRange.setBaseArrayLayer(0);
+        imageViewCreateInfo.subresourceRange.setLayerCount(1);
+
+        _swapchainImageViews.push_back(device().createImageView(imageViewCreateInfo));
+      }
+    }
+
+    void createFramebuffers() {
+      ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
+      for(auto& imageView : swapchainImageViews()) {
+        std::vector<vk::ImageView> attachments { imageView };
+
+        vk::FramebufferCreateInfo framebufferCreateInfo {
+          {}
+          , _renderPass
+          , attachments
+          , swapchainExtent().width
+          , swapchainExtent().height
+          , 1
+        };
+
+        _swapchainFramebuffers.push_back(device().createFramebuffer(framebufferCreateInfo));
+      }
+
+
+    }
+
+    void cleanupSwapchain() {
+      for(auto fb : _swapchainFramebuffers) {
+        _device.destroyFramebuffer(fb);
+      }
+
+      for(auto imageView : _swapchainImageViews) {
+        _device.destroyImageView(imageView);
+      }
+
+      _device.destroySwapchainKHR(_swapchain);
+    }
+
+    void recreateSwapchain() {
+      device().waitIdle();
+
+      cleanupSwapchain();
+
+      createSwapchain();
+      createFramebuffers();
+    }
 
 #ifndef NDEBUG
     vk::DebugUtilsMessengerEXT _debugUtilsMessenger;

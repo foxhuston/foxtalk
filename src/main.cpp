@@ -12,6 +12,7 @@ int main() {
     core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer) {
         foxtalk.render(cmdBuffer);
     });
+    core.incrementFrame();
   });
 
   core.device().waitIdle();

@@ -7,6 +7,7 @@
 
 #include "CoreRenderer.hpp"
 #include <cstdint>
+#include <optional>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
@@ -23,14 +24,17 @@
 
 
 class Glfw : public CoreRenderer {
+
 public:
   Glfw() {
-
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    /* glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); */
     window = glfwCreateWindow(800, 600, "Dust", nullptr, nullptr);
+
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
   }
 
   std::vector<const char*> extensions() const {
@@ -62,6 +66,10 @@ public:
         static_cast<uint32_t>(height));
   };
 
+  void setResizeCallback(std::function<void(int, int)> callback) {
+    _resizeCallback = callback;
+  }
+
   void mainLoop(std::function<void(void)> appTick) {
     while(!glfwWindowShouldClose(window)) {
       glfwPollEvents();
@@ -77,6 +85,14 @@ public:
 
   private:
     GLFWwindow *window;
+    std::optional<std::function<void(int, int)>> _resizeCallback;
+
+    static void framebufferResizeCallback(GLFWwindow *window, int width, int height) {
+      auto self = reinterpret_cast<Glfw*>(glfwGetWindowUserPointer(window));
+      if(self->_resizeCallback.has_value()) {
+        self->_resizeCallback.value()(width, height);
+      }
+    }
 };
 
 
