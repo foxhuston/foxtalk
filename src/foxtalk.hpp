@@ -29,7 +29,7 @@ class Foxtalk {
       vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
 
       ///// INPUT ASSEMBLY /////////////////////////////////////////////////////
-      vk::PipelineInputAssemblyStateCreateInfo {
+      vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo {
         {}, vk::PrimitiveTopology::eTriangleList, vk::False
       };
 
@@ -100,6 +100,68 @@ class Foxtalk {
       vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo { };
       _pipelineLayout = core().device().createPipelineLayout(pipelineLayoutCreateInfo); 
 
+      ///// PIPELINE ///////////////////////////////////////////////////////////
+      vk::GraphicsPipelineCreateInfo pipelineCreateInfo {
+        {}
+        , shaderStages
+        , &vertexInputInfo
+        , &pipelineInputAssemblyStateCreateInfo
+        , {}
+        , &viewportStateCreateInfo
+        , &rasterizerCreateInfo
+        , {}
+        , {}
+        , &colorBlendingCreateInfo
+        , &dynamicStateCreateInfo
+        , _pipelineLayout
+        , _renderPass
+        , 0
+      };
+
+      // TODO: Why does this one need a `.value` when it seemed like the rest of the
+      //       `VKResult`s didn't?
+      _graphicsPipeline = core().device().createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
+
+      ///// COLOR ATTACHMENT DESCRIPTION ///////////////////////////////////////
+      std::vector<vk::AttachmentDescription> colorAttachmentDescriptions {
+        {
+          {}
+          , core().swapchainImageFormat()
+          , vk::SampleCountFlagBits::e1
+          , vk::AttachmentLoadOp::eClear
+          , vk::AttachmentStoreOp::eStore
+          , vk::AttachmentLoadOp::eDontCare
+          , vk::AttachmentStoreOp::eDontCare
+          , vk::ImageLayout::eUndefined
+          , vk::ImageLayout::ePresentSrcKHR
+        }
+      };
+
+      ///// RENDER SUBPASSES ///////////////////////////////////////////////////
+      std::vector<vk::AttachmentReference> colorAttachmentReferences {
+        {
+          {}
+          , vk::ImageLayout::eColorAttachmentOptimal
+        }
+      };
+
+      std::vector<vk::SubpassDescription> subpassDescriptions {
+        {
+          {}
+          , vk::PipelineBindPoint::eGraphics
+          , {}
+          , colorAttachmentReferences
+        }
+      };
+
+      ///// RENDER PASS ////////////////////////////////////////////////////////
+      vk::RenderPassCreateInfo renderPassCreateInfo {
+        {}
+        , colorAttachmentDescriptions
+        , subpassDescriptions
+      };
+
+      _renderPass = core().device().createRenderPass(renderPassCreateInfo);
     }
 
     Core& core() const {
@@ -107,7 +169,9 @@ class Foxtalk {
     }
 
     ~Foxtalk() {
+      core().device().destroyPipeline(_graphicsPipeline);
       core().device().destroyPipelineLayout(_pipelineLayout);
+      core().device().destroyRenderPass(_renderPass);
     }
 
   private:
@@ -115,7 +179,10 @@ class Foxtalk {
     Shader _vertexShader;
     Shader _fragmentShader;
 
+
+    vk::RenderPass _renderPass;
     vk::PipelineLayout _pipelineLayout;
+    vk::Pipeline _graphicsPipeline;
 
 };
 

@@ -41,17 +41,15 @@ endfunction()
 
 #TODO: This is probably not the way to do it.
 include_directories(${OpenCV_INCLUDE_DIRS})
-add_executable(${PROJECT_NAME} src/main.cpp
-        src/boot/Core.h
-        src/boot/Glfw.h)
+add_executable(${PROJECT_NAME} src/main.cpp)
 
-# compile_shader(${PROJECT_NAME}
-#         ENV vulkan
-#         FORMAT bin
-#         SOURCES
-#             src/26_shader_textures.vert
-#             src/26_shader_textures.frag
-# )
+compile_shader(${PROJECT_NAME}
+        ENV vulkan
+        FORMAT bin
+        SOURCES
+            src/shaders/simple.vert
+            src/shaders/simple.frag
+)
 
 
 target_link_libraries(${PROJECT_NAME}
