@@ -277,6 +277,16 @@ class Core {
         }
       };
 
+      std::vector<vk::SubpassDependency> subpassDependencies {
+        {
+          vk::SubpassExternal, 0
+          , vk::PipelineStageFlagBits::eColorAttachmentOutput
+          , vk::PipelineStageFlagBits::eColorAttachmentOutput
+          , vk::AccessFlagBits::eNone
+          , vk::AccessFlagBits::eColorAttachmentWrite
+        }
+      };
+
       std::vector<vk::SubpassDescription> subpassDescriptions {
         {
           {}
@@ -291,6 +301,8 @@ class Core {
         {}
         , colorAttachmentDescriptions
         , subpassDescriptions
+        , subpassDependencies
+        ,
       };
 
       _renderPass = _device.createRenderPass(renderPassCreateInfo);
@@ -438,16 +450,35 @@ class Core {
       };
 
       _commandBuffer = _device.allocateCommandBuffers(commandBufferAllocateInfo)[0];
+
+      ///// SYNCHRONIZATION OBJECTS ////////////////////////////////////////////
+      _imageAvailableSemaphore = _device.createSemaphore({});
+      _renderFinishedSemaphore = _device.createSemaphore({});
+      _inFlightFence = _device.createFence({
+        vk::FenceCreateFlagBits::eSignaled
+      });
     };
 
+    ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
     void withRenderPass(std::function<void(const vk::CommandBuffer&)> drawCalls) {
-      std::vector<vk::ClearValue> clearValues { {{0.0f, 0.0f, 0.0f, 0.0f }} };
+      ///// SYNC ///////////////////////////////////////////////////////////////
+      device().waitForFences(_inFlightFence, vk::True, UINT64_MAX);
+      device().resetFences(_inFlightFence);
+
+      ///// ACQUIRE IMAGE //////////////////////////////////////////////////////
+      imageIndex = device().acquireNextImageKHR(
+          swapchain()
+          , UINT64_MAX
+          , _imageAvailableSemaphore).value;
+
+      ///// BEGIN RECORDING ////////////////////////////////////////////////////
+      _commandBuffer.reset();
 
       vk::CommandBufferBeginInfo beginInfo { };
       _commandBuffer.begin(beginInfo);
 
+      std::vector<vk::ClearValue> clearValues { {{0.0f, 0.0f, 0.0f, 0.0f }} };
       auto fb = currentSwapchainFramebuffer();
-      std::cout << "TMP DEBUG CURRENT SWAPCHAIN FB " << fb << std::endl;
       vk::RenderPassBeginInfo renderPassBeginInfo {
         _renderPass
         , fb
@@ -486,10 +517,45 @@ class Core {
       drawCalls(commandBuffer());
       _commandBuffer.endRenderPass();
       _commandBuffer.end();
+
+      ///// END RECORDING / SUBMIT /////////////////////////////////////////////
+
+      std::vector<vk::Semaphore> waitSemaphores { _imageAvailableSemaphore };
+      std::vector<vk::PipelineStageFlags> waitStageMask {
+        vk::PipelineStageFlagBits::eColorAttachmentOutput
+      };
+      std::vector<vk::CommandBuffer> waitCommandBuffers { _commandBuffer };
+      std::vector<vk::Semaphore> signalSemaphores { _renderFinishedSemaphore };
+      std::vector<vk::SubmitInfo> submitInfos {
+        {
+          waitSemaphores
+          , waitStageMask
+          , waitCommandBuffers
+          , signalSemaphores
+        }
+      };
+
+      _graphicsQueue.submit(submitInfos, _inFlightFence);
+
+      ///// PRESENT ////////////////////////////////////////////////////////////
+      std::vector<vk::SwapchainKHR> swapchains { _swapchain };
+      std::vector<uint32_t> imageIndices { imageIndex };
+      vk::PresentInfoKHR presentInfo {
+        signalSemaphores
+        , swapchains
+        , imageIndices
+      };
+
+      presentQueue().presentKHR(presentInfo);
+
     }
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      _device.destroyFence(_inFlightFence);
+      _device.destroySemaphore(_renderFinishedSemaphore);
+      _device.destroySemaphore(_imageAvailableSemaphore);
+
       _device.destroyCommandPool(_commandPool);
 
       for(auto fb : _swapchainFramebuffers) {
@@ -606,6 +672,10 @@ private:
     Shader *_fragmentShader;
 
     QueueFamiliyIndices _queueFamilyIndices;
+
+    vk::Semaphore _imageAvailableSemaphore;
+    vk::Semaphore _renderFinishedSemaphore;
+    vk::Fence _inFlightFence;
 
 #ifndef NDEBUG
     vk::DebugUtilsMessengerEXT _debugUtilsMessenger;
