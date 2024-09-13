@@ -93,7 +93,11 @@ class Foxtalk {
     void tick() { }
 
     void render(const vk::CommandBuffer& cmdBuffer) {
-        cmdBuffer.draw(3, 1, 0, 0);
+      std::vector<vk::Buffer> buffs { _vertexBuffer };
+      std::vector<vk::DeviceSize> offsets { 0 };
+
+      cmdBuffer.bindVertexBuffers(0, buffs, offsets);
+      cmdBuffer.draw(static_cast<uint32_t>(_vertices.size()), 1, 0, 0);
     }
 
     ///// GETTERS & SETTERS ////////////////////////////////////////////////////

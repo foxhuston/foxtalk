@@ -8,7 +8,11 @@ int main() {
   Core core(&container);
 
   const auto fbSize = container.getFramebufferSize();
-  Foxtalk foxtalk (fbSize.width, fbSize.height);
+  Foxtalk foxtalk {
+    &core.physicalDevice(),
+    &core.device(),
+    static_cast<float>(fbSize.width),
+    static_cast<float>(fbSize.height) };
 
   container.mainLoop([&core, &foxtalk]() {
     core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer) {
