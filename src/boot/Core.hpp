@@ -22,6 +22,7 @@
 #include "SwapchainSupportDetails.hpp"
 /* #include "GraphicsPipeline.hpp" */
 #include "shader.hpp"
+#include "../Vertex.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -275,7 +276,11 @@ class Core {
       };
 
       ///// GEOMETRY ///////////////////////////////////////////////////////////
-      vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
+      auto vertexBindingDescriptions = Vertex::getBindingDescriptions();
+      auto vertexAttributeDescriptions = Vertex::getAttributeDescriptions();
+      vk::PipelineVertexInputStateCreateInfo vertexInputInfo {
+        {}, vertexBindingDescriptions, vertexAttributeDescriptions
+      };
 
       ///// INPUT ASSEMBLY /////////////////////////////////////////////////////
       vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo {

@@ -12,6 +12,8 @@ find_package(glm CONFIG REQUIRED)
 # find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 # find_package(assimp CONFIG REQUIRED)
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/shaders/)
+
 ################################################################################
 ## From https://stackoverflow.com/a/60472877
 

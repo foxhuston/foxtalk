@@ -6,7 +6,9 @@ int main() {
   Glfw container {}; // TODO: write VK_KHR_DISPLAY_EXTENSION version
 
   Core core(&container);
-  Foxtalk foxtalk { };
+
+  const auto fbSize = container.getFramebufferSize();
+  Foxtalk foxtalk (fbSize.width, fbSize.height);
 
   container.mainLoop([&core, &foxtalk]() {
     core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer) {
