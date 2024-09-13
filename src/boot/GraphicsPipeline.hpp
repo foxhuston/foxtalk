@@ -5,7 +5,6 @@
 #ifndef FOXTALK_GRAPHICS_PIPELINE_H
 #define FOXTALK_GRAPHICS_PIPELINE_H
 
-#include "Core.hpp"
 #include "shader.hpp"
 #include <vulkan/vulkan.hpp>
 
@@ -14,10 +13,21 @@ class GraphicsPipeline {
     GraphicsPipeline(const GraphicsPipeline &) = delete;
     GraphicsPipeline &operator=(const GraphicsPipeline &) = delete;
 
+    GraphicsPipeline &operator=(GraphicsPipeline &&other) {
+      _device = other._device;
+      _swapchainImageFormat = other._swapchainImageFormat;
+      _vertexShader = std::move(other._vertexShader);
+      _fragmentShader = std::move(other._fragmentShader);
 
-    GraphicsPipeline(Core *__core)
-        : _core{__core}, _vertexShader{__core, "src/shaders/simple.vert.bin"},
-          _fragmentShader{__core, "src/shaders/simple.frag.bin"} {
+      return *this;
+    };
+
+    GraphicsPipeline(vk::Device *__device, vk::Format __swapchainImageFormat)
+        : _device { __device }
+        , _swapchainImageFormat { __swapchainImageFormat }
+        , _vertexShader{ __device, "src/shaders/simple.vert.bin" }
+        , _fragmentShader{ __device, "src/shaders/simple.frag.bin" }
+    {
       ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
 
       auto shaderStages = {
@@ -98,7 +108,7 @@ class GraphicsPipeline {
 
       ///// PIPELINE LAYOUT ////////////////////////////////////////////////////
       vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo { };
-      _pipelineLayout = core().device().createPipelineLayout(pipelineLayoutCreateInfo); 
+      _pipelineLayout = _device->createPipelineLayout(pipelineLayoutCreateInfo); 
 
       ///// PIPELINE ///////////////////////////////////////////////////////////
       vk::GraphicsPipelineCreateInfo pipelineCreateInfo {
@@ -120,13 +130,13 @@ class GraphicsPipeline {
 
       // TODO: Why does this one need a `.value` when it seemed like the rest of the
       //       `VKResult`s didn't?
-      _graphicsPipeline = core().device().createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
+      _graphicsPipeline = _device->createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
 
       ///// COLOR ATTACHMENT DESCRIPTION ///////////////////////////////////////
       std::vector<vk::AttachmentDescription> colorAttachmentDescriptions {
         {
           {}
-          , core().swapchainImageFormat()
+          , _swapchainImageFormat
           , vk::SampleCountFlagBits::e1
           , vk::AttachmentLoadOp::eClear
           , vk::AttachmentStoreOp::eStore
@@ -161,21 +171,19 @@ class GraphicsPipeline {
         , subpassDescriptions
       };
 
-      _renderPass = core().device().createRenderPass(renderPassCreateInfo);
-    }
-
-    Core& core() const {
-      return *_core;
+      _renderPass = _device->createRenderPass(renderPassCreateInfo);
     }
 
     ~GraphicsPipeline() {
-      core().device().destroyPipeline(_graphicsPipeline);
-      core().device().destroyPipelineLayout(_pipelineLayout);
-      core().device().destroyRenderPass(_renderPass);
+      _device->destroyPipeline(_graphicsPipeline);
+      _device->destroyPipelineLayout(_pipelineLayout);
+      _device->destroyRenderPass(_renderPass);
     }
 
   private:
-    Core *_core;
+    vk::Device *_device;
+    vk::Format _swapchainImageFormat;
+
     Shader _vertexShader;
     Shader _fragmentShader;
 

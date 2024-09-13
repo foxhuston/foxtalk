@@ -5,17 +5,32 @@
 #ifndef FOXTALK_SHADER_H
 #define FOXTALK_SHADER_H
 
+#include <iostream>
+#include <optional>
 #include <fstream>
 #include <vulkan/vulkan.hpp>
-
-#include "Core.hpp"
+#include <vulkan/vulkan_handles.hpp>
 
 class Shader {
   public:
     Shader(const Shader &) = delete;
     Shader &operator=(const Shader &) = delete;
 
-    Shader(Core *__core, const std::string &fileName) : _core{__core} {
+    Shader(Shader &&) = delete;
+    Shader &operator=(Shader &&other) {
+      std::cout << "TMP DEBUG! Shader move operator called." << std::endl;
+      this->_device = other._device;
+      this->_shaderModule = other._shaderModule;
+
+      other._device = nullptr;
+      other._shaderModule = nullptr;
+
+      return *this;
+    };
+
+    Shader() { }
+
+    Shader(vk::Device *__device, const std::string &fileName) : _device { __device } {
       auto shader_code = readFile(fileName);
       vk::ShaderModuleCreateInfo createInfo {};
 
@@ -23,30 +38,32 @@ class Shader {
       createInfo.setPCode(reinterpret_cast<const uint32_t*>(shader_code.data()));
       createInfo.setCodeSize(shader_code.size());
 
-      _shaderModule = core().device().createShaderModule(createInfo);
-    }
-
-    Core& core() const {
-      return *_core;
+      _shaderModule = __device->createShaderModule(createInfo);
     }
 
     const vk::ShaderModule shaderModule() const {
-      return _shaderModule;
+      return _shaderModule.value();
     }
 
     const vk::PipelineShaderStageCreateInfo shaderStageCreateInfo(vk::ShaderStageFlagBits shaderStage) const {
       return {
-        {}, shaderStage, _shaderModule, "main"
+        {}, shaderStage, shaderModule(), "main"
       };
     }
 
     ~Shader() {
-      core().device().destroyShaderModule(_shaderModule);
+      // If we haven't been moved...
+      if(_shaderModule.has_value() && _device != nullptr) {
+        std::cout << "TMP DEBUG! Shader destructor called, now calling destroyShaderModule " << std::endl;
+        _device->destroyShaderModule(_shaderModule.value());
+      } else {
+        std::cout << "TMP DEBUG! Shader destructor called... I've been moved!" << std::endl;
+      }
     }
 
   private:
-    Core *_core;
-    vk::ShaderModule _shaderModule;
+    vk::Device *_device;
+    std::optional<vk::ShaderModule> _shaderModule;
 
     static std::vector<char> readFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);

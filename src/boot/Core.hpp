@@ -10,15 +10,13 @@
 #include <vector>
 
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #include "CoreRenderer.hpp"
 #include "QueueFamilies.hpp"
 #include "SwapchainSupportDetails.hpp"
-#include "GraphicsPipeline.hpp"
+/* #include "GraphicsPipeline.hpp" */
+#include "shader.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -251,13 +249,54 @@ class Core {
         _swapchainImageViews.push_back(device().createImageView(imageViewCreateInfo));
       }
 
+      ///// COLOR ATTACHMENT DESCRIPTION ///////////////////////////////////////
+      std::vector<vk::AttachmentDescription> colorAttachmentDescriptions {
+        {
+          {}
+          , _swapchainImageFormat
+          , vk::SampleCountFlagBits::e1
+          , vk::AttachmentLoadOp::eClear
+          , vk::AttachmentStoreOp::eStore
+          , vk::AttachmentLoadOp::eDontCare
+          , vk::AttachmentStoreOp::eDontCare
+          , vk::ImageLayout::eUndefined
+          , vk::ImageLayout::ePresentSrcKHR
+        }
+      };
+
+      ///// RENDER SUBPASSES ///////////////////////////////////////////////////
+      std::vector<vk::AttachmentReference> colorAttachmentReferences {
+        {
+          {}
+          , vk::ImageLayout::eColorAttachmentOptimal
+        }
+      };
+
+      std::vector<vk::SubpassDescription> subpassDescriptions {
+        {
+          {}
+          , vk::PipelineBindPoint::eGraphics
+          , {}
+          , colorAttachmentReferences
+        }
+      };
+
+      ///// RENDER PASS ////////////////////////////////////////////////////////
+      vk::RenderPassCreateInfo renderPassCreateInfo {
+        {}
+        , colorAttachmentDescriptions
+        , subpassDescriptions
+      };
+
+      _renderPass = _device.createRenderPass(renderPassCreateInfo);
+
       ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
       for(auto& view : swapchainImageViews()) {
         std::vector<vk::ImageView> attachments { view };
 
         vk::FramebufferCreateInfo framebufferCreateInfo {
           {}
-          , {}
+          , _renderPass
           , attachments
           , swapchainExtent().width
           , swapchainExtent().height
@@ -267,12 +306,124 @@ class Core {
         _swapchainFramebuffers.push_back(device().createFramebuffer(framebufferCreateInfo));
       }
 
+      ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
+      std::cout << "TMP DEBUG SHADER LOAD START" << std::endl;
+      _vertexShader = Shader(&_device, "src/shaders/simple.vert.bin");
+      _fragmentShader = Shader(&_device, "src/shaders/simple.frag.bin");
+      std::cout << "TMP DEBUG SHADER LOAD END" << std::endl;
+
+      auto shaderStages = {
+        _vertexShader.shaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex),
+        _fragmentShader.shaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment)
+      };
+
+      ///// GEOMETRY ///////////////////////////////////////////////////////////
+      vk::PipelineVertexInputStateCreateInfo vertexInputInfo {};
+
+      ///// INPUT ASSEMBLY /////////////////////////////////////////////////////
+      vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo {
+        {}, vk::PrimitiveTopology::eTriangleList, vk::False
+      };
+
+      /* ///// VIEWPORT /////////////////////////////////////////////////////////// */
+      /* vk::Viewport viewport { */
+      /*   0.0f, 0.0f, */
+      /*   static_cast<float>(core().swapchainExtent().width), */
+      /*   static_cast<float>(core().swapchainExtent().height), */
+      /*   0.0f, 1.0f */
+      /* }; */
+
+      /* ///// SCISSOR //////////////////////////////////////////////////////////// */
+      /* vk::Rect2D scissor { */
+      /*   { 0, 0 }, */
+      /*   core().swapchainExtent() */
+      /* }; */
+
+      ///// VIEWPORT STATE /////////////////////////////////////////////////////
+      std::vector<vk::DynamicState> dynamicStates {
+        vk::DynamicState::eViewport,
+        vk::DynamicState::eScissor
+      };
+
+      vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo { {}, dynamicStates };
+
+      vk::PipelineViewportStateCreateInfo viewportStateCreateInfo {
+        {}, 1, {}, 1, {} // using dynamic state here.
+      };
+
+      ///// RASTERIZER /////////////////////////////////////////////////////////
+      vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo {
+        {}, vk::False, vk::False, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack
+        , vk::FrontFace::eClockwise // TODO: Change this nonsense?
+        , vk::False, {}, {}, {}
+        , 1.0f
+      };
+
+      ///// MULTISAMPLING //////////////////////////////////////////////////////
+      vk::PipelineMultisampleStateCreateInfo multisampleStateCreateInfo { };
+
+      ///// DEPTH & STENCIL TESTING ////////////////////////////////////////////
+      /// TODO!
+
+      ///// COLOR BLENDING /////////////////////////////////////////////////////
+      vk::PipelineColorBlendAttachmentState colorBlendAttachmentState { };
+      colorBlendAttachmentState.setColorWriteMask(
+            vk::ColorComponentFlagBits::eR
+          | vk::ColorComponentFlagBits::eG
+          | vk::ColorComponentFlagBits::eB
+          | vk::ColorComponentFlagBits::eA
+      );
+      colorBlendAttachmentState.setBlendEnable(vk::True);
+      colorBlendAttachmentState.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
+      colorBlendAttachmentState.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
+      colorBlendAttachmentState.setColorBlendOp(vk::BlendOp::eAdd);
+      colorBlendAttachmentState.setSrcAlphaBlendFactor(vk::BlendFactor::eOne);
+      colorBlendAttachmentState.setDstAlphaBlendFactor(vk::BlendFactor::eZero);
+      colorBlendAttachmentState.setAlphaBlendOp(vk::BlendOp::eAdd);
+
+      vk::PipelineColorBlendStateCreateInfo colorBlendingCreateInfo {
+        {}, vk::False
+        , vk::LogicOp::eCopy
+        , { colorBlendAttachmentState }
+        , { 0.0f, 0.0f, 0.0f, 0.0f }
+      };
+
+      ///// PIPELINE LAYOUT ////////////////////////////////////////////////////
+      vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo { };
+      _pipelineLayout = _device.createPipelineLayout(pipelineLayoutCreateInfo); 
+
+      ///// PIPELINE ///////////////////////////////////////////////////////////
+      vk::GraphicsPipelineCreateInfo pipelineCreateInfo {
+        {}
+        , shaderStages
+        , &vertexInputInfo
+        , &pipelineInputAssemblyStateCreateInfo
+        , {}
+        , &viewportStateCreateInfo
+        , &rasterizerCreateInfo
+        , &multisampleStateCreateInfo
+        , {}
+        , &colorBlendingCreateInfo
+        , &dynamicStateCreateInfo
+        , _pipelineLayout
+        , _renderPass
+        , 0
+      };
+
+      // TODO: Why does this one need a `.value` when it seemed like the rest of the
+      //       `VKResult`s didn't?
+      _graphicsPipeline = _device.createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
+
       ///// SWAPCHAIN FRAMEBUFFERS ///////////////////////////////////////////////
-      _graphicsPipeline = GraphicsPipeline(&this);
+
     };
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      _device.destroyPipeline(_graphicsPipeline);
+      _device.destroyPipelineLayout(_pipelineLayout);
+      _device.destroyRenderPass(_renderPass);
+
       for(auto imageView : _swapchainImageViews) {
         _device.destroyImageView(imageView);
       }
@@ -356,7 +507,12 @@ private:
     std::vector<vk::ImageView> _swapchainImageViews;
     std::vector<vk::Framebuffer> _swapchainFramebuffers;
 
-    GraphicsPipeline _graphicsPipeline;
+    vk::RenderPass _renderPass;
+    vk::PipelineLayout _pipelineLayout;
+    vk::Pipeline _graphicsPipeline;
+
+    Shader _vertexShader;
+    Shader _fragmentShader;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
@@ -384,7 +540,7 @@ private:
         break;
       }
 
-      std::cerr << pCallbackData->pMessage << "\x1b[m" << std::endl;
+      std::cerr << pCallbackData->pMessage << "\x1b[m" << std::endl << std::endl;;
 
       return VK_FALSE;
     }
