@@ -308,13 +308,13 @@ class Core {
 
       ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
       std::cout << "TMP DEBUG SHADER LOAD START" << std::endl;
-      _vertexShader = Shader(&_device, "src/shaders/simple.vert.bin");
-      _fragmentShader = Shader(&_device, "src/shaders/simple.frag.bin");
+      _vertexShader = new Shader(&_device, "src/shaders/simple.vert.bin");
+      _fragmentShader = new Shader(&_device, "src/shaders/simple.frag.bin");
       std::cout << "TMP DEBUG SHADER LOAD END" << std::endl;
 
       auto shaderStages = {
-        _vertexShader.shaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex),
-        _fragmentShader.shaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment)
+        _vertexShader->shaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex),
+        _fragmentShader->shaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment)
       };
 
       ///// GEOMETRY ///////////////////////////////////////////////////////////
@@ -420,6 +420,13 @@ class Core {
 
     ///// DESTRUCTOR /////////////////////////////////////////////////////////////
     ~Core() {
+      for(auto fb : _swapchainFramebuffers) {
+        _device.destroyFramebuffer(fb);
+      }
+
+      delete _vertexShader;
+      delete _fragmentShader;
+
       _device.destroyPipeline(_graphicsPipeline);
       _device.destroyPipelineLayout(_pipelineLayout);
       _device.destroyRenderPass(_renderPass);
@@ -511,8 +518,8 @@ private:
     vk::PipelineLayout _pipelineLayout;
     vk::Pipeline _graphicsPipeline;
 
-    Shader _vertexShader;
-    Shader _fragmentShader;
+    Shader *_vertexShader;
+    Shader *_fragmentShader;
 
     QueueFamiliyIndices _queueFamilyIndices;
 
