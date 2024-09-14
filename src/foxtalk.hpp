@@ -7,6 +7,7 @@
 
 #include "boot/shader.hpp"
 #include <array>
+#include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
@@ -25,6 +26,107 @@ struct UniformBufferObject {
   glm::mat4 proj;
 };
 
+template<typename T>
+struct VBuffer {
+  ///// NO COPY ONLY MOVE BARK BARK //////////////////////////////////////////
+  VBuffer() { }
+
+  VBuffer(const VBuffer &) = delete;
+  VBuffer &operator=(const VBuffer &) = delete;
+
+  VBuffer(VBuffer &&other)
+    : _device { other._device }
+    , _buffer { std::move(other._buffer) }
+    , _bufferInfo { std::move(other._bufferInfo) }
+    , _bufferMemory { std::move(other._bufferMemory) }
+  {
+    other._device = nullptr;
+    other._buffer = std::nullopt;
+    other._bufferMemory = std::nullopt;
+  };
+
+  VBuffer &operator=(VBuffer &&other) {
+    this->_device = std::move(other._device);
+    this->_buffer = std::move(other._buffer);
+    this->_bufferInfo = std::move(other._bufferInfo);
+    this->_bufferMemory = std::move(other._bufferMemory);
+
+    other._device = nullptr;
+    other._buffer = std::nullopt;
+    other._bufferMemory = std::nullopt;
+
+    return *this;
+  };
+
+  ///// MAIN CONSTRUCTOR /////////////////////////////////////////////////////
+  VBuffer(const vk::PhysicalDevice &physicalDevice, const vk::Device &device,
+          size_t count, vk::BufferUsageFlags bufferUsageFlags,
+          vk::MemoryPropertyFlags memoryPropertyFlags)
+    : _device { &device }
+  {
+    _bufferInfo = { {}, sizeof(T) * count, bufferUsageFlags};
+    _buffer = _device->createBuffer(_bufferInfo);
+
+    auto vertexBufferMemReq = _device->getBufferMemoryRequirements(_buffer.value());
+    vk::MemoryAllocateInfo vertexAllocInfo{
+        vertexBufferMemReq.size,
+        findMemoryType(physicalDevice, vertexBufferMemReq.memoryTypeBits,
+                       memoryPropertyFlags)};
+
+    _bufferMemory = device.allocateMemory(vertexAllocInfo);
+    _device->bindBufferMemory(_buffer.value(), _bufferMemory.value(), 0);
+  }
+
+  ///// METHODS //////////////////////////////////////////////////////////////
+  void* mapBufferMemory() {
+    return _device->mapMemory(_bufferMemory.value(), 0, _bufferInfo.size);
+  }
+
+  void unmapBufferMemory() {
+    _device->unmapMemory(_bufferMemory.value());
+  }
+
+  void transfer(std::vector<T> items) {
+    auto mapped = mapBufferMemory();
+      memcpy(mapped, items.data(), (size_t) _bufferInfo.size);
+    unmapBufferMemory();
+  }
+
+  ///// GETTERS & SETTERS ////////////////////////////////////////////////////
+  const vk::Buffer buffer() const {
+    return _buffer.value();
+  }
+
+  ///// DESTRUCTOR ///////////////////////////////////////////////////////////
+  ~VBuffer() {
+    if(_buffer.has_value()) {
+      _device->destroyBuffer(_buffer.value());
+    }
+    if(_bufferMemory.has_value()) {
+      _device->freeMemory(_bufferMemory.value());
+    }
+
+  }
+
+  private:
+    const vk::Device* _device;
+    vk::BufferCreateInfo _bufferInfo;
+    std::optional<vk::Buffer> _buffer;
+    std::optional<vk::DeviceMemory> _bufferMemory;
+
+
+    uint32_t findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+      auto memProperties = physicalDevice.getMemoryProperties();
+      for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+          if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+              return i;
+          }
+      }
+
+      throw std::runtime_error("failed to find suitable memory type!");
+    }
+};
+
 class Foxtalk {
   public:
     ///// CONSTRUCTOR //////////////////////////////////////////////////////////
@@ -35,7 +137,8 @@ class Foxtalk {
         const vk::Device &device,
         const vk::RenderPass &renderPass,
         float framebufferWidth,
-        float framebufferHeight
+        float framebufferHeight,
+        uint32_t MAX_FRAMES_IN_FLIGHT
     )
       : _physicalDevice { physicalDevice }
       , _device { device }
@@ -45,6 +148,21 @@ class Foxtalk {
       updateProjectionMatrix();
 
       std::cout << "device? " << device << std::endl;
+
+      ///// DESCRIPTOR SET LAYOUT //////////////////////////////////////////////
+      std::vector<vk::DescriptorSetLayoutBinding> uboLayoutBindings {
+        {
+          0, vk::DescriptorType::eUniformBuffer, 1
+          , vk::ShaderStageFlagBits::eVertex
+        }
+      };
+
+      vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo { 
+        {}
+        , uboLayoutBindings
+      };
+
+      _descriptorSetLayout = _device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
 
       ///// PIPELINE SETUP /////////////////////////////////////////////////////
       Shader vertexShader(&device, "src/shaders/simple.vert.bin");
@@ -71,61 +189,19 @@ class Foxtalk {
 
       ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
 
-      vk::BufferCreateInfo vertexBufferInfo {
-        {}
-        , sizeof(_vertices[0]) * _vertices.size()
-        , vk::BufferUsageFlagBits::eVertexBuffer
-      };
-
-      _vertexBuffer = _device.createBuffer(vertexBufferInfo);
-
-      ///// VERTEX BUFFER MEMORY ALLOCATION ////////////////////////////////////
-      auto vertexBufferMemReq = _device.getBufferMemoryRequirements(_vertexBuffer);
-      vk::MemoryAllocateInfo vertexAllocInfo {
-        vertexBufferMemReq.size
-        , findMemoryType(vertexBufferMemReq.memoryTypeBits,
-            vk::MemoryPropertyFlagBits::eHostVisible
-            | vk::MemoryPropertyFlagBits::eHostCoherent)
-      };
-
-      _vertexBufferMemory = _device.allocateMemory(vertexAllocInfo);
-
-      ///// VERTEX BUFFER MEMORY BINDING ///////////////////////////////////////
-      _device.bindBufferMemory(_vertexBuffer, _vertexBufferMemory, 0);
+      _vertexBuffer = VBuffer<Vertex>(physicalDevice, device, _vertices.size()
+          , vk::BufferUsageFlagBits::eVertexBuffer
+          , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
       
-      ///// VERTEX BUFFER MEMORY FILLING ///////////////////////////////////////
-      void* vertexData = _device.mapMemory(_vertexBufferMemory, 0, vertexBufferInfo.size);
-        memcpy(vertexData, _vertices.data(), (size_t) vertexBufferInfo.size);
-      _device.unmapMemory(_vertexBufferMemory);
+      _vertexBuffer.transfer(_vertices);
 
-      ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
-
-      vk::BufferCreateInfo indexBufferInfo {
-        {}
-        , sizeof(_indices[0]) * _indices.size()
+      ///// INDEX BUFFER SETUP /////////////////////////////////////////////////
+      _indexBuffer = VBuffer<uint32_t>(physicalDevice, device, _indices.size()
         , vk::BufferUsageFlagBits::eIndexBuffer
-      };
+        , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
 
-      _indexBuffer = _device.createBuffer(indexBufferInfo);
-
-      ///// VERTEX BUFFER MEMORY ALLOCATION ////////////////////////////////////
-      auto indexBufferMemReq = _device.getBufferMemoryRequirements(_indexBuffer);
-      vk::MemoryAllocateInfo indexAllocInfo {
-        indexBufferMemReq.size
-        , findMemoryType(indexBufferMemReq.memoryTypeBits,
-            vk::MemoryPropertyFlagBits::eHostVisible
-            | vk::MemoryPropertyFlagBits::eHostCoherent)
-      };
-
-      _indexBufferMemory = _device.allocateMemory(indexAllocInfo);
-
-      ///// VERTEX BUFFER MEMORY BINDING ///////////////////////////////////////
-      _device.bindBufferMemory(_indexBuffer, _indexBufferMemory, 0);
-      
-      ///// VERTEX BUFFER MEMORY FILLING ///////////////////////////////////////
-      void* indexData = _device.mapMemory(_indexBufferMemory, 0, indexBufferInfo.size);
-        memcpy(indexData, _indices.data(), (size_t) indexBufferInfo.size);
-      _device.unmapMemory(_indexBufferMemory);
+      _indexBuffer.transfer(_indices);
 
       ///// UNIFORM BUFFER DESCRIPTOR SET //////////////////////////////////////
       vk::DescriptorSetLayoutBinding uboLayoutBinding {
@@ -133,37 +209,23 @@ class Foxtalk {
         , vk::ShaderStageFlagBits::eVertex
       };
 
-
-
-    }
-
-    // TODO: This shouldn't be here (see upper TODO...)
-    uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
-      auto memProperties = _physicalDevice.getMemoryProperties();
-      for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-          if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-              return i;
-          }
+      ///// CREATE UNIFORM BUFFERS /////////////////////////////////////////////
+      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        
       }
 
-      throw std::runtime_error("failed to find suitable memory type!");
     }
+
 
     ///// DESTRUCTOR ///////////////////////////////////////////////////////////
     ~Foxtalk() {
-      _device.destroyBuffer(_vertexBuffer);
-      _device.freeMemory(_vertexBufferMemory);
-
-      _device.destroyBuffer(_indexBuffer);
-      _device.freeMemory(_indexBufferMemory);
+      _device.destroyDescriptorSetLayout(_descriptorSetLayout);
     }
 
     ///// DRAWING //////////////////////////////////////////////////////////////
     void tick() { }
 
     void render(const vk::CommandBuffer& commandBuffer, const vk::Extent2D swapchainExtent) {
-      std::vector<vk::Buffer> buffs { _vertexBuffer };
-      std::vector<vk::DeviceSize> offsets { 0 };
 
       // TODO: Maybe a vulkan pipeline == a material??
       //       I think maybe everything from here to endRenderPass might should be 
@@ -188,8 +250,8 @@ class Foxtalk {
 
       commandBuffer.setScissor(0, scissors);
 
-      commandBuffer.bindVertexBuffers(0, buffs, offsets);
-      commandBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);;
+      commandBuffer.bindVertexBuffers(0, _vertexBuffer.buffer(), { 0 });
+      commandBuffer.bindIndexBuffer(_indexBuffer.buffer(), 0, vk::IndexType::eUint32);;
       commandBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
     }
 
@@ -219,12 +281,16 @@ class Foxtalk {
     glm::mat4 _projection;
 
     std::vector<Vertex> _vertices;
-    vk::Buffer _vertexBuffer;
-    vk::DeviceMemory _vertexBufferMemory;
+    VBuffer<Vertex> _vertexBuffer;
 
     std::vector<uint32_t> _indices;
-    vk::Buffer _indexBuffer;
-    vk::DeviceMemory _indexBufferMemory;
+    VBuffer<uint32_t> _indexBuffer;
+
+    std::vector<vk::Buffer> uniformBuffers;
+    std::vector<vk::DeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
+
+    vk::DescriptorSetLayout _descriptorSetLayout;
 
 
     // Orthorgraphic.

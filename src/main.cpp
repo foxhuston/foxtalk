@@ -13,7 +13,9 @@ int main() {
     core.device(),
     core.renderPass(),
     static_cast<float>(fbSize.width),
-    static_cast<float>(fbSize.height) };
+    static_cast<float>(fbSize.height),
+    MAX_FRAMES_IN_FLIGHT
+  };
 
   container.mainLoop([&core, &foxtalk]() {
     core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto swapchainExtent) {
