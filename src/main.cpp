@@ -9,14 +9,15 @@ int main() {
 
   const auto fbSize = container.getFramebufferSize();
   Foxtalk foxtalk {
-    &core.physicalDevice(),
-    &core.device(),
+    core.physicalDevice(),
+    core.device(),
+    core.renderPass(),
     static_cast<float>(fbSize.width),
     static_cast<float>(fbSize.height) };
 
   container.mainLoop([&core, &foxtalk]() {
-    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer) {
-        foxtalk.render(cmdBuffer);
+    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto swapchainExtent) {
+        foxtalk.render(cmdBuffer, swapchainExtent);
     });
     core.incrementFrame();
   });

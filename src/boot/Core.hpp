@@ -22,7 +22,6 @@
 #include "SwapchainSupportDetails.hpp"
 /* #include "GraphicsPipeline.hpp" */
 #include "shader.hpp"
-#include "../Vertex.hpp"
 
 #ifndef NDEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT  pfnVkCreateDebugUtilsMessengerEXT;
@@ -264,117 +263,9 @@ class Core {
 
       createFramebuffers();
 
-      ///// GRAPHICS PIPELINE //////////////////////////////////////////////////
-      std::cout << "TMP DEBUG SHADER LOAD START" << std::endl;
-      _vertexShader = new Shader(&_device, "src/shaders/simple.vert.bin");
-      _fragmentShader = new Shader(&_device, "src/shaders/simple.frag.bin");
-      std::cout << "TMP DEBUG SHADER LOAD END" << std::endl;
-
-      auto shaderStages = {
-        _vertexShader->shaderStageCreateInfo(vk::ShaderStageFlagBits::eVertex),
-        _fragmentShader->shaderStageCreateInfo(vk::ShaderStageFlagBits::eFragment)
-      };
-
-      ///// GEOMETRY ///////////////////////////////////////////////////////////
-      auto vertexBindingDescriptions = Vertex::getBindingDescriptions();
-      auto vertexAttributeDescriptions = Vertex::getAttributeDescriptions();
-      vk::PipelineVertexInputStateCreateInfo vertexInputInfo {
-        {}, vertexBindingDescriptions, vertexAttributeDescriptions
-      };
-
-      ///// INPUT ASSEMBLY /////////////////////////////////////////////////////
-      vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo {
-        {}, vk::PrimitiveTopology::eTriangleList, vk::False
-      };
-
-      /* ///// VIEWPORT /////////////////////////////////////////////////////////// */
-      /* vk::Viewport viewport { */
-      /*   0.0f, 0.0f, */
-      /*   static_cast<float>(core().swapchainExtent().width), */
-      /*   static_cast<float>(core().swapchainExtent().height), */
-      /*   0.0f, 1.0f */
-      /* }; */
-
-      /* ///// SCISSOR //////////////////////////////////////////////////////////// */
-      /* vk::Rect2D scissor { */
-      /*   { 0, 0 }, */
-      /*   core().swapchainExtent() */
-      /* }; */
-
-      ///// VIEWPORT STATE /////////////////////////////////////////////////////
-      std::vector<vk::DynamicState> dynamicStates {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor
-      };
-
-      vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo { {}, dynamicStates };
-
-      vk::PipelineViewportStateCreateInfo viewportStateCreateInfo {
-        {}, 1, {}, 1, {} // using dynamic state here.
-      };
-
-      ///// RASTERIZER /////////////////////////////////////////////////////////
-      vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo {
-        {}, vk::False, vk::False, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack
-        , vk::FrontFace::eCounterClockwise
-        , vk::False, {}, {}, {}
-        , 1.0f
-      };
-
-      ///// MULTISAMPLING //////////////////////////////////////////////////////
-      vk::PipelineMultisampleStateCreateInfo multisampleStateCreateInfo { };
-
-      ///// DEPTH & STENCIL TESTING ////////////////////////////////////////////
-      /// TODO!
-
-      ///// COLOR BLENDING /////////////////////////////////////////////////////
-      vk::PipelineColorBlendAttachmentState colorBlendAttachmentState { };
-      colorBlendAttachmentState.setColorWriteMask(
-            vk::ColorComponentFlagBits::eR
-          | vk::ColorComponentFlagBits::eG
-          | vk::ColorComponentFlagBits::eB
-          | vk::ColorComponentFlagBits::eA
-      );
-      colorBlendAttachmentState.setBlendEnable(vk::True);
-      colorBlendAttachmentState.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
-      colorBlendAttachmentState.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
-      colorBlendAttachmentState.setColorBlendOp(vk::BlendOp::eAdd);
-      colorBlendAttachmentState.setSrcAlphaBlendFactor(vk::BlendFactor::eOne);
-      colorBlendAttachmentState.setDstAlphaBlendFactor(vk::BlendFactor::eZero);
-      colorBlendAttachmentState.setAlphaBlendOp(vk::BlendOp::eAdd);
-
-      vk::PipelineColorBlendStateCreateInfo colorBlendingCreateInfo {
-        {}, vk::False
-        , vk::LogicOp::eCopy
-        , { colorBlendAttachmentState }
-        , { 0.0f, 0.0f, 0.0f, 0.0f }
-      };
-
-      ///// PIPELINE LAYOUT ////////////////////////////////////////////////////
-      vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo { };
-      _pipelineLayout = _device.createPipelineLayout(pipelineLayoutCreateInfo); 
-
-      ///// PIPELINE ///////////////////////////////////////////////////////////
-      vk::GraphicsPipelineCreateInfo pipelineCreateInfo {
-        {}
-        , shaderStages
-        , &vertexInputInfo
-        , &pipelineInputAssemblyStateCreateInfo
-        , {}
-        , &viewportStateCreateInfo
-        , &rasterizerCreateInfo
-        , &multisampleStateCreateInfo
-        , {}
-        , &colorBlendingCreateInfo
-        , &dynamicStateCreateInfo
-        , _pipelineLayout
-        , _renderPass
-        , 0
-      };
-
-      // TODO: Why does this one need a `.value` when it seemed like the rest of the
-      //       `VKResult`s didn't?
-      _graphicsPipeline = _device.createGraphicsPipeline(nullptr, pipelineCreateInfo).value;
+      ///
+      /// ~~~PIPELINE WAS HERE~~~
+      ///
 
       ///// COMMAND POOL ///////////////////////////////////////////////////////
       vk::CommandPoolCreateInfo commandPoolCreateInfo {
@@ -409,7 +300,7 @@ class Core {
     };
 
     ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
-    void withRenderPass(std::function<void(const vk::CommandBuffer&)> drawCalls) {
+    void withRenderPass(std::function<void(const vk::CommandBuffer&, const vk::Extent2D)> drawCalls) {
       ///// SYNC ///////////////////////////////////////////////////////////////
       auto inFlightFence = _inFlightFences[_currentFrame];
       auto imageAvailableSemaphore = _imageAvailableSemaphores[_currentFrame];
@@ -456,30 +347,7 @@ class Core {
       };
 
       commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-
-      // TODO: Maybe a vulkan pipeline == a material??
-      //       I think maybe everything from here to endRenderPass might should be 
-      //       in the actual drawables...
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _graphicsPipeline);
-
-      commandBuffer.setViewport(0, {{
-          0.0f
-          , 0.0f
-          , static_cast<float>(swapchainExtent().width)
-          , static_cast<float>(swapchainExtent().height)
-          , 0.0f
-          , 1.0f
-        }});
-
-      std::vector<vk::Rect2D> scissors {
-        {
-          {0, 0}
-          , swapchainExtent()
-        }
-      };
-
-      commandBuffer.setScissor(0, scissors);
-      drawCalls(commandBuffer);
+      drawCalls(commandBuffer, swapchainExtent());
       commandBuffer.endRenderPass();
       commandBuffer.end();
 
@@ -546,8 +414,7 @@ class Core {
       delete _vertexShader;
       delete _fragmentShader;
 
-      _device.destroyPipeline(_graphicsPipeline);
-      _device.destroyPipelineLayout(_pipelineLayout);
+      /// ~~~PIPELINE & LAYOUT DESTROY WERE HERE~~~
       _device.destroyRenderPass(_renderPass);
 
       _device.destroy();
@@ -582,6 +449,10 @@ class Core {
 
     const vk::SurfaceKHR outputSurface() const {
       return _outputSurface;
+    }
+
+    const vk::RenderPass renderPass() const {
+      return _renderPass;
     }
 
     CoreRenderer& coreRenderer() const {
@@ -632,8 +503,6 @@ private:
     std::vector<vk::Framebuffer> _swapchainFramebuffers;
 
     vk::RenderPass _renderPass;
-    vk::PipelineLayout _pipelineLayout;
-    vk::Pipeline _graphicsPipeline;
     vk::CommandPool _commandPool;
     std::vector<vk::CommandBuffer> _commandBuffers;
 

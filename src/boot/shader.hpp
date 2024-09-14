@@ -16,21 +16,28 @@ class Shader {
     Shader(const Shader &) = delete;
     Shader &operator=(const Shader &) = delete;
 
-    Shader(Shader &&) = delete;
+    Shader(Shader &&other)
+      : _device { std::move(other._device) }
+      , _shaderModule { std::move(other._shaderModule) }
+    {
+      other._device = nullptr;
+      other._shaderModule = std::nullopt;
+    }
+
     Shader &operator=(Shader &&other) {
       std::cout << "TMP DEBUG! Shader move operator called." << std::endl;
-      this->_device = other._device;
-      this->_shaderModule = other._shaderModule;
+      this->_device = std::move(other._device);
+      this->_shaderModule = std::move(other._shaderModule);
 
       other._device = nullptr;
-      other._shaderModule = nullptr;
+      other._shaderModule = std::nullopt;
 
       return *this;
-    };
+    }
 
-    Shader() { }
+    Shader() {}
 
-    Shader(vk::Device *__device, const std::string &fileName) : _device { __device } {
+    Shader(const vk::Device *__device, const std::string &fileName) : _device { __device } {
       auto shader_code = readFile(fileName);
       vk::ShaderModuleCreateInfo createInfo {};
 
@@ -62,7 +69,7 @@ class Shader {
     }
 
   private:
-    vk::Device *_device;
+    const vk::Device *_device;
     std::optional<vk::ShaderModule> _shaderModule;
 
     static std::vector<char> readFile(const std::string& filename) {
