@@ -105,7 +105,7 @@ class GraphicsPipeline {
         , vk::False
         , vk::False
         , vk::PolygonMode::eFill
-        , vk::CullModeFlagBits::eBack
+        , vk::CullModeFlagBits::eNone
         , vk::FrontFace::eCounterClockwise
         , vk::False
         , {}, {}, {}

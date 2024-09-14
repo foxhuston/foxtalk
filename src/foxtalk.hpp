@@ -7,6 +7,7 @@
 
 #include "boot/shader.hpp"
 #include <array>
+#include <glm/ext/matrix_transform.hpp>
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -179,10 +180,10 @@ class Foxtalk {
       ///// TEMP DATA //////////////////////////////////////////////////////////
 
       _vertices = {
-          {{0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-          {{0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-          {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-          {{1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+          {{10.0f, 10.0f}, {1.0f, 0.0f, 0.0f}},
+          {{10.0f, 100.0f}, {0.0f, 1.0f, 0.0f}},
+          {{100.0f, 100.0f}, {0.0f, 0.0f, 1.0f}},
+          {{100.0f, 10.0f}, {1.0f, 0.0f, 0.0f}}
       };
 
       _indices = {
@@ -301,9 +302,16 @@ class Foxtalk {
       };
 
       UniformBufferObject ubo{};
-      ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-      ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-      ubo.proj = glm::perspective(glm::radians(45.0f), _framebufferWidth / (float) _framebufferHeight, 0.1f, 10.0f);
+      ubo.model = glm::mat4(1.0f); //glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+      ubo.view = glm::lookAt(
+          glm::vec3(0.0f, 0.001f, 3.0f)
+          , glm::vec3(0.0f, 0.0f, 0.0f)
+          , glm::vec3(0.0f, 0.0f, 1.0f));
+
+      ubo.view = glm::mat4(1.0f);
+      ubo.proj = glm::ortho(0.0f, _framebufferWidth, _framebufferHeight, 0.0f);
+
+
       /* ubo.proj[1][1] *= -1; */
 
       memcpy(_uniformBuffersMapped[imageIndex], &ubo, sizeof(ubo));
