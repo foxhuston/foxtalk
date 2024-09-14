@@ -63,7 +63,8 @@ class GraphicsPipeline {
         const vk::Device &device,
         const vk::RenderPass &renderPass,
         Shader &&vertexShader,
-        Shader &&fragmentShader)
+        Shader &&fragmentShader,
+        std::vector<vk::DescriptorSetLayout> descriptorSetLayouts = {})
       : _device { device }
       , _renderPass{renderPass}
       , _vertexShader{std::move(vertexShader)}
@@ -100,9 +101,14 @@ class GraphicsPipeline {
 
       ///// RASTERIZER /////////////////////////////////////////////////////////
       vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo {
-        {}, vk::False, vk::False, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack
+        {}
+        , vk::False
+        , vk::False
+        , vk::PolygonMode::eFill
+        , vk::CullModeFlagBits::eBack
         , vk::FrontFace::eCounterClockwise
-        , vk::False, {}, {}, {}
+        , vk::False
+        , {}, {}, {}
         , 1.0f
       };
 
@@ -135,7 +141,9 @@ class GraphicsPipeline {
         , { 0.0f, 0.0f, 0.0f, 0.0f }
       };
       ///// PIPELINE LAYOUT ////////////////////////////////////////////////////
-      vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo { };
+      vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo {
+        {}, descriptorSetLayouts
+      };
       _pipelineLayout = _device.value().createPipelineLayout(pipelineLayoutCreateInfo); 
 
       ///// PIPELINE ///////////////////////////////////////////////////////////
@@ -181,6 +189,14 @@ class GraphicsPipeline {
       }
 
       throw new std::runtime_error("Tried to get pipeline from a moved object!");
+    }
+
+    vk::PipelineLayout layout() const {
+      if(_graphicsPipeline.has_value()) {
+        return _pipelineLayout.value();
+      }
+
+      throw new std::runtime_error("Tried to get layout from a moved object!");
     }
 
 

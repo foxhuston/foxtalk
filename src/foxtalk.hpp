@@ -172,7 +172,8 @@ class Foxtalk {
         device,
         renderPass,
         std::move(vertexShader),
-        std::move(fragmentShader)
+        std::move(fragmentShader),
+        { _descriptorSetLayout }
       );
 
       ///// TEMP DATA //////////////////////////////////////////////////////////
@@ -204,12 +205,6 @@ class Foxtalk {
 
       _indexBuffer.transfer(_indices);
 
-      ///// UNIFORM BUFFER DESCRIPTOR SET //////////////////////////////////////
-      vk::DescriptorSetLayoutBinding uboLayoutBinding {
-        0, vk::DescriptorType::eUniformBuffer, 1
-        , vk::ShaderStageFlagBits::eVertex
-      };
-
       ///// CREATE UNIFORM BUFFERS /////////////////////////////////////////////
       for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         auto buff = VBuffer<UniformBufferObject>(
@@ -224,11 +219,55 @@ class Foxtalk {
         _uniformBuffersMapped.push_back(buff.mapBufferMemory());
         _uniformBuffers.push_back(std::move(buff));
       }
+
+      ///// CREATE DESCRIPTOR POOL /////////////////////////////////////////////
+      std::vector<vk::DescriptorPoolSize> descriptorPoolSizes {
+        {
+          vk::DescriptorType::eUniformBuffer
+          , MAX_FRAMES_IN_FLIGHT
+        }
+      };
+
+      vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo {
+        {}
+        , MAX_FRAMES_IN_FLIGHT
+        , descriptorPoolSizes
+      };
+
+      _descriptorPool = _device.createDescriptorPool(descriptorPoolCreateInfo);
+
+      ///// CREATE DESCRIPTORS /////////////////////////////////////////////////
+      std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, _descriptorSetLayout);
+
+      vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo {
+        _descriptorPool, layouts
+      };
+
+      _descriptorSets = _device.allocateDescriptorSets(descriptorSetAllocateInfo);
+
+      ///// CONFIGURE DESCRIPTORS //////////////////////////////////////////////
+      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vk::DescriptorBufferInfo bufferInfo { 
+          _uniformBuffers[i].buffer(), 0, sizeof(UniformBufferObject)
+        };
+
+        std::vector<vk::WriteDescriptorSet> writeDescriptorSets {
+          {
+            _descriptorSets[i], 0, 0, 1
+            , vk::DescriptorType::eUniformBuffer
+            , {}, &bufferInfo, {}
+          }
+        };
+
+        _device.updateDescriptorSets(writeDescriptorSets, {});
+      }
+
     }
 
 
     ///// DESTRUCTOR ///////////////////////////////////////////////////////////
     ~Foxtalk() {
+      _device.destroyDescriptorPool(_descriptorPool);
       _device.destroyDescriptorSetLayout(_descriptorSetLayout);
     }
 
@@ -265,7 +304,7 @@ class Foxtalk {
       ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
       ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
       ubo.proj = glm::perspective(glm::radians(45.0f), _framebufferWidth / (float) _framebufferHeight, 0.1f, 10.0f);
-      ubo.proj[1][1] *= -1;
+      /* ubo.proj[1][1] *= -1; */
 
       memcpy(_uniformBuffersMapped[imageIndex], &ubo, sizeof(ubo));
 
@@ -273,6 +312,13 @@ class Foxtalk {
 
       commandBuffer.bindVertexBuffers(0, _vertexBuffer.buffer(), { 0 });
       commandBuffer.bindIndexBuffer(_indexBuffer.buffer(), 0, vk::IndexType::eUint32);;
+      commandBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics
+        , _pipeline.layout()
+        , 0
+        , _descriptorSets[imageIndex]
+        , {}
+      );
       commandBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
     }
 
@@ -311,6 +357,8 @@ class Foxtalk {
     std::vector<void*> _uniformBuffersMapped;
 
     vk::DescriptorSetLayout _descriptorSetLayout;
+    vk::DescriptorPool _descriptorPool;
+    std::vector<vk::DescriptorSet> _descriptorSets;
 
     // Orthorgraphic.
     void updateProjectionMatrix() {

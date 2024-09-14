@@ -347,12 +347,11 @@ class Core {
       };
 
       commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-      drawCalls(commandBuffer, swapchainExtent(), imageIndex);
+      drawCalls(commandBuffer, swapchainExtent(), _currentFrame);
       commandBuffer.endRenderPass();
       commandBuffer.end();
 
       ///// END RECORDING / SUBMIT /////////////////////////////////////////////
-
       std::vector<vk::PipelineStageFlags> waitStageMask {
         vk::PipelineStageFlagBits::eColorAttachmentOutput
       };
