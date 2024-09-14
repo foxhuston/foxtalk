@@ -4,29 +4,32 @@
 
 #ifndef FOXTALK_FOXTALK_H
 #define FOXTALK_FOXTALK_H
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
 
-#include "boot/shader.hpp"
 #include <array>
 #include <glm/ext/matrix_transform.hpp>
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "boot/shader.hpp"
 #include "boot/GraphicsPipeline.hpp"
 #include "Vertex.hpp"
+
+////////////////////////////////////////////////////////////////////////////////
 
 struct UniformBufferObject {
   glm::mat4 model;
   glm::mat4 view;
   glm::mat4 proj;
 };
+
+////////////////////////////////////////////////////////////////////////////////
 
 template<typename T>
 struct VBuffer {
@@ -129,6 +132,9 @@ struct VBuffer {
     }
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
+
 class Foxtalk {
   public:
     ///// CONSTRUCTOR //////////////////////////////////////////////////////////
@@ -150,7 +156,24 @@ class Foxtalk {
       updateProjectionMatrix();
 
       std::cout << "device? " << device << std::endl;
+      ///// VIDEO CAPTURE //////////////////////////////////////////////////////
 
+      int texWidth = 640, texHeight = 480, texChannels = 3;
+      auto imageSize = texWidth * texHeight * 4;
+
+      //--- INITIALIZE VIDEOCAPTURE
+      // open the default camera using default API
+      // cap.open(0);
+      // OR advance usage: select any API backend
+      int deviceID = 0;             // 0 = open default camera
+      int apiID = cv::CAP_ANY;      // 0 = autodetect default API
+      // open selected camera using selected API
+      _videoCapture.open(deviceID, apiID);
+      // check if we succeeded
+      if (!_videoCapture.isOpened()) {
+        throw std::runtime_error("ERROR! Unable to open camera");
+      }
+      
       ///// DESCRIPTOR SET LAYOUT //////////////////////////////////////////////
       std::vector<vk::DescriptorSetLayoutBinding> uboLayoutBindings {
         {
@@ -219,6 +242,21 @@ class Foxtalk {
 
         _uniformBuffersMapped.push_back(buff.mapBufferMemory());
         _uniformBuffers.push_back(std::move(buff));
+      }
+
+      ///// CREATE VIDEO BUFFERS ///////////////////////////////////////////////
+      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        auto buff = VBuffer<uint8_t>(
+          _physicalDevice
+          , _device
+          , imageSize
+          , vk::BufferUsageFlagBits::eTransferSrc
+          , vk::MemoryPropertyFlagBits::eHostVisible
+            | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+
+        _cameraBuffersMapped.push_back(buff.mapBufferMemory());
+        _cameraBuffers.push_back(std::move(buff));
       }
 
       ///// CREATE DESCRIPTOR POOL /////////////////////////////////////////////
@@ -345,6 +383,8 @@ class Foxtalk {
     const vk::Device& _device;
     const vk::PhysicalDevice& _physicalDevice;
 
+    cv::VideoCapture _videoCapture;
+
     GraphicsPipeline<Vertex> _pipeline;
 
     float _framebufferWidth;
@@ -363,6 +403,11 @@ class Foxtalk {
 
     std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
     std::vector<void*> _uniformBuffersMapped;
+
+    std::vector<VBuffer<uint8_t>> _cameraBuffers;
+    std::vector<void*> _cameraBuffersMapped;
+    std::vector<vk::Image> _cameraImages;
+    std::vector<vk::ImageView> _cameraImageViews;
 
     vk::DescriptorSetLayout _descriptorSetLayout;
     vk::DescriptorPool _descriptorPool;
