@@ -300,7 +300,7 @@ class Core {
     };
 
     ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
-    void withRenderPass(std::function<void(const vk::CommandBuffer&, const vk::Extent2D)> drawCalls) {
+    void withRenderPass(std::function<void(const vk::CommandBuffer&, const vk::Extent2D, uint32_t imageIndex)> drawCalls) {
       ///// SYNC ///////////////////////////////////////////////////////////////
       auto inFlightFence = _inFlightFences[_currentFrame];
       auto imageAvailableSemaphore = _imageAvailableSemaphores[_currentFrame];
@@ -347,7 +347,7 @@ class Core {
       };
 
       commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-      drawCalls(commandBuffer, swapchainExtent());
+      drawCalls(commandBuffer, swapchainExtent(), imageIndex);
       commandBuffer.endRenderPass();
       commandBuffer.end();
 

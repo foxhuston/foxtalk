@@ -16,6 +16,7 @@
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "boot/GraphicsPipeline.hpp"
 #include "Vertex.hpp"
@@ -211,9 +212,18 @@ class Foxtalk {
 
       ///// CREATE UNIFORM BUFFERS /////////////////////////////////////////////
       for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        
-      }
+        auto buff = VBuffer<UniformBufferObject>(
+          _physicalDevice
+          , _device
+          , 1
+          , vk::BufferUsageFlagBits::eUniformBuffer
+          , vk::MemoryPropertyFlagBits::eHostVisible
+            | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
 
+        _uniformBuffersMapped.push_back(buff.mapBufferMemory());
+        _uniformBuffers.push_back(std::move(buff));
+      }
     }
 
 
@@ -225,8 +235,11 @@ class Foxtalk {
     ///// DRAWING //////////////////////////////////////////////////////////////
     void tick() { }
 
-    void render(const vk::CommandBuffer& commandBuffer, const vk::Extent2D swapchainExtent) {
-
+    void render(
+        const vk::CommandBuffer& commandBuffer
+        , const vk::Extent2D swapchainExtent
+        , uint32_t imageIndex
+    ) {
       // TODO: Maybe a vulkan pipeline == a material??
       //       I think maybe everything from here to endRenderPass might should be 
       //       in the actual drawables...
@@ -247,6 +260,14 @@ class Foxtalk {
           , swapchainExtent
         }
       };
+
+      UniformBufferObject ubo{};
+      ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+      ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+      ubo.proj = glm::perspective(glm::radians(45.0f), _framebufferWidth / (float) _framebufferHeight, 0.1f, 10.0f);
+      ubo.proj[1][1] *= -1;
+
+      memcpy(_uniformBuffersMapped[imageIndex], &ubo, sizeof(ubo));
 
       commandBuffer.setScissor(0, scissors);
 
@@ -286,12 +307,10 @@ class Foxtalk {
     std::vector<uint32_t> _indices;
     VBuffer<uint32_t> _indexBuffer;
 
-    std::vector<vk::Buffer> uniformBuffers;
-    std::vector<vk::DeviceMemory> uniformBuffersMemory;
-    std::vector<void*> uniformBuffersMapped;
+    std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
+    std::vector<void*> _uniformBuffersMapped;
 
     vk::DescriptorSetLayout _descriptorSetLayout;
-
 
     // Orthorgraphic.
     void updateProjectionMatrix() {
