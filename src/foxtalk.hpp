@@ -17,6 +17,12 @@
 
 #include "Vertex.hpp"
 
+struct UniformBufferObject {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 proj;
+};
+
 class Foxtalk {
   public:
     ///// CONSTRUCTOR //////////////////////////////////////////////////////////
@@ -36,9 +42,14 @@ class Foxtalk {
       updateProjectionMatrix();
 
       _vertices = {
-          {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-          {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-          {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+          {{0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+          {{0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+          {{1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+          {{1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+      };
+
+      _indices = {
+        0, 1, 2, 2, 3, 0
       };
 
       ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
@@ -66,9 +77,46 @@ class Foxtalk {
       _device->bindBufferMemory(_vertexBuffer, _vertexBufferMemory, 0);
       
       ///// VERTEX BUFFER MEMORY FILLING ///////////////////////////////////////
-      void* data = _device->mapMemory(_vertexBufferMemory, 0, vertexBufferInfo.size);
-        memcpy(data, _vertices.data(), (size_t) vertexBufferInfo.size);
+      void* vertexData = _device->mapMemory(_vertexBufferMemory, 0, vertexBufferInfo.size);
+        memcpy(vertexData, _vertices.data(), (size_t) vertexBufferInfo.size);
       _device->unmapMemory(_vertexBufferMemory);
+
+      ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
+
+      vk::BufferCreateInfo indexBufferInfo {
+        {}
+        , sizeof(_indices[0]) * _indices.size()
+        , vk::BufferUsageFlagBits::eIndexBuffer
+      };
+
+      _indexBuffer = device->createBuffer(indexBufferInfo);
+
+      ///// VERTEX BUFFER MEMORY ALLOCATION ////////////////////////////////////
+      auto indexBufferMemReq = _device->getBufferMemoryRequirements(_indexBuffer);
+      vk::MemoryAllocateInfo indexAllocInfo {
+        indexBufferMemReq.size
+        , findMemoryType(indexBufferMemReq.memoryTypeBits,
+            vk::MemoryPropertyFlagBits::eHostVisible
+            | vk::MemoryPropertyFlagBits::eHostCoherent)
+      };
+
+      _indexBufferMemory = _device->allocateMemory(indexAllocInfo);
+
+      ///// VERTEX BUFFER MEMORY BINDING ///////////////////////////////////////
+      _device->bindBufferMemory(_indexBuffer, _indexBufferMemory, 0);
+      
+      ///// VERTEX BUFFER MEMORY FILLING ///////////////////////////////////////
+      void* indexData = _device->mapMemory(_indexBufferMemory, 0, indexBufferInfo.size);
+        memcpy(indexData, _indices.data(), (size_t) indexBufferInfo.size);
+      _device->unmapMemory(_indexBufferMemory);
+
+      ///// UNIFORM BUFFER DESCRIPTOR SET //////////////////////////////////////
+      vk::DescriptorSetLayoutBinding uboLayoutBinding {
+        0, vk::DescriptorType::eUniformBuffer, 1
+        , vk::ShaderStageFlagBits::eVertex
+      };
+
+
     }
 
     // TODO: This shouldn't be here (see upper TODO...)
@@ -87,6 +135,9 @@ class Foxtalk {
     ~Foxtalk() {
       _device->destroyBuffer(_vertexBuffer);
       _device->freeMemory(_vertexBufferMemory);
+
+      _device->destroyBuffer(_indexBuffer);
+      _device->freeMemory(_indexBufferMemory);
     }
 
     ///// DRAWING //////////////////////////////////////////////////////////////
@@ -97,7 +148,9 @@ class Foxtalk {
       std::vector<vk::DeviceSize> offsets { 0 };
 
       cmdBuffer.bindVertexBuffers(0, buffs, offsets);
-      cmdBuffer.draw(static_cast<uint32_t>(_vertices.size()), 1, 0, 0);
+      /* cmdBuffer.draw(static_cast<uint32_t>(_vertices.size()), 1, 0, 0); */
+      cmdBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);;
+      cmdBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
     }
 
     ///// GETTERS & SETTERS ////////////////////////////////////////////////////
@@ -122,11 +175,14 @@ class Foxtalk {
     float _near = -1.0;
 
     glm::mat4 _projection;
-    std::vector<Vertex> _vertices;
 
+    std::vector<Vertex> _vertices;
     vk::Buffer _vertexBuffer;
     vk::DeviceMemory _vertexBufferMemory;
 
+    std::vector<uint32_t> _indices;
+    vk::Buffer _indexBuffer;
+    vk::DeviceMemory _indexBufferMemory;
 
 
     // Orthorgraphic.

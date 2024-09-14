@@ -316,7 +316,7 @@ class Core {
       ///// RASTERIZER /////////////////////////////////////////////////////////
       vk::PipelineRasterizationStateCreateInfo rasterizerCreateInfo {
         {}, vk::False, vk::False, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack
-        , vk::FrontFace::eClockwise // TODO: Change this nonsense?
+        , vk::FrontFace::eCounterClockwise
         , vk::False, {}, {}, {}
         , 1.0f
       };
