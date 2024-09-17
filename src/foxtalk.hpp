@@ -4,6 +4,7 @@
 
 #ifndef FOXTALK_FOXTALK_H
 #define FOXTALK_FOXTALK_H
+#include <emmintrin.h>
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
 
@@ -48,6 +49,7 @@ static uint32_t findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_
 
 template<typename T>
 struct VBuffer {
+  public:
   ///// MAIN CONSTRUCTOR /////////////////////////////////////////////////////
   VBuffer(const vk::PhysicalDevice &physicalDevice, const vk::Device &device,
           size_t count, vk::BufferUsageFlags bufferUsageFlags,
@@ -78,10 +80,12 @@ struct VBuffer {
     , _buffer { std::move(other._buffer) }
     , _bufferInfo { std::move(other._bufferInfo) }
     , _bufferMemory { std::move(other._bufferMemory) }
+    , _mappedMemory { std::move(other._mappedMemory) }
   {
     other._device = nullptr;
     other._buffer = std::nullopt;
     other._bufferMemory = std::nullopt;
+    other._mappedMemory = std::nullopt;
   };
 
   VBuffer &operator=(VBuffer &&other) {
@@ -89,10 +93,12 @@ struct VBuffer {
     this->_buffer = std::move(other._buffer);
     this->_bufferInfo = std::move(other._bufferInfo);
     this->_bufferMemory = std::move(other._bufferMemory);
+    this->_mappedMemory = std::move(other._mappedMemory);
 
     other._device = nullptr;
     other._buffer = std::nullopt;
     other._bufferMemory = std::nullopt;
+    other._mappedMemory = std::nullopt;
 
     return *this;
   };
@@ -100,10 +106,16 @@ struct VBuffer {
 
   ///// METHODS //////////////////////////////////////////////////////////////
   void* mapBufferMemory() {
-    return _device->mapMemory(_bufferMemory.value(), 0, _bufferInfo.size);
+    if(_mappedMemory.has_value()) {
+      return _mappedMemory.value();
+    }
+
+    _mappedMemory = _device->mapMemory(_bufferMemory.value(), 0, _bufferInfo.size);
+    return _mappedMemory.value();
   }
 
   void unmapBufferMemory() {
+    _mappedMemory = std::nullopt;
     _device->unmapMemory(_bufferMemory.value());
   }
 
@@ -123,7 +135,11 @@ struct VBuffer {
     if(_buffer.has_value()) {
       _device->destroyBuffer(_buffer.value());
     }
+
     if(_bufferMemory.has_value()) {
+      if(_mappedMemory.has_value()) {
+        _device->unmapMemory(_bufferMemory.value());
+      }
       _device->freeMemory(_bufferMemory.value());
     }
 
@@ -134,6 +150,7 @@ struct VBuffer {
     vk::BufferCreateInfo _bufferInfo;
     std::optional<vk::Buffer> _buffer;
     std::optional<vk::DeviceMemory> _bufferMemory;
+    std::optional<void*> _mappedMemory;
 
 
 };
@@ -272,6 +289,8 @@ struct VImage {
 
   ///// METHODS //////////////////////////////////////////////////////////////
   void transitionImageLayout(const vk::CommandBuffer& cmdBuffer, vk::ImageLayout newLayout) {
+    if(newLayout == _imageLayout) return;
+
     vk::AccessFlags srcAccessFlags       = vk::AccessFlagBits::eNone;
     vk::AccessFlags dstAccessFlags       = vk::AccessFlagBits::eNone;
     vk::PipelineStageFlags srcPipelineStageFlags = vk::PipelineStageFlagBits::eNone;
@@ -296,10 +315,19 @@ struct VImage {
       srcPipelineStageFlags = vk::PipelineStageFlagBits::eTransfer;
       dstPipelineStageFlags = vk::PipelineStageFlagBits::eFragmentShader;
     }
+    // Shader Reading --> Transfer Dest
+    else if(_imageLayout == vk::ImageLayout::eReadOnlyOptimal
+        && newLayout == vk::ImageLayout::eTransferDstOptimal
+    ){
+      srcAccessFlags = vk::AccessFlagBits::eNone;
+      dstAccessFlags = vk::AccessFlagBits::eTransferWrite;
+
+      srcPipelineStageFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+      dstPipelineStageFlags = vk::PipelineStageFlagBits::eTransfer;
+    }
     // Unknown Op.
     else {
-      // throw std::invalid_argument("unsupported layout transition!");
-      return;
+      throw std::invalid_argument("unsupported layout transition!");
     }
 
 
@@ -476,10 +504,10 @@ class Foxtalk {
       ///// TEMP DATA //////////////////////////////////////////////////////////
 
       _vertices = {
-          {{10.0f, 10.0f}, {1.0f, 0.0f, 0.0f}},
-          {{10.0f, 100.0f}, {0.0f, 1.0f, 0.0f}},
-          {{100.0f, 100.0f}, {0.0f, 0.0f, 1.0f}},
-          {{100.0f, 10.0f}, {1.0f, 0.0f, 0.0f}}
+          {{10.0f, 10.0f},   {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+          {{10.0f, 490.0f},  {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+          {{650.0f, 490.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+          {{650.0f, 10.0f},  {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
       };
 
       _indices = {
@@ -528,10 +556,10 @@ class Foxtalk {
             | vk::MemoryPropertyFlagBits::eHostCoherent
         );
 
-        _cameraBuffersMapped.push_back(buff.mapBufferMemory());
-        _cameraBuffers.push_back(std::move(buff));
+        VImage camImage { _physicalDevice, _device };
 
-        _cameraImages.push_back({ _physicalDevice, _device });
+        _cameraBuffers.push_back(std::move(buff));
+        _cameraImages.push_back(std::move(camImage));
       }
 
 
@@ -603,6 +631,40 @@ class Foxtalk {
     ///// DRAWING //////////////////////////////////////////////////////////////
     void tick() { }
 
+    void updateCameraTextureBuffer(VBuffer<uint8_t>& cameraBuffer) {
+      cv::Mat cameraFrame;
+
+      _videoCapture.read(cameraFrame);
+      // check if we succeeded
+      if (cameraFrame.empty()) {
+        throw std::runtime_error("ERROR! blank frame grabbed");
+      }
+
+      // Add filled alpha channel, since Vulkan drivers seem to not support
+      // alphaless textures
+      std::vector<cv::Mat> channels;
+      cv::split(cameraFrame, channels);
+      cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
+      channels.push_back(alphaChannel);
+
+      cv::Mat RGBA;
+      cv::merge(channels, RGBA);
+
+      // TODO: SYNC
+
+      // Write camera data
+      // TODO: Image Size!
+
+      memcpy(cameraBuffer.mapBufferMemory(), RGBA.data, static_cast<size_t>(640 * 480 * 4));
+
+      // TODO: SYNC
+
+
+      /* cameraImage.copyBufferToImage(const vk::CommandBuffer &cmdBuffer, const VBuffer<uint8_t> &buffer) */
+      /* copyBufferToImage(cameraBuffer, textureImage, static_cast<uint32_t>(640), static_cast<uint32_t>(480)); */
+      /* transitionImageLayout(textureImage, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); */
+    }
+
     void render(
         const vk::CommandBuffer& commandBuffer
         , const vk::RenderPassBeginInfo& renderPassBeginInfo
@@ -633,11 +695,14 @@ class Foxtalk {
 
       auto& camImage        = _cameraImages[imageIndex];
       auto& camBuffer       = _cameraBuffers[imageIndex];
-      auto  camMemoryMapped = _cameraBuffersMapped[imageIndex];
 
       // TODO: COPY IMAGE DATA INTO MAPPED BUFFER
       camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eTransferDstOptimal);
+
+      updateCameraTextureBuffer(camBuffer);
       camImage.copyBufferToImage(commandBuffer, camBuffer);
+
+      camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eReadOnlyOptimal);
 
       ///// BEGIN RENDERPASS ///////////////////////////////////////////////////
 
@@ -715,7 +780,6 @@ class Foxtalk {
     std::vector<void*> _uniformBuffersMapped;
 
     std::vector<VBuffer<uint8_t>> _cameraBuffers;
-    std::vector<void*> _cameraBuffersMapped;
     std::vector<VImage> _cameraImages;
 
     vk::DescriptorSetLayout _descriptorSetLayout;

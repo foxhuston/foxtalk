@@ -195,6 +195,7 @@ class Core {
 
       // TODO: Should actually make sure the device supports this...
       physicalDeviceFeatures.samplerAnisotropy = vk::True;
+
       vk::DeviceCreateInfo deviceCreateInfo(
           {}
           , queueCreateInfos
@@ -202,6 +203,18 @@ class Core {
           , enabledExtensions
           , &physicalDeviceFeatures
           );
+
+      // N.B. The validation layer complained about this not being
+      //      enabled while following the vulkan-tutorial, specifically
+      //      regarding image transitions. I'm not sure if this is an
+      //      API difference, or if I'm doing something weird, but
+      //      when reading the docs, it seems like a helpful thing to
+      //      have enabled anyways.
+      vk::PhysicalDeviceSynchronization2Features sync2 {
+        vk::True
+      };
+
+      deviceCreateInfo.setPNext(&sync2);
 
       _device = physicalDevice().createDevice(deviceCreateInfo);
 
