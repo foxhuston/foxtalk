@@ -31,7 +31,7 @@ public:
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     /* glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); */
-    window = glfwCreateWindow(800, 600, "Dust", nullptr, nullptr);
+    window = glfwCreateWindow(1920, 1080, "Dust", nullptr, nullptr);
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);

@@ -4,6 +4,7 @@
 
 #ifndef FOXTALK_FOXTALK_H
 #define FOXTALK_FOXTALK_H
+#include <algorithm>
 #include <emmintrin.h>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
@@ -12,6 +13,7 @@
 #include <array>
 #include <glm/ext/matrix_transform.hpp>
 #include <optional>
+#include <sstream>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
@@ -512,11 +514,16 @@ class Foxtalk {
 
       ///// TEMP DATA //////////////////////////////////////////////////////////
 
+      auto width = 1920.0f;
+      auto offset = 0.0f; //10.0f;
+
+      auto height = width * (static_cast<float>(_camHeight) / _camWidth);
+
       _vertices = {
-          {{10.0f, 10.0f},   {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-          {{10.0f, 490.0f},  {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-          {{650.0f, 490.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-          {{650.0f, 10.0f},  {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
+          {{offset,          offset},         {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+          {{offset,          height + offset}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+          {{width + offset, height + offset}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+          {{width + offset, offset},         {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
       };
 
       _indices = {
@@ -654,7 +661,49 @@ class Foxtalk {
         throw std::runtime_error("ERROR! blank frame grabbed");
       }
 
-      cv::circle(cameraFrame, {320, 240}, 50, CV_RGB(255.0, 0.0, 0.0), 5);
+      cv::Mat gray;
+      cv::cvtColor(cameraFrame, gray, cv::COLOR_BGR2GRAY);
+
+      std::vector<cv::Vec3f> circles;
+      cv::HoughCircles(
+        gray
+        , circles
+        , cv::HOUGH_GRADIENT_ALT
+        , 10
+        , 2
+        , 1000
+        , 0.9
+        , 5
+        , 20
+      );
+
+      /* std::sort(circles.begin(), circles.end(), [](autoa); */
+
+      for(auto i = 0; i < circles.size(); i++) {
+        auto c = circles[i];
+        auto color = CV_RGB(255.0, 0.0, 0.0);
+
+        cv::Point center(c[0], c[1]);
+
+        if(i == 0) {
+          color = CV_RGB(0.0, 255.0, 0.0);
+
+          std::stringstream ss;
+          ss << c[2];
+
+          cv::putText(
+            cameraFrame
+            , ss.str()
+            , center
+            , cv::FONT_HERSHEY_SIMPLEX
+            , 2.0
+            , color
+          );
+        }
+        cv::circle(cameraFrame, center, c[2], color, 2);
+      }
+
+
 
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures
