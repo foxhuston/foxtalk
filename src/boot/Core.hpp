@@ -57,16 +57,16 @@ class Core {
     Core(CoreRenderer *cr) : _coreRenderer{cr} {
       ///// BOOT LOGGING /////////////////////////////////////////////////////////
       auto availableExtensions = vk::enumerateInstanceExtensionProperties();
-      std::cout << "Available Extensions:" << std::endl;
-      for(const auto& extension : availableExtensions) {
-        std::cout << "\t" << extension.extensionName << std::endl;
-      }
+      // std::cout << "Available Extensions:" << std::endl;
+      // for(const auto& extension : availableExtensions) {
+      //   std::cout << "\t" << extension.extensionName << std::endl;
+      // }
 
       auto availableLayers = vk::enumerateInstanceLayerProperties();
-      std::cout << "Available Layers:" << std::endl;
-      for(const auto& layer : availableLayers) {
-        std::cout << "\t" << layer.layerName << std::endl;
-      }
+      // std::cout << "Available Layers:" << std::endl;
+      // for(const auto& layer : availableLayers) {
+      //   std::cout << "\t" << layer.layerName << std::endl;
+      // }
 
       ///// INITIAL SETUP ////////////////////////////////////////////////////////
       vk::ApplicationInfo appInfo(

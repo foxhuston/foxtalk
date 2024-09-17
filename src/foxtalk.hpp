@@ -172,10 +172,14 @@ struct VImage {
   // and this texture will be sent to the GPU to be used in the shader pipeline.
   // This is a safe assumption, but certainly doesn't cover the full power or
   // range of what Vulkan has to offer.
-  VImage(const vk::PhysicalDevice &physicalDevice, const vk::Device &device)
+  VImage(const vk::PhysicalDevice &physicalDevice
+      , const vk::Device &device
+      , uint32_t width
+      , uint32_t height
+  )
     : _device { &device }
-    , _width { 640 }
-    , _height { 480 }
+    , _width { width }
+    , _height { height }
     , _imageFormat { vk::Format::eB8G8R8A8Srgb }
   {
     ///// IMAGE //////////////////////////////////////////////////////////////
@@ -450,9 +454,6 @@ class Foxtalk {
       std::cout << "device? " << device << std::endl;
       ///// VIDEO CAPTURE //////////////////////////////////////////////////////
 
-      int texWidth = 640, texHeight = 480, texChannels = 3;
-      auto imageSize = texWidth * texHeight * 4;
-
       //--- INITIALIZE VIDEOCAPTURE
       // open the default camera using default API
       // cap.open(0);
@@ -465,6 +466,13 @@ class Foxtalk {
       if (!_videoCapture.isOpened()) {
         throw std::runtime_error("ERROR! Unable to open camera");
       }
+
+      _camWidth = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
+      _camHeight = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
+
+      std::cout << "Found camera with res " << _camWidth << "x" << _camHeight << std::endl;
+
+      auto imageSize = _camWidth * _camHeight * 4;
 
       ///// DESCRIPTOR SET LAYOUT //////////////////////////////////////////////
       std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings {
@@ -557,7 +565,12 @@ class Foxtalk {
             | vk::MemoryPropertyFlagBits::eHostCoherent
         );
 
-        VImage camImage { _physicalDevice, _device };
+        VImage camImage {
+          _physicalDevice
+            , _device
+            , _camWidth
+            , _camHeight
+        };
 
         _cameraBuffers.push_back(std::move(buff));
         _cameraImages.push_back(std::move(camImage));
@@ -659,14 +672,9 @@ class Foxtalk {
       // Write camera data
       // TODO: Image Size!
 
-      memcpy(cameraBuffer.mapBufferMemory(), outputMat.data, static_cast<size_t>(640 * 480 * 4));
+      memcpy(cameraBuffer.mapBufferMemory(), outputMat.data, static_cast<size_t>(_camWidth * _camHeight * 4));
 
-      // TODO: SYNC
-
-
-      /* cameraImage.copyBufferToImage(const vk::CommandBuffer &cmdBuffer, const VBuffer<uint8_t> &buffer) */
-      /* copyBufferToImage(cameraBuffer, textureImage, static_cast<uint32_t>(640), static_cast<uint32_t>(480)); */
-      /* transitionImageLayout(textureImage, VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); */
+      // TODO: SYNC---Handled by sync2 extension??
     }
 
     void render(
@@ -763,6 +771,8 @@ class Foxtalk {
     const vk::PhysicalDevice& _physicalDevice;
 
     cv::VideoCapture _videoCapture;
+    uint32_t _camWidth;
+    uint32_t _camHeight;
 
     GraphicsPipeline<Vertex> _pipeline;
 
