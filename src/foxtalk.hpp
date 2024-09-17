@@ -6,6 +6,7 @@
 #define FOXTALK_FOXTALK_H
 #include <emmintrin.h>
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
 #include <array>
@@ -175,7 +176,7 @@ struct VImage {
     : _device { &device }
     , _width { 640 }
     , _height { 480 }
-    , _imageFormat { vk::Format::eR8G8B8A8Srgb }
+    , _imageFormat { vk::Format::eB8G8R8A8Srgb }
   {
     ///// IMAGE //////////////////////////////////////////////////////////////
     vk::ImageCreateInfo imageCreateInfo {
@@ -640,6 +641,8 @@ class Foxtalk {
         throw std::runtime_error("ERROR! blank frame grabbed");
       }
 
+      cv::circle(cameraFrame, {320, 240}, 50, CV_RGB(255.0, 0.0, 0.0), 5);
+
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures
       std::vector<cv::Mat> channels;
@@ -647,15 +650,16 @@ class Foxtalk {
       cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
       channels.push_back(alphaChannel);
 
-      cv::Mat RGBA;
-      cv::merge(channels, RGBA);
+      cv::Mat outputMat;
+      cv::merge(channels, outputMat);
 
-      // TODO: SYNC
+
+      // TODO: SYNC---Handled by sync2 extension??
 
       // Write camera data
       // TODO: Image Size!
 
-      memcpy(cameraBuffer.mapBufferMemory(), RGBA.data, static_cast<size_t>(640 * 480 * 4));
+      memcpy(cameraBuffer.mapBufferMemory(), outputMat.data, static_cast<size_t>(640 * 480 * 4));
 
       // TODO: SYNC
 
