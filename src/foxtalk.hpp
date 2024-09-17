@@ -9,11 +9,13 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
+#include <opencv2/freetype.hpp>
 
 #include <array>
 #include <glm/ext/matrix_transform.hpp>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
@@ -454,6 +456,10 @@ class Foxtalk {
       updateProjectionMatrix();
 
       std::cout << "device? " << device << std::endl;
+      ///// (CV2) FREETYPE INITIALIZATION //////////////////////////////////////
+      _cv_ft2 = cv::freetype::createFreeType2();
+      _cv_ft2->loadFontData("/usr/share/fonts/OTF/CascadiaCode-Regular.otf", 0);
+
       ///// VIDEO CAPTURE //////////////////////////////////////////////////////
 
       //--- INITIALIZE VIDEOCAPTURE
@@ -645,6 +651,8 @@ class Foxtalk {
 
     ///// DESTRUCTOR ///////////////////////////////////////////////////////////
     ~Foxtalk() {
+      delete _cv_ft2;
+
       _device.destroyDescriptorPool(_descriptorPool);
       _device.destroyDescriptorSetLayout(_descriptorSetLayout);
     }
@@ -660,6 +668,14 @@ class Foxtalk {
       if (cameraFrame.empty()) {
         throw std::runtime_error("ERROR! blank frame grabbed");
       }
+
+      // view from tabletop cam is inverted
+      auto rot_mat = cv::getRotationMatrix2D(
+          { static_cast<float>(_camWidth) / 2.0f, static_cast<float>(_camHeight) / 2.0f }
+          , 180.0
+          , 1.0);
+
+      cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
 
       cv::Mat gray;
       cv::cvtColor(cameraFrame, gray, cv::COLOR_BGR2GRAY);
@@ -691,14 +707,24 @@ class Foxtalk {
           std::stringstream ss;
           ss << c[2];
 
-          cv::putText(
-            cameraFrame
-            , ss.str()
-            , center
-            , cv::FONT_HERSHEY_SIMPLEX
-            , 2.0
-            , color
-          );
+          _cv_ft2->putText(
+              cameraFrame
+              , ss.str()
+              , center
+              , 60
+              , color
+              , -1 // negative thickness fills the text.
+              , cv::LINE_AA
+              , true);
+
+          /* cv::putText( */
+          /*   cameraFrame */
+          /*   , ss.str() */
+          /*   , center */
+          /*   , cv::FONT_HERSHEY_SIMPLEX */
+          /*   , 2.0 */
+          /*   , color */
+          /* ); */
         }
         cv::circle(cameraFrame, center, c[2], color, 2);
       }
@@ -820,6 +846,8 @@ class Foxtalk {
     const vk::PhysicalDevice& _physicalDevice;
 
     cv::VideoCapture _videoCapture;
+    cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
+
     uint32_t _camWidth;
     uint32_t _camHeight;
 

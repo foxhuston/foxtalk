@@ -7,10 +7,13 @@ set(CXX_STANDARD C++23)
 find_package(OpenCV REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 # find_package(vk-bootstrap CONFIG REQUIRED)
+## TODO: Optional, once I move to the "just use the display dierctly"
+##       magic vulkan code.
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 # find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 # find_package(assimp CONFIG REQUIRED)
+find_package(Freetype REQUIRED)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/shaders/)
 
@@ -42,7 +45,10 @@ endfunction()
 
 
 #TODO: This is probably not the way to do it.
-include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(
+  ${OpenCV_INCLUDE_DIRS}
+  ${FREETYPE_INCLUDE_DIRS}
+)
 add_executable(${PROJECT_NAME}
   src/main.cpp
 )
@@ -58,6 +64,7 @@ compile_shader(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
   ${OpenCV_LIBS}
+  ${FREETYPE_LIBRARIES}
         Vulkan::Vulkan glfw glm::glm
         Vulkan::Headers
 )
