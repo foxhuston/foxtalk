@@ -181,9 +181,9 @@ class Core {
       for(auto queueFamily : uniqueQueueFamilies) {
         queueCreateInfos.push_back(
           vk::DeviceQueueCreateInfo(
-              {},
-              _queueFamilyIndices.graphicsFamily.value(),
-              queuePriorities
+              {}
+              , _queueFamilyIndices.graphicsFamily.value()
+              , queuePriorities
               ));
       }
 
@@ -192,6 +192,9 @@ class Core {
       };
           
       vk::PhysicalDeviceFeatures physicalDeviceFeatures;
+
+      // TODO: Should actually make sure the device supports this...
+      physicalDeviceFeatures.samplerAnisotropy = vk::True;
       vk::DeviceCreateInfo deviceCreateInfo(
           {}
           , queueCreateInfos
@@ -300,7 +303,7 @@ class Core {
     };
 
     ///// ACTUALLY DRAWING OMG ///////////////////////////////////////////////////
-    void withRenderPass(std::function<void(const vk::CommandBuffer&, const vk::Extent2D, uint32_t imageIndex)> drawCalls) {
+    void withRenderPass(std::function<void(const vk::CommandBuffer&, const vk::RenderPassBeginInfo&, const vk::Extent2D, uint32_t imageIndex)> drawCalls) {
       ///// SYNC ///////////////////////////////////////////////////////////////
       auto inFlightFence = _inFlightFences[_currentFrame];
       auto imageAvailableSemaphore = _imageAvailableSemaphores[_currentFrame];
@@ -346,9 +349,7 @@ class Core {
         , clearValues
       };
 
-      commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-      drawCalls(commandBuffer, swapchainExtent(), _currentFrame);
-      commandBuffer.endRenderPass();
+      drawCalls(commandBuffer, renderPassBeginInfo, swapchainExtent(), _currentFrame);
       commandBuffer.end();
 
       ///// END RECORDING / SUBMIT /////////////////////////////////////////////

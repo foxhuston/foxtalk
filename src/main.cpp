@@ -18,8 +18,8 @@ int main() {
   };
 
   container.mainLoop([&core, &foxtalk]() {
-    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto swapchainExtent, auto imageIndex) {
-        foxtalk.render(cmdBuffer, swapchainExtent, imageIndex);
+    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto renderPassBeginInfo, auto swapchainExtent, auto imageIndex) {
+        foxtalk.render(cmdBuffer, renderPassBeginInfo, swapchainExtent, imageIndex);
     });
     core.incrementFrame();
   });
