@@ -43,6 +43,10 @@ endfunction()
 
 ################################################################################
 
+add_library(image_proc SHARED src/CvProcessor.cpp)
+
+################################################################################
+
 
 #TODO: This is probably not the way to do it.
 include_directories(

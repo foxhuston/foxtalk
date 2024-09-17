@@ -4,7 +4,12 @@
 
 #ifndef FOXTALK_FOXTALK_H
 #define FOXTALK_FOXTALK_H
+
+// TODO: Wrap in linux preprocessors...
 #include <dlfcn.h>
+#include <exception>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <algorithm>
 #include <emmintrin.h>
@@ -17,6 +22,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <optional>
 #include <stdexcept>
+#include <unistd.h>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
@@ -447,6 +453,9 @@ typedef void (*ExternalImageProc)(
   , cv::freetype::FreeType2* _cv_ft2
 );
 
+
+static ExternalImageProc processCamera;
+
 class Foxtalk {
   public:
     ///// CONSTRUCTOR //////////////////////////////////////////////////////////
@@ -688,7 +697,41 @@ class Foxtalk {
     ///// DRAWING //////////////////////////////////////////////////////////////
     void tick() { }
 
+    struct stat fstat_buf {};
+    struct timespec last_changed {};
+    int fd;
+    bool needsReload = false;
+
     void updateCameraTextureBuffer(VBuffer<uint8_t>& cameraBuffer) {
+      ///// Check for code changes (This probably doesn't have to be done every frame :grimace:
+      fd = open(image_proc_file, O_RDONLY);
+      fstat(fd, &fstat_buf);
+      close(fd);
+
+      if(last_changed.tv_sec != fstat_buf.st_mtim.tv_sec) {
+        last_changed = fstat_buf.st_mtim;
+
+        std::cout << "Saw a change!!!" << std::endl;
+        needsReload = true;
+        _updateProc = nullptr;
+        dlclose(_updateProc_handle);
+      }
+
+      if(needsReload) {
+        _updateProc_handle = dlopen(image_proc_file, RTLD_NOW);
+        if(_updateProc_handle != nullptr) {
+          _updateProc = (ExternalImageProc)dlsym(_updateProc_handle, "process_image");
+
+          if(_updateProc == nullptr) {
+            throw std::runtime_error("Could not load updateProc!");
+          }
+
+          needsReload = false;
+        }
+      }
+
+
+      ///// Run the frame...
       cv::Mat cameraFrame;
 
       _videoCapture.read(cameraFrame);
@@ -697,12 +740,21 @@ class Foxtalk {
         throw std::runtime_error("ERROR! blank frame grabbed");
       }
 
-      _updateProc(
-        cameraFrame
-        , _camWidth
-        , _camHeight
-        , _cv_ft2
-      );
+      auto rot_mat = cv::getRotationMatrix2D(
+          { static_cast<float>(_camWidth) / 2.0f, static_cast<float>(_camHeight) / 2.0f }
+          , 180.0
+          , 1.0);
+
+      cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
+
+      if(_updateProc != nullptr) {
+        _updateProc(
+          cameraFrame
+          , _camWidth
+          , _camHeight
+          , _cv_ft2
+        );
+      }
 
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures
@@ -820,6 +872,7 @@ class Foxtalk {
 
     void* _updateProc_handle;
     ExternalImageProc _updateProc;
+    int _inotify_fd;
 
     cv::VideoCapture _videoCapture;
     cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
