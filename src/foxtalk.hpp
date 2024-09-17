@@ -4,6 +4,8 @@
 
 #ifndef FOXTALK_FOXTALK_H
 #define FOXTALK_FOXTALK_H
+#include <dlfcn.h>
+
 #include <algorithm>
 #include <emmintrin.h>
 #include <opencv2/core.hpp>
@@ -14,7 +16,6 @@
 #include <array>
 #include <glm/ext/matrix_transform.hpp>
 #include <optional>
-#include <sstream>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -28,6 +29,10 @@
 #include "boot/shader.hpp"
 #include "boot/GraphicsPipeline.hpp"
 #include "Vertex.hpp"
+
+////////////////////////////////////////////////////////////////////////////////
+
+constexpr const char* image_proc_file = "./libimage_proc.so";
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -435,6 +440,13 @@ struct VImage {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef void (*ExternalImageProc)(
+  cv::Mat& cameraFrame
+  , uint32_t _camWidth
+  , uint32_t _camHeight
+  , cv::freetype::FreeType2* _cv_ft2
+);
+
 class Foxtalk {
   public:
     ///// CONSTRUCTOR //////////////////////////////////////////////////////////
@@ -456,6 +468,20 @@ class Foxtalk {
       updateProjectionMatrix();
 
       std::cout << "device? " << device << std::endl;
+
+      ///// LOAD THE MAGIC LIBRARY /////////////////////////////////////////////
+
+      _updateProc_handle = dlopen(image_proc_file, RTLD_NOW);
+      if(_updateProc_handle == nullptr) {
+        throw std::runtime_error("Could not load image_proc_file!");
+      }
+
+      _updateProc = (ExternalImageProc)dlsym(_updateProc_handle, "process_image");
+
+      if(_updateProc == nullptr) {
+        throw std::runtime_error("Could not load updateProc!");
+      }
+
       ///// (CV2) FREETYPE INITIALIZATION //////////////////////////////////////
       _cv_ft2 = cv::freetype::createFreeType2();
       _cv_ft2->loadFontData("/usr/share/fonts/OTF/CascadiaCode-Regular.otf", 0);
@@ -651,6 +677,8 @@ class Foxtalk {
 
     ///// DESTRUCTOR ///////////////////////////////////////////////////////////
     ~Foxtalk() {
+      dlclose(_updateProc_handle);
+
       delete _cv_ft2;
 
       _device.destroyDescriptorPool(_descriptorPool);
@@ -669,67 +697,12 @@ class Foxtalk {
         throw std::runtime_error("ERROR! blank frame grabbed");
       }
 
-      // view from tabletop cam is inverted
-      auto rot_mat = cv::getRotationMatrix2D(
-          { static_cast<float>(_camWidth) / 2.0f, static_cast<float>(_camHeight) / 2.0f }
-          , 180.0
-          , 1.0);
-
-      cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
-
-      cv::Mat gray;
-      cv::cvtColor(cameraFrame, gray, cv::COLOR_BGR2GRAY);
-
-      std::vector<cv::Vec3f> circles;
-      cv::HoughCircles(
-        gray
-        , circles
-        , cv::HOUGH_GRADIENT_ALT
-        , 10
-        , 2
-        , 1000
-        , 0.9
-        , 5
-        , 20
+      _updateProc(
+        cameraFrame
+        , _camWidth
+        , _camHeight
+        , _cv_ft2
       );
-
-      /* std::sort(circles.begin(), circles.end(), [](autoa); */
-
-      for(auto i = 0; i < circles.size(); i++) {
-        auto c = circles[i];
-        auto color = CV_RGB(255.0, 0.0, 0.0);
-
-        cv::Point center(c[0], c[1]);
-
-        if(i == 0) {
-          color = CV_RGB(0.0, 255.0, 0.0);
-
-          std::stringstream ss;
-          ss << c[2];
-
-          _cv_ft2->putText(
-              cameraFrame
-              , ss.str()
-              , center
-              , 60
-              , color
-              , -1 // negative thickness fills the text.
-              , cv::LINE_AA
-              , true);
-
-          /* cv::putText( */
-          /*   cameraFrame */
-          /*   , ss.str() */
-          /*   , center */
-          /*   , cv::FONT_HERSHEY_SIMPLEX */
-          /*   , 2.0 */
-          /*   , color */
-          /* ); */
-        }
-        cv::circle(cameraFrame, center, c[2], color, 2);
-      }
-
-
 
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures
@@ -844,6 +817,9 @@ class Foxtalk {
   private:
     const vk::Device& _device;
     const vk::PhysicalDevice& _physicalDevice;
+
+    void* _updateProc_handle;
+    ExternalImageProc _updateProc;
 
     cv::VideoCapture _videoCapture;
     cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
