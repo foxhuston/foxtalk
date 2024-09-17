@@ -12,6 +12,9 @@
 #include <optional>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
@@ -28,6 +31,19 @@ struct UniformBufferObject {
   glm::mat4 view;
   glm::mat4 proj;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+static uint32_t findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+  auto memProperties = physicalDevice.getMemoryProperties();
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+          return i;
+      }
+  }
+
+  throw std::runtime_error("failed to find suitable memory type!");
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -120,18 +136,169 @@ struct VBuffer {
     std::optional<vk::DeviceMemory> _bufferMemory;
 
 
-    uint32_t findMemoryType(const vk::PhysicalDevice& physicalDevice, uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
-      auto memProperties = physicalDevice.getMemoryProperties();
-      for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-          if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-              return i;
-          }
-      }
-
-      throw std::runtime_error("failed to find suitable memory type!");
-    }
 };
 
+////////////////////////////////////////////////////////////////////////////////
+struct VImage {
+  ///// NO COPY! /////////////////////////////////////////////////////////////
+  VImage(const VImage &) = default;
+  VImage &operator=(const VImage &) = default;
+
+  ///// ONLY MOVE ////////////////////////////////////////////////////////////
+  VImage(VImage &&other)
+    : _device      { std::move(other._device) }
+    , _image       { std::move(other._image) }
+    , _imageMemory { std::move(other._imageMemory) }
+    , _imageLayout { other._imageLayout }
+    , _imageFormat { other._imageFormat }
+    , _width       { other._width }
+    , _height      { other._height }
+  {
+    other._device      = nullptr;
+    other._image       = std::nullopt;
+    other._imageMemory = std::nullopt;
+  }
+
+  VImage &operator=(VImage &&other) {
+    this->_device      = other._device;
+    this->_image       = other._image;
+    this->_imageMemory = other._imageMemory;
+    this->_imageLayout = other._imageLayout;
+    this->_imageFormat = other._imageFormat;
+    this->_width       = other._width;
+    this->_height      = other._height;
+
+    other._device      = nullptr;
+    other._image       = std::nullopt;
+    other._imageMemory = std::nullopt;
+    return *this;
+  }
+
+  ///// MAIN CONSTRUCTOR /////////////////////////////////////////////////////
+  VImage(const vk::PhysicalDevice &physicalDevice, const vk::Device &device)
+    : _device { &device }
+    , _width { 640 }
+    , _height { 480 }
+    , _imageFormat { vk::Format::eB8G8R8A8Srgb }
+  {
+    vk::ImageCreateInfo imageCreateInfo {
+      {}
+      , vk::ImageType::e2D
+      , _imageFormat
+      , { _width, _height, 1 }             // TODO Get real image size!!!
+      , 1 , 1 , {}, {}
+      , vk::ImageUsageFlagBits::eTransferDst
+        | vk::ImageUsageFlagBits::eSampled
+      , {}, {}, {}
+      , vk::ImageLayout::eUndefined
+    };
+
+    _image = _device->createImage(imageCreateInfo);
+
+    auto imageMemoryReqs = _device->getImageMemoryRequirements(_image.value());
+
+    vk::MemoryAllocateInfo imageMemoryAllocInfo {
+      imageMemoryReqs.size,
+        findMemoryType(physicalDevice, imageMemoryReqs.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal)
+    };
+
+    _imageMemory = _device->allocateMemory(imageMemoryAllocInfo);
+    _device->bindImageMemory(_image.value(), _imageMemory.value(), 0);
+  }
+
+  ///// METHODS //////////////////////////////////////////////////////////////
+  void transitionImageLayout(const vk::CommandBuffer& cmdBuffer, vk::ImageLayout newLayout) {
+    vk::AccessFlags srcAccessFlags       = vk::AccessFlagBits::eNone;
+    vk::AccessFlags dstAccessFlags       = vk::AccessFlagBits::eNone;
+    vk::PipelineStageFlags srcPipelineStageFlags = vk::PipelineStageFlagBits::eNone;
+    vk::PipelineStageFlags dstPipelineStageFlags = vk::PipelineStageFlagBits::eNone;
+
+
+    // Undefined --> Transfer Dest
+    if(_imageLayout == vk::ImageLayout::eUndefined
+        && newLayout == vk::ImageLayout::eTransferDstOptimal
+    ) {
+      dstAccessFlags = vk::AccessFlagBits::eTransferWrite;
+      srcPipelineStageFlags = vk::PipelineStageFlagBits::eTopOfPipe;
+      dstPipelineStageFlags = vk::PipelineStageFlagBits::eTransfer;
+    }
+    // Transfer Dest --> Shader Reading
+    else if(_imageLayout == vk::ImageLayout::eTransferDstOptimal
+        && newLayout == vk::ImageLayout::eReadOnlyOptimal
+    ){
+      srcAccessFlags = vk::AccessFlagBits::eTransferWrite;
+      dstAccessFlags = vk::AccessFlagBits::eShaderRead;
+
+      srcPipelineStageFlags = vk::PipelineStageFlagBits::eTransfer;
+      dstPipelineStageFlags = vk::PipelineStageFlagBits::eFragmentShader;
+    }
+    // Unknown Op.
+    else {
+      throw std::invalid_argument("unsupported layout transition!");
+    }
+
+
+    vk::ImageMemoryBarrier barrier {
+      srcAccessFlags
+      , dstAccessFlags
+      , _imageLayout
+      , newLayout
+      , vk::QueueFamilyIgnored
+      , vk::QueueFamilyIgnored
+      , _image.value()
+      , {
+        vk::ImageAspectFlagBits::eColor
+        , 0, 1, 0, 1
+      }
+    };
+
+    _imageLayout = newLayout;
+
+    cmdBuffer.pipelineBarrier(
+      srcPipelineStageFlags
+      , dstPipelineStageFlags
+      , vk::DependencyFlagBits::eByRegion
+      , {}, {}, barrier
+    );
+  }
+
+  void copyBufferToImage(const vk::CommandBuffer& cmdBuffer, const VBuffer<uint8_t> &buffer) const {
+    vk::BufferImageCopy bufferImageCopy {
+      0, 0, 0
+      , {
+        vk::ImageAspectFlagBits::eColor
+        , 0, 0, 1
+      }
+      , {0, 0, 0}
+      , { _width, _height, 1 }
+    };
+
+
+    cmdBuffer.copyBufferToImage(
+        buffer.buffer(), _image.value()
+        , vk::ImageLayout::eTransferDstOptimal, bufferImageCopy);
+  };
+
+  ///// DESTRUCTOR ///////////////////////////////////////////////////////////
+  ~VImage() {
+    if(_device != nullptr) {
+      _device->destroyImage(_image.value());
+      _device->freeMemory(_imageMemory.value());
+    }
+  }
+
+
+  private:
+    const vk::Device* _device;
+    uint32_t _width, _height;
+
+    vk::ImageLayout _imageLayout = vk::ImageLayout::eUndefined;
+    vk::Format _imageFormat;
+
+    std::optional<vk::Image> _image;
+    std::optional<vk::DeviceMemory> _imageMemory;
+    
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -244,7 +411,7 @@ class Foxtalk {
         _uniformBuffers.push_back(std::move(buff));
       }
 
-      ///// CREATE VIDEO BUFFERS ///////////////////////////////////////////////
+      ///// CREATE VIDEO IMAGES & BUFFERS //////////////////////////////////////
       for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         auto buff = VBuffer<uint8_t>(
           _physicalDevice
@@ -257,7 +424,11 @@ class Foxtalk {
 
         _cameraBuffersMapped.push_back(buff.mapBufferMemory());
         _cameraBuffers.push_back(std::move(buff));
+
+        VImage vimg { _physicalDevice, _device };
+        _cameraImages.push_back(vimg);
       }
+
 
       ///// CREATE DESCRIPTOR POOL /////////////////////////////////////////////
       std::vector<vk::DescriptorPoolSize> descriptorPoolSizes {
@@ -318,9 +489,7 @@ class Foxtalk {
         , const vk::Extent2D swapchainExtent
         , uint32_t imageIndex
     ) {
-      // TODO: Maybe a vulkan pipeline == a material??
-      //       I think maybe everything from here to endRenderPass might should be 
-      //       in the actual drawables...
+      ///// SET UP PIPELINE ////////////////////////////////////////////////////
       commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline.pipeline());
 
       commandBuffer.setViewport(0, {{
@@ -338,6 +507,19 @@ class Foxtalk {
           , swapchainExtent
         }
       };
+
+      ///// CAPTURE CAM IMAGE //////////////////////////////////////////////////
+      // TODO: This should probably *not* be done in the render loop??
+
+      auto& camImage        = _cameraImages[imageIndex];
+      auto& camBuffer       = _cameraBuffers[imageIndex];
+      auto  camMemoryMapped = _cameraBuffersMapped[imageIndex];
+
+      // TODO: COPY IMAGE DATA INTO MAPPED BUFFER
+      camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eTransferDstOptimal);
+      camImage.copyBufferToImage(commandBuffer, camBuffer);
+
+      ///// SET UP UBO /////////////////////////////////////////////////////////
 
       UniformBufferObject ubo{};
       ubo.model = glm::mat4(1.0f); //glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -406,8 +588,7 @@ class Foxtalk {
 
     std::vector<VBuffer<uint8_t>> _cameraBuffers;
     std::vector<void*> _cameraBuffersMapped;
-    std::vector<vk::Image> _cameraImages;
-    std::vector<vk::ImageView> _cameraImageViews;
+    std::vector<VImage> _cameraImages;
 
     vk::DescriptorSetLayout _descriptorSetLayout;
     vk::DescriptorPool _descriptorPool;
