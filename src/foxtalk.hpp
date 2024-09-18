@@ -448,13 +448,9 @@ struct VImage {
 
 typedef void (*ExternalImageProc)(
   cv::Mat& cameraFrame
-  , uint32_t _camWidth
-  , uint32_t _camHeight
   , cv::freetype::FreeType2* _cv_ft2
 );
 
-
-static ExternalImageProc processCamera;
 
 class Foxtalk {
   public:
@@ -750,8 +746,6 @@ class Foxtalk {
       if(_updateProc != nullptr) {
         _updateProc(
           cameraFrame
-          , _camWidth
-          , _camHeight
           , _cv_ft2
         );
       }
