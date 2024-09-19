@@ -30,6 +30,7 @@ public:
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    /* glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE); */
     /* glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); */
     window = glfwCreateWindow(1920, 1080, "Dust", nullptr, nullptr);
 
@@ -71,7 +72,8 @@ public:
   }
 
   void mainLoop(std::function<void(void)> appTick) {
-    while(!glfwWindowShouldClose(window)) {
+    /* while(!glfwWindowShouldClose(window)) { */
+    while(true) {
       glfwPollEvents();
       appTick();
     }

@@ -684,8 +684,6 @@ class Foxtalk {
     ~Foxtalk() {
       dlclose(_updateProc_handle);
 
-      delete _cv_ft2;
-
       _device.destroyDescriptorPool(_descriptorPool);
       _device.destroyDescriptorSetLayout(_descriptorSetLayout);
     }

@@ -328,7 +328,8 @@ class Core {
       ///// ACQUIRE IMAGE //////////////////////////////////////////////////////
       auto nextImageResult = device().acquireNextImageKHR(
           swapchain()
-          , UINT64_MAX
+          /* , UINT64_MAX */
+          , 100000 // nanoseconds...
           , imageAvailableSemaphore);
 
       switch(nextImageResult.result) {
@@ -424,9 +425,6 @@ class Core {
 
       cleanupSwapchain();
 
-      delete _vertexShader;
-      delete _fragmentShader;
-
       /// ~~~PIPELINE & LAYOUT DESTROY WERE HERE~~~
       _device.destroyRenderPass(_renderPass);
 
@@ -518,9 +516,6 @@ private:
     vk::RenderPass _renderPass;
     vk::CommandPool _commandPool;
     std::vector<vk::CommandBuffer> _commandBuffers;
-
-    Shader *_vertexShader;
-    Shader *_fragmentShader;
 
     QueueFamiliyIndices _queueFamilyIndices;
 

@@ -21,6 +21,22 @@
 constexpr int COLOR_THRESHOLD = 50;
 
 ///// Marker Cluster ///////////////////////////////////////////////////////////
+
+/* New clustering idea:
+ *
+ * - Partition incoming points into possible groups:
+ *   - A "possible group" is a collection of points where
+ *     each point is within the allowableDistance of any
+ *     ONE other point. So it kind of globs more and more as it grows.
+ *   - For each set of points, find a candidate triangle that intersects
+ *     five points total.
+ *   - Remove those five points from the pool. If there are >5 points left,
+ *     find a new candidate triangle.
+ *     - Otherwise, repartition the points.
+ * - At the end, there may (probably will) be points that have not made it into
+ *   any triangles.
+ */
+
 struct Marker {
   uint8_t numericValue;
   float rad;

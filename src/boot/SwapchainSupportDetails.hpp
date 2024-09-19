@@ -5,6 +5,7 @@
 #ifndef FOXTALK_TEST_SWAP_CHAIN_SUPPORT_DETAILS_H
 #define FOXTALK_TEST_SWAP_CHAIN_SUPPORT_DETAILS_H
 
+#include <iostream>
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -41,9 +42,11 @@ struct SwapchainSupportDetails {
   vk::PresentModeKHR chooseSwapPresentMode() const {
     auto found = std::find(presentModes.begin(), presentModes.end(), vk::PresentModeKHR::eMailbox);
     if(found != presentModes.end()) {
+      std::cout << "Using Mailbox Swap Present Mode!" << std::endl;
       return *found;
     }
 
+    std::cout << "Using Mailbox Swap Present Mode!" << std::endl;
     return vk::PresentModeKHR::eFifo;
   }
 
