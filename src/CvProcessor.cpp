@@ -18,6 +18,125 @@
 #include <string>
 
 
+constexpr int COLOR_THRESHOLD = 50;
+
+///// Marker Cluster ///////////////////////////////////////////////////////////
+struct Marker {
+  uint8_t numericValue;
+  float rad;
+  cv::Point2f pos;
+
+  Marker(uint8_t numericValue, float rad, cv::Point2f pos)
+      : numericValue(numericValue), rad(rad), pos(pos) {}
+};
+
+struct MarkerCluster {
+  std::vector<Marker> markers { };
+
+  MarkerCluster(Marker firstMarker)
+  : representativeMarker(firstMarker)
+  {
+    markers.push_back(firstMarker);
+
+    // I desparately need to write some notes, here.
+    // Basically this circumscribes a right triangle; we know the
+    // dots are all the same size for a given marker, and we know the
+    // distances between them.
+    allowableDistance = std::sqrt(2.0f) * 6 * firstMarker.rad;
+  }
+
+  bool tryAddMarker(Marker newMarker) {
+    if(markers.size() == 5) return false;
+
+    cv::Point2f dd = representativeMarker.pos - newMarker.pos;
+    auto dist = cv::norm(dd);
+
+    if(dist <= allowableDistance) {
+      markers.push_back(newMarker);
+      return true;
+    }
+
+    return false;
+  }
+
+  std::array<cv::Point2f, 3> getBoundingTriangle(const cv::Mat& cameraFrame) {
+    auto min_x = std::min_element(markers.begin(), markers.end(), [](auto m1, auto m2) {
+        return m1.pos.x < m2.pos.x;
+    });
+
+    auto max_x = std::max_element(markers.begin(), markers.end(), [](auto m1, auto m2) {
+        return m1.pos.x < m2.pos.x;
+    });
+
+    auto final_pt = std::max_element(markers.begin(), markers.end(), [&min_x, &max_x](auto m1, auto m2) {
+        return
+          (cv::norm(min_x->pos - m1.pos) + cv::norm(max_x->pos - m1.pos))
+           < (cv::norm(min_x->pos - m2.pos) + cv::norm(max_x->pos - m2.pos));
+    });
+
+    // MIN X: WHITE
+    cv::circle(
+        cameraFrame
+        , min_x->pos
+        , 20
+        , CV_RGB(255, 255, 255)
+        , 2);
+
+    // MAX X: TEAL
+    cv::circle(
+        cameraFrame
+        , max_x->pos
+        , 20
+        , CV_RGB(0, 255, 255)
+        , 2);
+
+    // FINAL PT: PURPLE
+    cv::circle(
+        cameraFrame
+        , final_pt->pos
+        , 20
+        , CV_RGB(255, 0, 255)
+        , 2);
+
+
+    return { min_x->pos, max_x->pos, final_pt->pos };
+  }
+
+  cv::Rect getBoundingBox() {
+    float x1 = 10000, y1 = 10000, x2, y2;
+    for(auto m : markers) {
+      x1 = std::min(m.pos.x, x1);
+      x2 = std::max(m.pos.x, x2);
+      y1 = std::min(m.pos.y, y1);
+      y2 = std::max(m.pos.y, y2);
+    }
+
+    return cv::Rect {
+        static_cast<int>(x1)
+      , static_cast<int>(y1)
+      , std::max(5, static_cast<int>(x2 - x1))
+      , std::max(5, static_cast<int>(y2 - y1))
+    };
+  }
+
+  private:
+    Marker representativeMarker;
+    float allowableDistance;
+};
+
+void addMarkerToClusters(std::vector<MarkerCluster>& clusters, Marker&& newMarker) {
+  for(auto& cluster : clusters) {
+    if(cluster.tryAddMarker(newMarker)) {
+      return;
+    }
+  }
+
+  clusters.push_back(MarkerCluster(newMarker));
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 static bool stop = false;
 static cv::Ptr<cv::SimpleBlobDetector> blob;
 
@@ -34,8 +153,6 @@ static std::array<cv::Vec3f, 4> colorsHsv = {{
   { 9.0f,  176.0f, 200.0f   },   // Yellow
   { 178.0f,   184.0f,   226.0f   }    // Red
 }};
-
-constexpr int COLOR_THRESHOLD = 50;
 
 void printColor(cv::Vec3f bgr, cv::Vec3f hsv) {
   std::cout
@@ -75,31 +192,11 @@ extern "C" void process_image(
 
     hsv.convertTo(hsv, CV_32F);
 
-
-    // Cool laplacian visualizer
-    /* cv::Mat dst, abs_dst; */
-    /* cv::Laplacian(gray, dst, CV_16S, 3, 1.0, 0.0, cv::BORDER_DEFAULT); */
-
-    /* cv::convertScaleAbs(dst, abs_dst); */
-    /* cv::applyColorMap(abs_dst, cameraFrame, cv::COLORMAP_PARULA); */
-    /* return; */
-
-    // Corner detection??
-    /* cv::Mat harris; */
-    /* cv::cornerHarris(gray, harris, 2, 3, 0.4); */
-    /* cv::dilate(harris, harris, harris); // Marsha, Marsha, Marsha! */
-
-    /* cv::cvtColor(harris, cameraFrame, cv::COLOR_GRAY2BGR); */
-    /* return; */
-
-
     // Blob Detection
     std::vector<cv::KeyPoint> keypoints;
     blob->detect(gray, keypoints);
 
-    /* std::cout << cameraFrame.type() << std::endl; */
-
-    std::vector<cv::KeyPoint> filteredKeypoints;
+    std::vector<std::pair<uint8_t, cv::KeyPoint>> filteredKeypoints;
     for(auto kp : keypoints) {
       cv::Vec3b blobBgr = cameraFrame.at<cv::Vec3b>(kp.pt);
       cv::Vec3f blobHsv = hsv.at<cv::Vec3f>(kp.pt);
@@ -108,113 +205,116 @@ extern "C" void process_image(
       cv::Vec3f minHsv = { 127, 127, 127 };
       cv::Vec3f minBgr = { 127, 127, 127 };
 
+      uint8_t minIdx;
+
       for(int i = 0; i < colorsBgr.size(); i++) {
         cv::Vec3b bgr = colorsBgr[i];
         cv::Vec3f hsv = colorsHsv[i];
 
-        /* cv::Vec3f diff = hsv - blobHsv; */
-        /* std::cout << "\t diff = "; */
-        /* printColor(diff, diff); */
-        /* std::cout << std::endl; */
+        // Ignore brightness.
+        hsv[2] = 0;
+        blobHsv[2] = 0;
 
         float n = cv::norm(hsv - blobHsv, cv::NORM_L2);
         // Hue Only?
         /* float n = std::abs(hsv[0] - blobHsv[0]); */
 
-        /* std::cout << "\t norm("; */
-        /* printColor(bgr, hsv); */
-        /* std::cout << " - "; */
-        /* printColor(blobBgr, blobHsv); */
-        /* std::cout << ") = " << n << std::endl; */
-
         if(n < min_n) {
           min_n = n;
           minHsv = hsv;
           minBgr = bgr;
+          minIdx = i;
         }
       }
 
       if(min_n < COLOR_THRESHOLD) {
-        /* std::cout << "Found Blob Color: "; */
-        /* printColor(blobBgr, blobHsv); */
-        /* std::cout << " for bin "; */
-        /* printColor(minBgr, minHsv); */
-        /* std::cout << std::endl; */
+        filteredKeypoints.push_back({ minIdx, kp });
+      }
+    }
 
-        cv::circle(
-          cameraFrame
-          , kp.pt
-          , 20
-          , minBgr
-          , 5
-        );
-      } else {
-        /* std::cout << "MISSED Blob Color: "; */
-        /* printColor(blobBgr, blobHsv); */
-        /* std::cout << "(min n was " << min_n << ")" << std::endl; */
+    ///// DOT CLUSTER FINDER /////////////////////////////////////////////////
+    std::vector<MarkerCluster> clusters { };
+    for(auto [index, keypoint] : filteredKeypoints) {
+      addMarkerToClusters(clusters, Marker { index, keypoint.size / 2, keypoint.pt });
+    }
+
+    for(auto cluster : clusters) {
+      if(cluster.markers.size() == 5) {
+        auto corners = cluster.getBoundingTriangle(cameraFrame);
+        cv::line(cameraFrame, corners[0], corners[1], CV_RGB(255, 0, 0), 2);
+        cv::line(cameraFrame, corners[1], corners[2], CV_RGB(255, 0, 0), 2);
+        cv::line(cameraFrame, corners[2], corners[0], CV_RGB(255, 0, 0), 2);
       }
     }
 
 
+    ///// DRAW FILTERED KEYPOINTS ////////////////////////////////////////////
+    for(auto cluster : clusters) {
+      // Found a valid corner!
+      if(cluster.markers.size() == 5) {
+        for(auto& marker : cluster.markers) {
+          auto color = colorsBgr[marker.numericValue];
+
+          cv::circle(
+            cameraFrame
+            , marker.pos
+            , 20
+            , color
+            , 5
+          );
+        };
+      }
+    }
+
+    // Draw text as a separate layer.
+    for(auto cluster : clusters) {
+      // Found a valid corner!
+      if(cluster.markers.size() == 5) {
+        for(auto marker : cluster.markers) {
+          auto color = colorsBgr[marker.numericValue];
+
+          std::stringstream ss;
+          ss << (uint32_t)marker.numericValue;
+
+          cv::Point2f offsetPt {
+            marker.pos.x - 7,
+            marker.pos.y + 10
+          };
+
+          _cv_ft2->putText(
+              cameraFrame
+              , ss.str()
+              , offsetPt
+              , 30
+              , CV_RGB(255, 255, 255)
+              , -1 // negative thickness fills the text.
+              , cv::LINE_AA
+              , true);
+
+          };
+      }
+    }
+
+    // Draw Reticle
+    cv::line(
+        cameraFrame
+        , { cameraFrame.cols / 2, 0 }
+        , { cameraFrame.cols / 2, cameraFrame.rows }
+        , CV_RGB(255, 255, 255)
+        , 1
+    );
+
+    cv::line(
+        cameraFrame
+        , { 0, cameraFrame.rows / 2 }
+        , { cameraFrame.cols, cameraFrame.rows / 2 }
+        , CV_RGB(255, 255, 255)
+        , 1
+    );
+
+
     /* cv::drawKeypoints(cameraFrame, keypoints, cameraFrame); */
 
-    return;
-
-    /* auto mult = 2; */
-    /* auto alpha = 2.0; */
-    /* auto beta = -100; */
-
-    /* /1* cv::resize(gray, gray, cv::Size { static_cast<int>(_camWidth) / mult, static_cast<int>(_camHeight) / mult }, cv::INTER_CUBIC); *1/ */
-
-    /* // cv::GaussianBlur(gray, gray, cv::Size {9, 9}, 2, 2); */
-    /* cv::Laplacian(gray, gray, 1, 3); */
-
-    /* cv::cvtColor(gray, cameraFrame, cv::COLOR_GRAY2BGR); */
-    /* /1* return; *1/ */
-
-    /* return; */
-    /* std::vector<cv::Vec3f> circles; */
-
-    /* cv::HoughCircles( */
-    /*   gray */
-    /*   , circles */
-    /*   , cv::HOUGH_GRADIENT_ALT */
-    /*   , 10 */
-    /*   , 1 // 7 */
-    /*   , 300 */
-    /*   , 0.9 */
-    /*   , 1 */
-    /*   , 12 */
-    /* ); */
-
-    /* std::sort(circles.begin(), circles.end(), [](auto a, auto b) { */
-    /*     return a[1] > b[1]; */
-    /* }); */
-
-    /* for(auto i = 0; i < circles.size(); i++) { */
-    /*   auto c = circles[i]; */
-    /*   auto color = CV_RGB(255.0, 0.0, 0.0); */
-
-    /*   cv::Point center(c[0], c[1]); */
-
-    /*   if(i == 0) { */
-    /*     color = CV_RGB(0.0, 255.0, 255.0); */
-
-    /*     std::stringstream ss; */
-    /*     ss << c[2]; */
-
-    /*     _cv_ft2->putText( */
-    /*         cameraFrame */
-    /*         , ss.str() */
-    /*         , center */
-    /*         , 60 */
-    /*         , color */
-    /*         , -1 // negative thickness fills the text. */
-    /*         , cv::LINE_AA */
-    /*         , true); */
-    /*   } */
-    /*   cv::circle(cameraFrame, center, c[2], color, 2); */
-    /* } */
 
   } catch (cv::Exception cve) {
     std::cerr << "Caught exception! " << cve.what() << std::endl;
