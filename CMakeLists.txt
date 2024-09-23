@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(foxtalk CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
-set(CXX_STANDARD C++23)
+set(CMAKE_CXX_STANDARD 23)
 
 find_package(OpenCV REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslc)
@@ -44,6 +44,7 @@ endfunction()
 ################################################################################
 
 add_library(image_proc SHARED src/CvProcessor.cpp)
+add_library(dot_sandbox SHARED src/CvDotSandbox.cpp)
 
 ################################################################################
 

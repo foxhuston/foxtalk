@@ -3,6 +3,7 @@
 #include "opencv2/core/matx.hpp"
 #include "opencv2/core/types.hpp"
 #include <algorithm>
+#include <numbers>
 #include <cmath>
 #include <cwchar>
 #include <iostream>
@@ -62,64 +63,195 @@ struct MarkerCluster {
   }
 
   bool tryAddMarker(Marker newMarker) {
-    if(markers.size() == 5) return false;
+    /* cv::Point2f dd = representativeMarker.pos - newMarker.pos; */
+    /* auto dist = cv::norm(dd); */
 
-    cv::Point2f dd = representativeMarker.pos - newMarker.pos;
-    auto dist = cv::norm(dd);
+    double dist = std::numeric_limits<double>::max();
+    for(auto m : markers) {
+      dist = std::min(dist, cv::norm(m.pos - newMarker.pos));
+    }
+
 
     if(dist <= allowableDistance) {
-      markers.push_back(newMarker);
+      auto last_lt = std::find_if(markers.begin(), markers.end(), [&newMarker](Marker& m) {
+          // Reverse sort for debugging!
+          return m.pos.x < newMarker.pos.x;
+      });
+
+      if(last_lt != markers.end()) {
+        markers.insert(last_lt, newMarker);
+      } else {
+        markers.push_back(newMarker);
+      }
+
+      
       return true;
     }
 
     return false;
   }
 
-  std::array<cv::Point2f, 3> getBoundingTriangle(const cv::Mat& cameraFrame) {
-    auto min_x = std::min_element(markers.begin(), markers.end(), [](auto m1, auto m2) {
-        return m1.pos.x < m2.pos.x;
-    });
+  class TriLine {
+  private:
+    cv::Point2f normed;
 
-    auto max_x = std::max_element(markers.begin(), markers.end(), [](auto m1, auto m2) {
-        return m1.pos.x < m2.pos.x;
-    });
+  public:
+    cv::Point2f a, b;
 
-    auto final_pt = std::max_element(markers.begin(), markers.end(), [&min_x, &max_x](auto m1, auto m2) {
-        return
-          (cv::norm(min_x->pos - m1.pos) + cv::norm(max_x->pos - m1.pos))
-           < (cv::norm(min_x->pos - m2.pos) + cv::norm(max_x->pos - m2.pos));
-    });
+    float dist(cv::Point2f pt) {
+      return std::abs(normed.dot(pt));
+    }
 
-    // MIN X: WHITE
-    cv::circle(
-        cameraFrame
-        , min_x->pos
-        , 20
-        , CV_RGB(255, 255, 255)
-        , 2);
+    TriLine()
+      : a {0.0f, 0.0f}, b {0.0f, 0.0f}, normed {0, 0}
+    {
+    }
 
-    // MAX X: TEAL
-    cv::circle(
-        cameraFrame
-        , max_x->pos
-        , 20
-        , CV_RGB(0, 255, 255)
-        , 2);
+    TriLine(cv::Point2f a, cv::Point2f b)
+        : a { a }, b { b }
+    {
+      normed = (a - b) / cv::norm(a - b);
+    }
+  };
 
-    // FINAL PT: PURPLE
-    cv::circle(
-        cameraFrame
-        , final_pt->pos
-        , 20
-        , CV_RGB(255, 0, 255)
-        , 2);
+  void drawTriLine(const cv::Mat& cameraFrame, const TriLine& triLine, const cv::Scalar color = CV_RGB(255, 0, 0)) {
+    constexpr int ray_length = 10000;
 
+    cv::line(
+      cameraFrame
+      , triLine.a
+      , triLine.b
+      , color
+      , 2
+    );
 
-    return { min_x->pos, max_x->pos, final_pt->pos };
+    cv::circle(cameraFrame, { static_cast<int>(triLine.a.x), static_cast<int>(triLine.a.y) }, 5, CV_RGB(255, 255, 255), -1);
   }
 
+  std::pair<float, TriLine> getMinErrorAtPoint(const cv::Point2f& sample) {
+    float minDist = std::numeric_limits<float>::max();
+    TriLine minTriLine { {0, 0}, {0, 0} };
+
+    for(auto& endpoint : markers) {
+      TriLine tl { sample, endpoint.pos };
+
+      float dist = 0.0;
+      for(auto& otherPoint : markers) {
+        dist += tl.dist(otherPoint.pos);
+      }
+
+      if(dist < minDist) {
+        minDist = dist;
+        minTriLine = tl;
+      }
+    }
+
+    return { minDist, minTriLine };
+  }
+
+  void drawMinTriLines(const cv::Mat& cameraFrame) {
+    float minErr = std::numeric_limits<float>::max();
+    std::vector<cv::Point2f> points(markers.size());
+
+    std::transform(
+        markers.begin(), markers.end(), points.begin()
+        , [](auto mk) { return mk.pos; });
+
+
+    for(auto& marker : markers) {
+      auto point = marker.pos;
+      std::vector<TriLine> triLines;
+
+      for(auto& otherPoint : points) {
+        if(point != otherPoint) {
+          triLines.push_back(TriLine { point, otherPoint });
+        }
+      }
+
+      for(auto& candidateTriLine : triLines) {
+        std::vector<float> errors;
+        for(auto& point : points) {
+          if(point != candidateTriLine.a && point != candidateTriLine.b) {
+            errors.push_back(candidateTriLine.dist(point));
+          }
+        }
+
+        auto count = std::count_if(errors.begin(), errors.end(),
+            [marker](auto f) { return f < marker.rad; });
+
+        if(count == 0) {
+          /* drawTriLine(cameraFrame, candidateTriLine, CV_RGB(200, 0, 0)); */
+        } else if (count == 1) {
+          drawTriLine(cameraFrame, candidateTriLine, CV_RGB(0, 255, 0));
+        } else {
+          drawTriLine(cameraFrame, candidateTriLine, CV_RGB(255, 255, 0));
+        }
+      }
+    }
+
+  }
+
+  std::array<cv::Point2f, 3> getBoundingTriangle(const cv::Mat& cameraFrame) {
+    auto bbox = getBoundingBox();
+
+    auto fst = markers[0];
+    auto snd = markers[1];
+
+    auto theta = std::atan2(fst.pos.y - snd.pos.y, snd.pos.x - fst.pos.x);
+
+    /* drawTriLines(cameraFrame, { fst.pos.x, fst.pos.y, theta }); */
+
+    return { markers[0].pos, markers[1].pos, markers[2].pos };
+  }
+
+  /* std::array<cv::Point2f, 3> getBoundingTriangle(const cv::Mat& cameraFrame) { */
+  /*   auto min_x = std::min_element(markers.begin(), markers.end(), [](auto m1, auto m2) { */
+  /*       return m1.pos.x < m2.pos.x; */
+  /*   }); */
+
+  /*   auto max_x = std::max_element(markers.begin(), markers.end(), [](auto m1, auto m2) { */
+  /*       return m1.pos.x < m2.pos.x; */
+  /*   }); */
+
+  /*   auto final_pt = std::max_element(markers.begin(), markers.end(), [&min_x, &max_x](auto m1, auto m2) { */
+  /*       return */
+  /*         (cv::norm(min_x->pos - m1.pos) + cv::norm(max_x->pos - m1.pos)) */
+  /*          < (cv::norm(min_x->pos - m2.pos) + cv::norm(max_x->pos - m2.pos)); */
+  /*   }); */
+
+  /*   // MIN X: WHITE */
+  /*   cv::circle( */
+  /*       cameraFrame */
+  /*       , min_x->pos */
+  /*       , 20 */
+  /*       , CV_RGB(255, 255, 255) */
+  /*       , 2); */
+
+  /*   // MAX X: TEAL */
+  /*   cv::circle( */
+  /*       cameraFrame */
+  /*       , max_x->pos */
+  /*       , 20 */
+  /*       , CV_RGB(0, 255, 255) */
+  /*       , 2); */
+
+  /*   // FINAL PT: PURPLE */
+  /*   cv::circle( */
+  /*       cameraFrame */
+  /*       , final_pt->pos */
+  /*       , 20 */
+  /*       , CV_RGB(255, 0, 255) */
+  /*       , 2); */
+
+
+  /*   return { min_x->pos, max_x->pos, final_pt->pos }; */
+  /* } */
+
   cv::Rect getBoundingBox() {
-    float x1 = 10000, y1 = 10000, x2, y2;
+    float x1 = std::numeric_limits<float>::max()
+      , y1 = std::numeric_limits<float>::max()
+      , x2 = std::numeric_limits<float>::min()
+      , y2 = std::numeric_limits<float>::min();
     for(auto m : markers) {
       x1 = std::min(m.pos.x, x1);
       x2 = std::max(m.pos.x, x2);
@@ -255,17 +387,26 @@ extern "C" void process_image(
     }
 
     for(auto cluster : clusters) {
-      if(cluster.markers.size() == 5) {
-        auto corners = cluster.getBoundingTriangle(cameraFrame);
-        cv::line(cameraFrame, corners[0], corners[1], CV_RGB(255, 0, 0), 2);
-        cv::line(cameraFrame, corners[1], corners[2], CV_RGB(255, 0, 0), 2);
-        cv::line(cameraFrame, corners[2], corners[0], CV_RGB(255, 0, 0), 2);
+      if(cluster.markers.size() >= 5) {
+        /* auto corners = cluster.getBoundingTriangle(cameraFrame); */
+        /* cv::line(cameraFrame, corners[0], corners[1], CV_RGB(255, 255, 0), 2); */
+        /* cv::line(cameraFrame, corners[1], corners[2], CV_RGB(255, 255, 0), 2); */
+        /* cv::line(cameraFrame, corners[2], corners[0], CV_RGB(255, 255, 0), 2); */
+
+        cluster.drawMinTriLines(cameraFrame);
       }
     }
 
 
     ///// DRAW FILTERED KEYPOINTS ////////////////////////////////////////////
     for(auto cluster : clusters) {
+      cv::rectangle(
+        cameraFrame
+        , cluster.getBoundingBox()
+        , CV_RGB(0, 255, 0)
+        , 2
+      );
+
       // Found a valid corner!
       if(cluster.markers.size() == 5) {
         for(auto& marker : cluster.markers) {
@@ -312,21 +453,21 @@ extern "C" void process_image(
     }
 
     // Draw Reticle
-    cv::line(
-        cameraFrame
-        , { cameraFrame.cols / 2, 0 }
-        , { cameraFrame.cols / 2, cameraFrame.rows }
-        , CV_RGB(255, 255, 255)
-        , 1
-    );
+    /* cv::line( */
+    /*     cameraFrame */
+    /*     , { cameraFrame.cols / 2, 0 } */
+    /*     , { cameraFrame.cols / 2, cameraFrame.rows } */
+    /*     , CV_RGB(255, 255, 255) */
+    /*     , 1 */
+    /* ); */
 
-    cv::line(
-        cameraFrame
-        , { 0, cameraFrame.rows / 2 }
-        , { cameraFrame.cols, cameraFrame.rows / 2 }
-        , CV_RGB(255, 255, 255)
-        , 1
-    );
+    /* cv::line( */
+    /*     cameraFrame */
+    /*     , { 0, cameraFrame.rows / 2 } */
+    /*     , { cameraFrame.cols, cameraFrame.rows / 2 } */
+    /*     , CV_RGB(255, 255, 255) */
+    /*     , 1 */
+    /* ); */
 
 
     /* cv::drawKeypoints(cameraFrame, keypoints, cameraFrame); */
