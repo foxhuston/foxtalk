@@ -41,10 +41,25 @@ function(compile_shader target)
     endforeach()
 endfunction()
 
-################################################################################
+##### DYNAMIC LIBS #############################################################
 
 add_library(image_proc SHARED src/CvProcessor.cpp)
 add_library(dot_sandbox SHARED src/CvDotSandbox.cpp)
+
+##### UTILS ####################################################################
+
+find_package(podofo REQUIRED)
+
+# From the argparse github. Don't think I like this very much...
+include(FetchContent)
+FetchContent_Declare(
+        argparse
+        GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+)
+FetchContent_MakeAvailable(argparse)
+
+add_executable(pdf-identify src/utils/pdf_identify.cpp)
+target_link_libraries(pdf-identify argparse podofo)
 
 ################################################################################
 
@@ -56,6 +71,9 @@ include_directories(
 )
 add_executable(${PROJECT_NAME}
   src/main.cpp
+        src/boot/BuildAndNotify.cpp
+        src/boot/BuildAndNotify.h
+        src/utils/pdf_identify.cpp
 )
 
 compile_shader(${PROJECT_NAME}
