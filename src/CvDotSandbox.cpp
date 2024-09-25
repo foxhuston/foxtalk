@@ -127,6 +127,7 @@ void lollipop(cv::Mat& output, cv::Point2f from, cv::Point2f to, cv::Scalar colo
 
 extern "C" void process_image(
     cv::Mat& cameraFrame
+    , cv::Mat& outputFrame
     , cv::freetype::FreeType2* _cv_ft2
 ) {
   if(stop) return;
@@ -207,7 +208,7 @@ extern "C" void process_image(
 
     for(auto& kp : greenKeypoints) {
       cv::circle(
-          cameraFrame
+          outputFrame
           , kp.pt
           , 20
           , CV_RGB(0, 255, 0)
@@ -216,8 +217,9 @@ extern "C" void process_image(
     }
 
     for(auto& kp : redKeypoints) {
+      // std::cout << "Drawing a red keypoint!" << std::endl;
       cv::circle(
-          cameraFrame
+          outputFrame
           , kp.pt
           , 20
           , CV_RGB(255, 0, 0)
@@ -321,13 +323,10 @@ extern "C" void process_image(
             , 2
           );
         }
-
-
-
-
-        
       }
     }
+
+    cv::rectangle(outputFrame, {0, 0, 1920, 1080}, CV_RGB(0, 255, 255), -1);
 
     ///// DOT CLUSTER FINDER /////////////////////////////////////////////////
 

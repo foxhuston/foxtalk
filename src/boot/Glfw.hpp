@@ -49,7 +49,7 @@ public:
     return 0; // For now, just take the first physical device.
   }
 
-  vk::SurfaceKHR createRenderSurface(const vk::Instance& instance) {
+  vk::SurfaceKHR createRenderSurface(const vk::Instance& instance, const vk::PhysicalDevice& physicalDevice) {
     VkSurfaceKHR surf;
     if(glfwCreateWindowSurface(instance, window, nullptr, &surf) != VK_SUCCESS) {
       throw std::runtime_error("GLFW failed to create window surface!");

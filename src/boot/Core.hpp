@@ -96,9 +96,6 @@ class Core {
 
       _instance = vk::createInstance(instanceInfo);
 
-      ///// CREATE SURFACE ///////////////////////////////////////////////////////
-      _outputSurface = coreRenderer().createRenderSurface(instance());
-
       ///// VALIDATION LAYERS ////////////////////////////////////////////////////
 
 #ifndef NDEBUG
@@ -137,6 +134,7 @@ class Core {
       std::cout << "Found Physical Devices:" << std::endl;
       auto physicalDevices = instance().enumeratePhysicalDevices();
 
+      std::cout << "=== Ranking... ===" << std::endl;
       // TODO: Check physical device for swapchain support...
       _physicalDevice = physicalDevices[0];
       int max_score = 0;
@@ -148,8 +146,12 @@ class Core {
           max_score = score;
         }
       }
+      std::cout << "=== End Ranking... ===" << std::endl;
 
       std::cout << "Selected " << _physicalDevice.getProperties().deviceName << std::endl;
+
+      ///// CREATE SURFACE ///////////////////////////////////////////////////////
+      _outputSurface = coreRenderer().createRenderSurface(instance(), physicalDevice());
 
       ///// QUEUE FAMILIES ///////////////////////////////////////////////////////
       auto queueFamilies = physicalDevice().getQueueFamilyProperties();
@@ -398,6 +400,8 @@ class Core {
       } else if (presentQueueResult != vk::Result::eSuccess) {
           throw std::runtime_error("Failed to present swapchain image!");
       }
+
+      presentQueue().waitIdle();
     }
 
     void incrementFrame() {

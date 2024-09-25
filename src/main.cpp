@@ -1,9 +1,11 @@
 #include "boot/Core.hpp"
 #include "boot/Glfw.hpp"
+#include "boot/VkDisplay.hpp"
 #include "foxtalk.hpp"
 
 int main() {
-  Glfw container {}; // TODO: write VK_KHR_DISPLAY_EXTENSION version
+  /* Glfw container {}; */
+  VkDisplay container {};
 
   Core core(&container);
 

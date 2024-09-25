@@ -449,6 +449,7 @@ struct VImage {
 
 typedef void (*ExternalImageProc)(
   cv::Mat& cameraFrame
+  , cv::Mat& outputFrame
   , cv::freetype::FreeType2* _cv_ft2
 );
 
@@ -552,7 +553,8 @@ class Foxtalk {
 
       ///// TEMP DATA //////////////////////////////////////////////////////////
 
-      auto width = 1920.0f;
+      /* auto width = 1920.0f; */
+      auto width = 3839.0f;
       auto offset = 0.0f; //10.0f;
 
       auto height = width * (static_cast<float>(_camHeight) / _camWidth);
@@ -699,6 +701,7 @@ class Foxtalk {
 
     void updateCameraTextureBuffer(VBuffer<uint8_t>& cameraBuffer) {
       ///// Check for code changes (This probably doesn't have to be done every frame :grimace:
+
       fd = open(image_proc_file, O_RDONLY);
       fstat(fd, &fstat_buf);
       close(fd);
@@ -742,22 +745,27 @@ class Foxtalk {
 
       cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
 
+      cv::Mat outputMat = cv::Mat::ones(_camWidth, _camHeight, cameraFrame.type()) * 255;
+
       if(_updateProc != nullptr) {
         _updateProc(
           cameraFrame
+	  , outputMat
           , _cv_ft2
         );
       }
 
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures
+      //
       std::vector<cv::Mat> channels;
-      cv::split(cameraFrame, channels);
+      cv::split(outputMat, channels);
       cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
       channels.push_back(alphaChannel);
 
-      cv::Mat outputMat;
-      cv::merge(channels, outputMat);
+
+      cv::Mat finalOutputMat;
+      cv::merge(channels, finalOutputMat);
 
 
       // TODO: SYNC---Handled by sync2 extension??
@@ -765,7 +773,7 @@ class Foxtalk {
       // Write camera data
       // TODO: Image Size!
 
-      memcpy(cameraBuffer.mapBufferMemory(), outputMat.data, static_cast<size_t>(_camWidth * _camHeight * 4));
+      memcpy(cameraBuffer.mapBufferMemory(), finalOutputMat.data, static_cast<size_t>(_camWidth * _camHeight * 4));
 
       // TODO: SYNC---Handled by sync2 extension??
     }
