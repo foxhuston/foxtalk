@@ -10,8 +10,12 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
-//#include "../reactive_db/ReactiveDb.h"
-//#include "../reactive_db/Symbol.h"
+extern "C" {
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+}
+
 #include "../reactive_db/Reactor.h"
 
 // I cannot stress
@@ -78,6 +82,22 @@ void v4lEnumerate(int fd, T &desc, std::function<void(const T &)> forEach) {
 //}
 
 int main() {
+//    char buff[256];
+//    int error;
+//    lua_State *L = luaL_newstate();   /* opens Lua */
+//    luaL_openlibs(L);                 /* opens all the things? */
+//
+//    while (fgets(buff, sizeof(buff), stdin) != NULL) {
+//        error = luaL_loadbuffer(L, buff, strlen(buff), "line") ||
+//                lua_pcall(L, 0, 0, 0);
+//        if (error) {
+//            fprintf(stderr, "%s", lua_tostring(L, -1));
+//            lua_pop(L, 1);  /* pop error message from the stack */
+//        }
+//    }
+//
+//    lua_close(L);
+//    return 0;
     Reactor db{};
 
     auto fox = db.symbol("fox");
@@ -89,16 +109,18 @@ int main() {
     auto isHighlighted = db.symbol("is highlighted");
     auto blue = db.symbol("blue");
 
-    db.claim({lexi, isA, husky});
-    db.claim({fox, isA, demonfox});
+    Tuple c1 { lexi, isA, husky };
+    Tuple c2 { fox, isA, demonfox };
+    db.claim(&c1);
+    db.claim(&c2);
 
     // When (you) are a husky:
     db.when({nullptr, isA, husky},
             [isHighlighted, blue](wish wish, size_t nBindings, Tuple* bindings) {
                 if (nBindings == 1) {
-                    std::cout << "Found a husky: " << bindings->subject << std::endl;
+                    std::cout << "Found a husky: " << *static_cast<Symbol*>(bindings->subject) << std::endl;
                     // Wish (you) were highlighted blue.
-                    wish({ bindings->subject, isHighlighted, blue });
+                    wish(new Tuple { bindings->subject, isHighlighted, blue });
                 } else {
                     throw std::runtime_error(
                             std::format("Unexpected number of bindings! Wanted 1, got {0}", nBindings));
@@ -109,28 +131,23 @@ int main() {
     db.when({ nullptr, isHighlighted, nullptr },
             [](wish wish, size_t nBindings, Tuple* bindings) {
                 if (nBindings == 1) {
-                    std::cout << "Will highlight " << bindings->subject << " " << bindings->object << std::endl;
+                    std::cout << "Will highlight "
+                              << *static_cast<Symbol*>(bindings->subject) << " "
+                              << *static_cast<Symbol*>(bindings->object) << std::endl;
                 } else {
                     throw std::runtime_error(
                             std::format("Unexpected number of bindings! Wanted 1, got {0}", nBindings));
                 }
     });
 
+    std::cout << "===== FIRST TICK ===============================================================" << std::endl;
     db.tick();
-
-//    // When (you) is a husky...
-//    auto allTheHuskies = db.query(nullopt, "is a", "husky");
-//    for (const auto &[who, isA, hoosk]: allTheHuskies) {
-//        // (you) are highlighted blue
-//        db.claim(who, "is highlighted", "blue");
-//    }
-//
-//    // When (you) are highlighted (a color)...
-//    auto highlights = db.query(nullopt, "is highlighted", nullopt);
-//    for (const auto &[who, _, color]: highlights) {
-//        std::cout << "Going to highlight "
-//                  << *static_cast<Symbol *>(who)
-//                  << " " << *static_cast<Symbol *>(color)
-//                  << std::endl;
-//    }
+    std::cout << "===== REMOVE C2 ================================================================" << std::endl;
+    db.removeClaim(&c2);
+    db.tick();
+    std::cout << "===== REMOVE C1 ================================================================" << std::endl;
+    db.removeClaim(&c1);
+    db.tick();
+    std::cout << "===== EXTRA TICK ===============================================================" << std::endl;
+    db.tick();
 }

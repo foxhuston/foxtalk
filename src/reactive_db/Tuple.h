@@ -5,7 +5,7 @@
 #ifndef FOXTALK_TUPLE_H
 #define FOXTALK_TUPLE_H
 
-#import "Symbol.h"
+#include "Symbol.h"
 
 struct Tuple {
     void* subject;
@@ -13,6 +13,14 @@ struct Tuple {
     void* object;
 
     Tuple* provenance;
+
+    friend std::ostream& operator<<(std::ostream& os, const Tuple& sym) {
+        os << "<";
+        if(sym.subject == nullptr) { os << "_, "; } else { os << sym.subject << ", "; }
+        if(sym.predicate == nullptr) { os << "_, "; } else { os << *sym.predicate << ", "; }
+        if(sym.object == nullptr) { os << "_>"; } else { os << sym.object << ">"; }
+        return os;
+    }
 };
 
 #endif //FOXTALK_TUPLE_H

@@ -12,8 +12,7 @@
 #include <functional>
 #include "Tuple.h"
 
-typedef void (*wish)(Tuple fact);
-//typedef void (*handler)(wish wish, size_t nBindings, Tuple* bindings);
+typedef std::function<void(Tuple *fact)> wish;
 typedef std::function<void(wish, size_t, Tuple*)> handler;
 
 class Reactor {
@@ -25,6 +24,10 @@ class Reactor {
     VoidMap _facts_by_subject;
     SymbolMap _facts_by_predicate;
     VoidMap _facts_by_object;
+    std::map<Tuple*, std::set<Tuple*>> _facts_by_provenance;
+
+
+    std::vector<std::pair<Tuple, handler>> handlers {};
 
     std::set<Tuple *> query(Tuple q);
 
