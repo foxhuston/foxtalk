@@ -3,6 +3,9 @@
 //
 #include <iostream>
 
+#include <linux/ioctl.h>
+#include <linux/v4l2-common.h>
+
 #include "../reactive_db/ReactiveDb.h"
 
 int main() {
@@ -16,6 +19,8 @@ int main() {
     db.claim(&lexi, "is a", &husky);
     db.claim(&fox, "is a", &demon_fox);
 
+    // New task: place all of the supported camera resolutions into the db for
+    //           `/dev/video0` (or whatever `is a v4l cam`s we have)
 
     // When (you) is a husky...
     auto allTheHuskies = db.query(nullopt, "is a", &husky);

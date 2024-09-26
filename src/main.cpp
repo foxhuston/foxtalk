@@ -4,8 +4,8 @@
 #include "foxtalk.hpp"
 
 int main() {
-  /* Glfw container {}; */
-  VkDisplay container {};
+  Glfw container {};
+  // VkDisplay container {};
 
   Core core(&container);
 
