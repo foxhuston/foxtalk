@@ -79,7 +79,6 @@ add_executable(${PROJECT_NAME}
   src/main.cpp
         src/boot/BuildAndNotify.cpp
         src/boot/BuildAndNotify.h
-        src/utils/pdf_identify.cpp
 )
 
 compile_shader(${PROJECT_NAME}
