@@ -11,8 +11,14 @@ struct Tuple {
     void* subject;
     Symbol* predicate;
     void* object;
-
     Tuple* provenance;
+
+    bool operator==(const Tuple& rhs) const {
+        return subject == rhs.subject
+            && predicate == rhs.predicate
+            && object == rhs.object
+            && *provenance == *rhs.provenance;
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const Tuple& sym) {
         os << "<";
