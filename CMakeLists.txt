@@ -63,9 +63,16 @@ target_link_libraries(pdf-identify argparse podofo)
 
 ##### REACTIVE DB ##############################################################
 
+find_package(Lua REQUIRED)
+
 add_executable(reactive_db
-        src/reactive_db/ReactiveDb.cpp
-        src/utils/reactive-db-test.cpp)
+        src/utils/reactive-db-test.cpp
+        src/reactive_db/Symbol.h
+        src/reactive_db/Reactor.cpp
+        src/reactive_db/Reactor.h
+        src/reactive_db/Tuple.h)
+
+target_link_libraries(reactive_db lua m)
 
 ################################################################################
 

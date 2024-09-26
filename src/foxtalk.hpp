@@ -500,7 +500,7 @@ class Foxtalk {
       // cap.open(0);
       // OR advance usage: select any API backend
       int deviceID = 0;             // 0 = open default camera
-      int apiID = cv::CAP_ANY;      // 0 = autodetect default API
+      int apiID = cv::CAP_V4L2;     // 0 = autodetect default API
       // open selected camera using selected API
       _videoCapture.open(deviceID, apiID);
       // check if we succeeded
