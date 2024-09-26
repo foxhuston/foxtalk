@@ -61,6 +61,12 @@ FetchContent_MakeAvailable(argparse)
 add_executable(pdf-identify src/utils/pdf_identify.cpp)
 target_link_libraries(pdf-identify argparse podofo)
 
+##### REACTIVE DB ##############################################################
+
+add_executable(reactive_db
+        src/reactive_db/ReactiveDb.cpp
+        src/utils/reactive-db-test.cpp)
+
 ################################################################################
 
 

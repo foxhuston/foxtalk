@@ -12,35 +12,92 @@
 
 
 static const std::array<PoDoFo::PdfColor, 4> colorLibrary = {{
-        { 1.0, 0.0, 0.0 }, // Red
-        { 229.0/255.0, 126.0/255.0, 24.0/255.0 }, // Yellow
-        { 76.0/255.0, 0.0, 101.0/255.0 }, // Purple
-        { 0.0, 178.0/255.0, 0.0 }, // Green
+    { 1.0, 0.0, 0.0 }, // Red
+    { 229.0/255.0, 126.0/255.0, 24.0/255.0 }, // Yellow
+    { 0.0, 178.0/255.0, 0.0 }, // Green
+    { 76.0/255.0, 0.0, 101.0/255.0 }, // Purple
 }};
 
-// Base-4 conversion
-std::vector<PoDoFo::PdfColor> getDotsForNum(uint32_t num) {
-    std::vector<PoDoFo::PdfColor> out;
-
-    for(int i = 0; i <= 20; i++) {
-        auto col = colorLibrary[num % colorLibrary.size()];
-        out.push_back(col);
-        num = num / colorLibrary.size();
+uint32_t manchester(uint16_t n) {
+    uint32_t out = 0;
+    for(int i = 0; i < 16; i++) {
+        auto bit = n % 16;
+        auto mc = (bit ^ 0) + ((bit ^ 1) << 1);
+        out = (out << 2) + mc;
     }
 
     return out;
 }
 
+// Base-4 conversion
+std::vector<PoDoFo::PdfColor> getDotsForNum(uint64_t num) {
+    auto n = num;
+    std::vector<PoDoFo::PdfColor> out;
+    std::deque<uint8_t> debugDigits;
+
+    // 12131133
+    for(int i = 0; i < 20; i++) {
+        auto digit = num % colorLibrary.size();
+        debugDigits.push_front(static_cast<uint8_t>(digit));
+
+        auto col = colorLibrary[digit];
+        out.push_back(col);
+        num = num / colorLibrary.size();
+    }
+
+    std::cout << n << " --base 4--> ";
+    int digindex = 0;
+    for(auto digit : debugDigits) {
+        if((digindex++) % 5 == 0) {
+            std::cout << " ";
+        }
+        std::cout << (uint32_t)digit;
+    }
+    std::cout << std::endl;
+
+    return out;
+}
+
+// 00000 00000 00101 12111
+// OORGP POGRO GOPOR RPRGG
+
+// 00000 00000 00101 12112
+// OGOPR PGGRO PRGOO RPRPG
+
+// dec 3656
+// 00000 00000 00003 21020
+// GROGP RGOPP RGOPR OPGRO
+
 int main(int argc, char **argv) {
+    std::string path;
+    int startingId;
+    double dotRadius, margin, dotDistance;
+
     argparse::ArgumentParser program("pdf_identify", "0.1.0");
 
     program.add_argument("path")
-           .help("The PDF file to add dot-markers to.");
+           .help("The PDF file to add dot-markers to.")
+           .store_into(path);
 
     program.add_argument("-i", "--starting-id")
            .help("The ID to start numbering the pages at")
-           .scan<'i', int>()
-           .default_value(0);
+           .default_value(0)
+           .store_into(startingId);
+
+    program.add_argument("-r", "--dot-radius")
+           .help("The radius of the identifier dots in pts.")
+           .default_value(72.0 * 0.25)
+           .store_into(dotRadius);
+
+    program.add_argument("-m", "--dot-margin")
+           .help("The margin from the edge of the page to the center of the dots in pts.")
+           .default_value(72.0 * 0.5)
+           .store_into(margin);
+
+    program.add_argument("-s", "--dot-spacing")
+           .help("The space between dot centers (per triangle) in pts.")
+           .default_value(72.0 * 0.75)
+           .store_into(dotDistance);
 
     try {
         program.parse_args(argc, argv);
@@ -52,9 +109,7 @@ int main(int argc, char **argv) {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    auto path = program.get("path");
-    auto starting_id = program.get<int>("-i");
-    std::cout << "Going to add markers to " << path << " starting with " << starting_id << std::endl;
+    std::cout << "Going to add markers to " << path << " starting with " << startingId << std::endl;
 
     PoDoFo::PdfMemDocument doc;
     doc.Load(path);
@@ -63,11 +118,6 @@ int main(int argc, char **argv) {
     auto pageCount = pages.GetCount();
 
     std::cout << "Document has " << pageCount << " pages...";
-
-    // in pts.
-    constexpr double margin = 72.0 / 2;
-    constexpr double dotRadius = 72.0 / 4;
-    constexpr double dotDistance = 72.0 * 0.75;
 
     try {
         PoDoFo::PdfPainter painter;
@@ -83,9 +133,14 @@ int main(int argc, char **argv) {
 
             painter.SetCanvas(page);
 
-            auto dots = getDotsForNum(i + starting_id);
+            auto dotNum = i + startingId;
+            // dotNum = manchester(dotNum);
+            // Gray code, a-la wikipedia
+            // dotNum = dotNum ^ (dotNum >> 1);
+
+            auto dots = getDotsForNum(dotNum);
             // DEBUG!
-            dots[i % dots.size()] = { 0.0, 1.0, 1.0 };
+            // dots[i % dots.size()] = { 0.0, 1.0, 1.0 };
 
             // There is almost certainly a smarter way of doing this, but like...
             // there's only 20 of these things, and I don't really want to think about
