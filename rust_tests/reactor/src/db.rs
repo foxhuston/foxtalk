@@ -2,13 +2,11 @@ use crate::tuple::{Tuple, TupleNoun};
 
 use std::collections::{HashMap, HashSet};
 use crate::query::Query;
-use crate::when::When;
+use crate::when::{When};
 
-type DbIndex<K, V> = HashMap<K, HashSet<V>>;
+pub type DbIndex<K, V> = HashMap<K, HashSet<V>>;
 
 pub struct Db {
-    handlers: Vec<Box<dyn When>>,
-
     by_subject: DbIndex<TupleNoun, Tuple>,
     by_predicate: DbIndex<String, Tuple>,
     by_object: DbIndex<TupleNoun, Tuple>,
@@ -17,15 +15,14 @@ pub struct Db {
 impl Db {
     pub fn new() -> Self {
         Db {
-            handlers: Vec::new(),
-
             by_subject: DbIndex::new(),
             by_predicate: DbIndex::new(),
             by_object: DbIndex::new(),
         }
     }
 
-    fn query(&self, query: Query) -> HashSet<Tuple> {
+    // TODO: This might should be crate-private?
+    pub fn query(&self, query: Query) -> HashSet<Tuple> {
         let empty = HashSet::new();
 
         let by_subj: Option<&HashSet<Tuple>> =
@@ -53,10 +50,6 @@ impl Db {
             });
 
         out.unwrap_or(HashSet::new())
-    }
-
-    pub fn add_handler(&mut self, handler: Box<dyn When>) {
-        self.handlers.push(handler);
     }
 
     pub fn claim(&mut self, t: Tuple) {
@@ -123,7 +116,7 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::when::{When, Wish};
+    use crate::when::{When};
     use crate::tuple::TupleNoun::*;
     use crate::query::Query;
 
@@ -271,43 +264,4 @@ mod tests {
         assert!(!results.contains(&tuple));
     }
 
-    ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////
-
-    struct HuskyHandler {}
-
-    impl When for HuskyHandler {
-        fn get_query(&self) -> Query {
-            // When /who/ is a husky:
-            Query {
-                subject: None,
-                predicate: Some("is a".to_string()),
-                object: Some(Str("husky".to_string())),
-            }
-        }
-
-        fn handle(&mut self, wish: Wish, results: Tuple) -> () {
-            // Wish (who) is highlighted blue.
-            wish(Tuple {
-                subject: results.subject,
-                predicate: "is highlighted".to_string(),
-                object: Str("blue".to_string()),
-            })
-        }
-    }
-
-    #[test]
-    fn already_registered_handlers_trigger() {
-        let mut db = Db::new();
-        let handler = Box::new(HuskyHandler {});
-        db.add_handler(handler);
-
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
-        db.claim(tuple.clone());
-
-        assert_eq!(db.by_subject.get(&tuple.subject).unwrap().iter().count(), 2);
-    }
-
-    fn newly_registered_handlers_trigger() {
-        todo!();
-    }
 }
