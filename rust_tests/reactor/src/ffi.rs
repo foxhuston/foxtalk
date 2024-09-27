@@ -22,28 +22,35 @@ struct CQuery {
     pub object: Option<*const c_void>,
 }
 
-struct CWhen {
+struct CWhen<'a> {
     lib: libloading::Library,
-    // c_get_query: libloading::Symbol<'a, unsafe extern "C" fn() -> CQuery>,
-    // c_when_handler: libloading::Symbol<'a, unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()>,
+    c_get_query: libloading::Symbol<'a, unsafe extern "C" fn() -> CQuery>,
+    c_when_handler: libloading::Symbol<'a, unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()>,
 }
 
-impl CWhen {
+impl CWhen<'_> {
 
-    pub fn new<'a>(libPath: &str) -> Result<CWhen> {
+    pub fn new<'a>(libPath: &str) -> Result<CWhen<'a>> {
         let lib = unsafe { libloading::Library::new(libPath).unwrap() };
 
-        Ok(CWhen { lib })
+        let c_get_query: libloading::Symbol<'a, unsafe extern "C" fn() -> CQuery> =
+            unsafe { lib.get(b"get_query") }?;
+
+        let c_when_handler: libloading::Symbol<'a, unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()> =
+            unsafe { lib.get(b"when_handler") }?;
+
+        Ok(CWhen {
+            lib,
+            c_get_query,
+            c_when_handler,
+        })
     }
 }
 
-impl When for CWhen {
+impl<'a> When for CWhen<'a> {
     fn get_query(&self) -> Query {
-        let c_get_query: libloading::Symbol<unsafe extern "C" fn() -> CQuery> =
-            unsafe { self.lib.get(b"get_query").unwrap() };
-
         // Parens necessary, apparently.
-        let cq = unsafe { c_get_query() };
+        let cq = (&self.c_get_query)();
 
         Query {
             subject: cq.subject.map(TupleNoun::CPtr),
@@ -53,9 +60,6 @@ impl When for CWhen {
     }
 
     fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
-        let c_when_handler: libloading::Symbol<unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()> =
-            unsafe { self.lib.get(b"when_handler").unwrap() };
-
         todo!()
     }
 }
