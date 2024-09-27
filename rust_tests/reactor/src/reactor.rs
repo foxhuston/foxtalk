@@ -31,13 +31,19 @@ impl Reactor {
     }
 
     pub fn remove_claim(&mut self, tuple: Tuple) {
+        let mut work_queue: Vec<Tuple> = Vec::new();
+
         match self.tuple_provenance.get_mut(&tuple) {
             None => {}
             Some(generated_tuples) => {
                 for tup in generated_tuples.drain() {
-                    self.db.remove_claim(tup);
+                    work_queue.push(tup);
                 }
             }
+        }
+
+        for tup in work_queue {
+            self.remove_claim(tup);
         }
 
         self.db.remove_claim(tuple);
@@ -115,6 +121,27 @@ mod tests {
         }
     }
 
+    struct HighlightHandler {}
+    impl When for HighlightHandler {
+        fn get_query(&self) -> Query {
+            // When /someone/ is highlighted /color/:
+            Query {
+                subject: None,
+                predicate: Some("is highlighted".to_string()),
+                object: None
+            }
+        }
+
+        fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
+            // Wish (someone) debug_illuminated (color).
+            wish(Tuple {
+                subject: results.subject,
+                predicate: "debug_illuminated".to_string(),
+                object: results.object,
+            })
+        }
+    }
+
     #[test]
     fn already_registered_handlers_trigger() {
         let mut reactor = Reactor::new();
@@ -163,5 +190,28 @@ mod tests {
         reactor.tick();
 
         assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+    }
+
+    #[test]
+    fn removed_originial_tuples_transitively_remove_generated_tuples() {
+        let mut reactor = Reactor::new();
+
+        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        reactor.claim(tuple.clone());
+
+        reactor.add_handler(Box::new(HuskyHandler {}));
+        reactor.add_handler(Box::new(HighlightHandler {}));
+
+        reactor.tick();
+        reactor.tick();
+
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
+
+        reactor.remove_claim(tuple);
+        reactor.tick();
+
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
     }
 }
