@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use crate::db::{Db, DbIndex};
 use crate::tuple::Tuple;
 use crate::when::{When};
@@ -62,10 +62,9 @@ impl Reactor {
 
             for result in results {
                 let r = result.clone();
-                h.handle(&mut |t| {
-                    println!("Inserting {r:?} --> {t:?} into changeQueue...");
-                    changeQueue.insert((r.clone(), t));
-                }, result);
+                let wishes = h.handle(result);
+                wishes.into_iter().map(|w| (r.clone(), w))
+                    .for_each(|t| { changeQueue.insert(t); () });
             }
         }
 

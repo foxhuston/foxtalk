@@ -8,5 +8,5 @@ pub trait When {
     // TODO: The results might be more than one tuple, particularly in the case of conjunction.
     //       It might be better to actually just give it a list of `TupleNoun`s for the
     //       variable positions...?
-    fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> ();
+    fn handle(&mut self, results: Tuple) -> Vec<Tuple>;
 }

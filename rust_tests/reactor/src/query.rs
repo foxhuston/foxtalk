@@ -1,5 +1,4 @@
 use crate::tuple::{Tuple, TupleNoun};
-use crate::tuple::TupleNoun::Str;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Query {

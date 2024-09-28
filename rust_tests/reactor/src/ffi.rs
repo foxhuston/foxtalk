@@ -1,4 +1,3 @@
-use std::arch::x86_64::_subborrow_u64;
 use crate::query::Query;
 use crate::tuple::Tuple;
 use crate::when::When;
@@ -7,11 +6,11 @@ use std::ffi::{c_void, CStr, CString};
 use std::ptr::NonNull;
 use crate::tuple::TupleNoun;
 use anyhow::Result;
-use libc::{c_char, CS};
+use libc::c_char;
 
 #[repr(C)]
 #[derive(Debug)]
-struct CTuple {
+pub struct CTuple {
     pub subject: *mut c_void,
     pub predicate: *mut c_char,
     pub object: *mut c_void,
@@ -20,7 +19,7 @@ struct CTuple {
 impl From<CTuple> for Tuple {
     fn from(value: CTuple) -> Self {
         let s = NonNull::new(value.subject).map(TupleNoun::CPtr).unwrap();
-        let p = if(value.predicate.is_null()) { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
+        let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
         let p = p.map(|s| s.to_str().unwrap().to_owned()).unwrap();
         let o = NonNull::new(value.object).map(TupleNoun::CPtr).unwrap();
 
@@ -58,7 +57,7 @@ impl From<Tuple> for CTuple {
 impl From<CTuple> for Query {
     fn from(value: CTuple) -> Self {
         let s = NonNull::new(value.subject).map(TupleNoun::CPtr);
-        let p = if(value.predicate.is_null()) { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
+        let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
         let p = p.map(|s| s.to_str().unwrap().to_owned());
         let o = NonNull::new(value.object).map(TupleNoun::CPtr);
 
@@ -77,13 +76,8 @@ impl Default for CTuple {
     }
 }
 
-#[no_mangle]
-extern "C" fn wish(tuple: Tuple) {
-    println!("{:?}", tuple);
-}
-
 // type CWhenHandler = unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> (), Tuple) -> ();
-type CWhenHandler = unsafe extern "C" fn(CTuple) -> ();
+type CWhenHandler = unsafe extern "C" fn(*const CTuple, *mut usize) -> *mut CTuple;
 type CGetQuery = unsafe extern "C" fn(&mut CTuple) -> ();
 
 pub type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>);
@@ -139,10 +133,6 @@ impl<'a, 'b> CWhen<'a, 'b> {
             c_when_handler: &library.2,
         })
     }
-
-    pub fn handle_DEBUG(&mut self, results: Tuple) -> () {
-        unsafe { (&self.c_when_handler)(results.into()) };
-    }
 }
 
 impl<'a, 'b> When for CWhen<'a, 'b> {
@@ -156,7 +146,14 @@ impl<'a, 'b> When for CWhen<'a, 'b> {
         cq.into()
     }
 
-    fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
-        unsafe { (&self.c_when_handler)(results.into()) };
+    fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+        let t: CTuple = results.into();
+        let mut outSize: usize = 0;
+        let ctupleArray = unsafe { (&self.c_when_handler)(&t, &mut outSize) };
+
+        if ctupleArray.is_null() { return vec![]; }
+
+        let ctuples = unsafe { Vec::from_raw_parts(ctupleArray, outSize, outSize) };
+        ctuples.into_iter().map(|tuple| { tuple.into() }).collect()
     }
 }

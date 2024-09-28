@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 struct Tuple {
     void* subject;
@@ -6,7 +7,6 @@ struct Tuple {
     void* object;
 };
 
-void wish(struct Tuple t);
 
 void get_query(struct Tuple* t) {
     t->subject = NULL;
@@ -14,6 +14,19 @@ void get_query(struct Tuple* t) {
     t->object = NULL;
 }
 
-void when_handler(struct Tuple result) {
-    wish(result);
+static const char* lexi = "lexi";
+static const char* highlighted = "is highlighted";
+static const char* blue = "blue";
+
+struct Tuple* when_handler(struct Tuple* result, size_t *outLen) {
+    printf("Called!\n");
+
+    struct Tuple* tuples = (struct Tuple*)malloc(sizeof(struct Tuple));
+    *outLen = 1;
+
+    tuples->subject = lexi;
+    tuples->predicate = highlighted;
+    tuples->object = blue;
+
+    return tuples;
 }

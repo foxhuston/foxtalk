@@ -2,7 +2,6 @@ use crate::tuple::{Tuple, TupleNoun};
 
 use std::collections::{HashMap, HashSet};
 use crate::query::Query;
-use crate::when::{When};
 
 pub type DbIndex<K, V> = HashMap<K, HashSet<V>>;
 
