@@ -1,12 +1,12 @@
 use crate::query::Query;
 use crate::tuple::Tuple;
-use crate::when::When;
-use std::collections::HashMap;
-use std::ffi::{c_void, CStr, CString};
-use std::ptr::{null, NonNull};
 use crate::tuple::TupleNoun;
+use crate::when::When;
 use anyhow::Result;
 use libc::c_char;
+use std::collections::HashMap;
+use std::ffi::{c_void, CStr, CString};
+use std::ptr::NonNull;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl From<TupleNoun> for *mut c_void {
     fn from(value: TupleNoun) -> Self {
         match &value {
             TupleNoun::CPtr(p) => { p.as_ptr() }
-            TupleNoun::CPtrHeap { data, destructor} => { data.as_ptr() }
+            TupleNoun::CPtrHeap { data, destructor: _} => { data.as_ptr() }
             TupleNoun::Str(s) => {
                 CString::new(s.clone()).unwrap().into_raw().cast()
             }
@@ -130,8 +130,9 @@ impl<'b> LibraryRegistry<'b> {
 
 }
 
+#[derive(Debug)]
 pub struct CWhen<'a, 'b> where 'a: 'b {
-    lib: &'a libloading::Library,
+    pub lib: &'a libloading::Library,
     c_get_query: &'a libloading::Symbol<'b, CGetQuery>,
     c_when_handler: &'a libloading::Symbol<'b, CWhenHandler>,
     c_free_tuple_subj: NonNull<c_void>,
@@ -166,12 +167,12 @@ impl<'a, 'b> When for CWhen<'a, 'b> {
     fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
         let t: CTuple = results.into();
 
-        let mut outSize: usize = 0;
-        let ctupleArray = unsafe { (&self.c_when_handler)(&t, &mut outSize) };
+        let mut out_size: usize = 0;
+        let ctuple_array = unsafe { (&self.c_when_handler)(&t, &mut out_size) };
 
-        if ctupleArray.is_null() { return vec![]; }
+        if ctuple_array.is_null() { return vec![]; }
 
-        let ctuples = unsafe { Vec::from_raw_parts(ctupleArray, outSize, outSize) };
+        let ctuples = unsafe { Vec::from_raw_parts(ctuple_array, out_size, out_size) };
 
         ctuples.into_iter().map(|tuple| {
             Tuple::from_ctuple(self.c_free_tuple_subj, self.c_free_tuple_obj, tuple)

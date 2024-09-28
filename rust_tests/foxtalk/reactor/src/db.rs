@@ -1,8 +1,7 @@
 use crate::tuple::{Tuple, TupleNoun};
 
-use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 use crate::query::Query;
+use std::collections::{HashMap, HashSet};
 
 pub type DbIndex<K, V> = HashMap<K, HashSet<V>>;
 
@@ -128,8 +127,6 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::when::{When};
-    use crate::tuple::TupleNoun::*;
     use crate::query::Query;
 
     #[test]

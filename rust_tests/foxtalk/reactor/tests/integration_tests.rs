@@ -1,24 +1,33 @@
-use libloading::Error::CreateCStringWithTrailing;
-use reactor::db::Db;
-use reactor::when::When;
 use reactor::query::Query;
 use reactor::tuple::Tuple;
-use reactor::tuple::TupleNoun::Str;
+use reactor::when::When;
 
 use reactor::ffi::*;
 use reactor::reactor::Reactor;
 
+use std::path::PathBuf;
+
+fn linked_lib_path(filename: &str) -> &'static str {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.push("tests/test_libs/out");
+    path.push(filename);
+    let path_str = path.to_str().unwrap().clone();
+
+    // lol static str, Ser is refactoring the ffi
+    Box::leak(path_str.to_string().into_boxed_str())
+
+}
+
 #[test]
 fn ffi_loads_a_library() {
     let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for("libtest.so").unwrap();
+    reg.cwhen_for(linked_lib_path("libtest.so.a")).unwrap();
 }
 
 #[test]
 fn ffi_gets_query() {
     let mut reg = LibraryRegistry::new();
-    // let when = reg.cwhen_for("/home/fox/dev/foxtalk_test/rust_tests/reactor/target/debug/libtest.so").unwrap();
-    let when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest.so").unwrap();
+    let when = reg.cwhen_for(linked_lib_path("ac295b290ee73d16-test.o")).unwrap();
 
     let query = when.get_query();
 
@@ -32,8 +41,7 @@ fn ffi_gets_query() {
 #[test]
 fn ffi_runs_handler() {
     let mut reg = LibraryRegistry::new();
-    // let when = reg.cwhen_for("/home/fox/dev/foxtalk_test/rust_tests/reactor/target/debug/libtest.so").unwrap();
-    let mut when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest.so").unwrap();
+    let mut when = reg.cwhen_for(linked_lib_path("libtest.so.a")).unwrap();
 
     let query = when.get_query();
 
@@ -43,7 +51,7 @@ fn ffi_runs_handler() {
     assert_eq!(query.predicate, Some("Hi!".to_string()));
     assert_eq!(query.object, None);
 
-    let mut results = when.handle(Tuple::new_strs("lexi", "is a", "husky"));
+    let results = when.handle(Tuple::new_strs("lexi", "is a", "husky"));
     assert_eq!(results.len(), 1);
 
     let first = results.first().unwrap();
@@ -58,9 +66,9 @@ fn ffi_finds_tuples() {
     reactor.claim(Tuple::new_strs("lexi", "is a", "husky"));
 
     let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest_ids.so").unwrap();
-    reactor.add_handler(Box::new(when));
-
+    let when = reg.cwhen_for(linked_lib_path("libtest_ids.so.a")).unwrap();
+    // reactor.add_handler(Box::new(when));
+    println!("Got when: {:?}", when);
     reactor.tick();
     reactor.tick();
     reactor.tick();
