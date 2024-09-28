@@ -2,32 +2,29 @@ use reactor::query::Query;
 use reactor::tuple::Tuple;
 use reactor::when::When;
 
-use reactor::ffi::*;
+use reactor::ffi2::*;
 use reactor::reactor::Reactor;
 
 use std::path::PathBuf;
 
-fn linked_lib_path(filename: &str) -> &'static str {
+fn linked_lib_path(filename: &str) -> String {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("tests/test_libs/out");
     path.push(filename);
-    let path_str = path.to_str().unwrap().clone();
-
-    // lol static str, Ser is refactoring the ffi
-    Box::leak(path_str.to_string().into_boxed_str())
-
+    let new_path = path.clone();
+    let path_str = new_path.to_str().unwrap();
+    let owned_path = path_str.to_owned();
+    owned_path
 }
 
 #[test]
 fn ffi_loads_a_library() {
-    let mut reg = LibraryRegistry::new();
-    reg.cwhen_for(linked_lib_path("libtest.so.a")).unwrap();
+    unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.expect("opens the library");
 }
 
 #[test]
 fn ffi_gets_query() {
-    let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for(linked_lib_path("ac295b290ee73d16-test.o")).unwrap();
+    let when = unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.unwrap();
 
     let query = when.get_query();
 
@@ -40,9 +37,7 @@ fn ffi_gets_query() {
 
 #[test]
 fn ffi_runs_handler() {
-    let mut reg = LibraryRegistry::new();
-    let mut when = reg.cwhen_for(linked_lib_path("libtest.so.a")).unwrap();
-
+    let mut when = unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.unwrap();
     let query = when.get_query();
 
     println!("Got query: {query:?}");
@@ -65,17 +60,16 @@ fn ffi_finds_tuples() {
     let mut reactor = Reactor::new();
     reactor.claim(Tuple::new_strs("lexi", "is a", "husky"));
 
-    let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for(linked_lib_path("libtest_ids.so.a")).unwrap();
-    // reactor.add_handler(Box::new(when));
-    println!("Got when: {:?}", when);
+    let when = unsafe { CWhen::new(linked_lib_path("test_ids.so").as_str()) }.unwrap();
+    reactor.add_handler(Box::new(when));
+
     reactor.tick();
     reactor.tick();
     reactor.tick();
 
     let results = reactor.db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
 
-println!("{:?}", results);
+    println!("{:?}", results);
 
     assert_eq!(results.len(), 2);
 }
