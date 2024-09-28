@@ -1,12 +1,11 @@
-use std::ffi;
-use std::ffi::{c_void, CString};
-use std::rc::Rc;
 use crate::query::Query;
 use crate::tuple::Tuple;
 use crate::when::When;
+use std::collections::HashMap;
+use std::ffi::{c_void, CString};
 
-use anyhow::Result;
 use crate::tuple::TupleNoun;
+use anyhow::Result;
 
 #[repr(C)]
 struct CTuple {
@@ -22,35 +21,69 @@ struct CQuery {
     pub object: Option<*const c_void>,
 }
 
-struct CWhen<'a> {
-    lib: libloading::Library,
-    c_get_query: libloading::Symbol<'a, unsafe extern "C" fn() -> CQuery>,
-    c_when_handler: libloading::Symbol<'a, unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()>,
+type CWhenHandler = unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ();
+type CGetQuery = unsafe extern "C" fn() -> CQuery;
+
+type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>);
+
+struct LibraryRegistry<'a> {
+    lib_map: HashMap<&'static str, libloading::Library>,
+    libraries: HashMap<&'static str, Library<'a>>,
 }
 
-impl CWhen<'_> {
+impl<'b> LibraryRegistry<'b> {
 
-    pub fn new<'a>(libPath: &str) -> Result<CWhen<'a>> {
-        let lib = unsafe { libloading::Library::new(libPath).unwrap() };
+    // Just a small wrapper around CWhen::new
+    pub fn cwhen_for<'a>(&'b mut self, lib_path: &'static str) -> Result<CWhen<'a, 'b>> {
+        CWhen::new(lib_path, self)
+    }
 
-        let c_get_query: libloading::Symbol<'a, unsafe extern "C" fn() -> CQuery> =
-            unsafe { lib.get(b"get_query") }?;
+    pub fn new() -> Self {
+        LibraryRegistry {
+            libraries: HashMap::new(),
+            lib_map: HashMap::new(),
+        }
+    }
 
-        let c_when_handler: libloading::Symbol<'a, unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ()> =
-            unsafe { lib.get(b"when_handler") }?;
+    pub fn get<'a>(&'b mut self, lib_path: &'static str) -> &'a mut Library<'b>
+    where 'a: 'b {
 
-        Ok(CWhen {
-            lib,
-            c_get_query,
-            c_when_handler,
+        self.libraries.entry(lib_path).or_insert_with(|| {
+
+            self.lib_map.insert(lib_path, unsafe { libloading::Library::new(lib_path).unwrap() });
+
+            let c_get_query: libloading::Symbol<'a, CGetQuery> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"get_query").unwrap() };
+            let c_when_handler: libloading::Symbol<'a, CWhenHandler> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"when_handler").unwrap() };
+
+            (self.lib_map.get(lib_path).unwrap(), c_get_query, c_when_handler)
         })
     }
+
 }
 
-impl<'a> When for CWhen<'a> {
+struct CWhen<'a, 'b> where 'a: 'b {
+    lib: &'a libloading::Library,
+    c_get_query: &'a libloading::Symbol<'b, CGetQuery>,
+    c_when_handler: &'a libloading::Symbol<'b, CWhenHandler>
+}
+
+impl<'a, 'b> CWhen<'a, 'b> {
+    pub fn new(lib_path: &'static str, library_registry: &'a mut LibraryRegistry<'b>) -> Result<CWhen<'a, 'b>> where 'a: 'b {
+        let library = library_registry.get(lib_path);
+
+        Ok(CWhen {
+            lib: &library.0,
+            c_get_query: &library.1,
+            c_when_handler: &library.2,
+        })
+    }
+
+}
+
+impl<'a, 'b> When for CWhen<'a, 'b> {
     fn get_query(&self) -> Query {
         // Parens necessary, apparently.
-        let cq = (&self.c_get_query)();
+        let cq = unsafe { (&self.c_get_query)() };
 
         Query {
             subject: cq.subject.map(TupleNoun::CPtr),
