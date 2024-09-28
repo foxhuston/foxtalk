@@ -1,8 +1,9 @@
 use std::ffi::c_void;
+use std::ptr::NonNull;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TupleNoun {
-    CPtr(*const c_void),
+    CPtr(NonNull<c_void>),
     Str(String)
 }
 

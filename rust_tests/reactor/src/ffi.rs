@@ -1,32 +1,94 @@
+use std::arch::x86_64::_subborrow_u64;
 use crate::query::Query;
 use crate::tuple::Tuple;
 use crate::when::When;
 use std::collections::HashMap;
-use std::ffi::{c_void, CString};
-
+use std::ffi::{c_void, CStr, CString};
+use std::ptr::NonNull;
 use crate::tuple::TupleNoun;
 use anyhow::Result;
+use libc::{c_char, CS};
 
 #[repr(C)]
+#[derive(Debug)]
 struct CTuple {
-    pub subject: *const c_void,
-    pub predicate: CString,
-    pub object: *const c_void,
+    pub subject: *mut c_void,
+    pub predicate: *mut c_char,
+    pub object: *mut c_void,
 }
 
-#[repr(C)]
-struct CQuery {
-    pub subject: Option<*const c_void>,
-    pub predicate: Option<CString>,
-    pub object: Option<*const c_void>,
+impl From<CTuple> for Tuple {
+    fn from(value: CTuple) -> Self {
+        let s = NonNull::new(value.subject).map(TupleNoun::CPtr).unwrap();
+        let p = if(value.predicate.is_null()) { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
+        let p = p.map(|s| s.to_str().unwrap().to_owned()).unwrap();
+        let o = NonNull::new(value.object).map(TupleNoun::CPtr).unwrap();
+
+        Tuple {
+            subject: s,
+            predicate: p,
+            object: o
+        }
+    }
 }
 
-type CWhenHandler = unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> Tuple) -> ();
-type CGetQuery = unsafe extern "C" fn() -> CQuery;
 
-type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>);
+impl From<TupleNoun> for *mut c_void {
+    fn from(value: TupleNoun) -> Self {
+        match value {
+            TupleNoun::CPtr(p) => { p.as_ptr() }
+            TupleNoun::Str(s) => {
+                CString::new(s).unwrap().into_raw().cast()
+            }
+        }
+    }
+}
 
-struct LibraryRegistry<'a> {
+impl From<Tuple> for CTuple {
+    fn from(value: Tuple) -> Self {
+
+        CTuple {
+            subject: value.subject.into(),
+            predicate: CString::new(value.predicate).unwrap().into_raw(),
+            object: value.object.into()
+        }
+    }
+}
+
+impl From<CTuple> for Query {
+    fn from(value: CTuple) -> Self {
+        let s = NonNull::new(value.subject).map(TupleNoun::CPtr);
+        let p = if(value.predicate.is_null()) { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
+        let p = p.map(|s| s.to_str().unwrap().to_owned());
+        let o = NonNull::new(value.object).map(TupleNoun::CPtr);
+
+        Query {
+            subject: s,
+            predicate: p,
+            object: o,
+        }
+    }
+}
+
+
+impl Default for CTuple {
+    fn default() -> Self {
+        CTuple { subject: std::ptr::null_mut(), predicate: std::ptr::null_mut(), object: std::ptr::null_mut() }
+    }
+}
+
+#[no_mangle]
+extern "C" fn wish(tuple: Tuple) {
+    println!("{:?}", tuple);
+}
+
+// type CWhenHandler = unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> (), Tuple) -> ();
+type CWhenHandler = unsafe extern "C" fn(CTuple) -> ();
+type CGetQuery = unsafe extern "C" fn(&mut CTuple) -> ();
+
+pub type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>);
+
+pub struct LibraryRegistry<'a> {
     lib_map: HashMap<&'static str, libloading::Library>,
     libraries: HashMap<&'static str, Library<'a>>,
 }
@@ -61,7 +123,7 @@ impl<'b> LibraryRegistry<'b> {
 
 }
 
-struct CWhen<'a, 'b> where 'a: 'b {
+pub struct CWhen<'a, 'b> where 'a: 'b {
     lib: &'a libloading::Library,
     c_get_query: &'a libloading::Symbol<'b, CGetQuery>,
     c_when_handler: &'a libloading::Symbol<'b, CWhenHandler>
@@ -78,21 +140,23 @@ impl<'a, 'b> CWhen<'a, 'b> {
         })
     }
 
+    pub fn handle_DEBUG(&mut self, results: Tuple) -> () {
+        unsafe { (&self.c_when_handler)(results.into()) };
+    }
 }
 
 impl<'a, 'b> When for CWhen<'a, 'b> {
     fn get_query(&self) -> Query {
         // Parens necessary, apparently.
-        let cq = unsafe { (&self.c_get_query)() };
+        let mut cq = CTuple::default();
+        unsafe { (&self.c_get_query)(&mut cq) };
 
-        Query {
-            subject: cq.subject.map(TupleNoun::CPtr),
-            predicate: cq.predicate.map(|s| s.into_string().unwrap()),
-            object: cq.object.map(TupleNoun::CPtr),
-        }
+        println!("DEBUG! Got CQuery {cq:?}");
+
+        cq.into()
     }
 
     fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
-        todo!()
+        unsafe { (&self.c_when_handler)(results.into()) };
     }
 }
