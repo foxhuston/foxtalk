@@ -3,16 +3,17 @@ use crate::db::{Db, DbIndex};
 use crate::tuple::Tuple;
 use crate::when::{When};
 
-struct Reactor {
+pub struct Reactor {
     handlers: Vec<Box<dyn When>>,
-    db: Db,
+    // TODO: UNPUB
+    pub db: Db,
 
     handler_provenance: (), // TODO: How do I even express this in Rust?????
     tuple_provenance: DbIndex<Tuple, Tuple>
 }
 
 impl Reactor {
-    fn new() -> Reactor {
+    pub fn new() -> Reactor {
         Reactor {
             db: Db::new(),
             handlers: Vec::new(),
