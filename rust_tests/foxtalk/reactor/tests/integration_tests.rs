@@ -5,20 +5,17 @@ use reactor::query::Query;
 use reactor::tuple::Tuple;
 use reactor::tuple::TupleNoun::Str;
 
-use reactor::ffi::*;
+use reactor::ffi2::*;
 use reactor::reactor::Reactor;
 
 #[test]
 fn ffi_loads_a_library() {
-    let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for("libtest.so").unwrap();
+    let cw = unsafe { CWhen::new("libtest.so") }.expect("opens the library");
 }
 
 #[test]
 fn ffi_gets_query() {
-    let mut reg = LibraryRegistry::new();
-    // let when = reg.cwhen_for("/home/fox/dev/foxtalk_test/rust_tests/reactor/target/debug/libtest.so").unwrap();
-    let when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest.so").unwrap();
+    let when = unsafe { CWhen::new("/home/fox/dev/foxtalk-test/rust_tests/foxtalk/reactor/target/debug/libtest.so") }.unwrap();
 
     let query = when.get_query();
 
@@ -31,9 +28,7 @@ fn ffi_gets_query() {
 
 #[test]
 fn ffi_runs_handler() {
-    let mut reg = LibraryRegistry::new();
-    // let when = reg.cwhen_for("/home/fox/dev/foxtalk_test/rust_tests/reactor/target/debug/libtest.so").unwrap();
-    let mut when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest.so").unwrap();
+    let mut when = unsafe { CWhen::new("/home/fox/dev/foxtalk-test/rust_tests/foxtalk/reactor/target/debug/libtest.so") }.unwrap();
 
     let query = when.get_query();
 
@@ -57,8 +52,7 @@ fn ffi_finds_tuples() {
     let mut reactor = Reactor::new();
     reactor.claim(Tuple::new_strs("lexi", "is a", "husky"));
 
-    let mut reg = LibraryRegistry::new();
-    let when = reg.cwhen_for("/home/fox/dev/foxtalk-test/rust_tests/reactor/target/debug/libtest_ids.so").unwrap();
+    let when = unsafe { CWhen::new("/home/fox/dev/foxtalk-test/rust_tests/foxtalk/reactor/target/debug/libtest_ids.so") }.unwrap();
     reactor.add_handler(Box::new(when));
 
     reactor.tick();

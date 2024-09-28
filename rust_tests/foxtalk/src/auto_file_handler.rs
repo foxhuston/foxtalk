@@ -1,13 +1,13 @@
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-use reactor::ffi::{CWhen, LibraryRegistry};
+use reactor::ffi2::CWhen;
 
 pub struct AutoFileHandler {
     src_path: String,
     so_path: String,
 
-    c_when: Arc<Mutex<Option<()>>>,
+    c_when: Arc<Mutex<Option<CWhen>>>,
 }
 
 impl AutoFileHandler {
@@ -41,6 +41,11 @@ impl AutoFileHandler {
 
     async fn tryLoad(&mut self) {
         let mut c_when = self.c_when.lock().await;
-        *c_when = Some(());
+        match unsafe { CWhen::new(&self.so_path) } {
+            Ok(cwhen) => { *c_when = Some(cwhen) }
+            Err(e) => {
+                println!("{}", e);
+            }
+        }
     }
 }
