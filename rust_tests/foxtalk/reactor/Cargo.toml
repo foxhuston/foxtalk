@@ -10,3 +10,6 @@ crate-type = ["lib", "staticlib"]
 anyhow = "1.0.89"
 libc = "0.2.159"
 libloading = "0.8.5"
+
+[build-dependencies]
+walkdir = "2.5.0"

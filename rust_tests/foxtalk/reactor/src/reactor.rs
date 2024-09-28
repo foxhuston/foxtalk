@@ -8,7 +8,7 @@ pub struct Reactor {
     // TODO: UNPUB
     pub db: Db,
 
-    handler_provenance: (), // TODO: How do I even express this in Rust?????
+    pub handler_provenance: (), // TODO: How do I even express this in Rust?????
     tuple_provenance: DbIndex<Tuple, Tuple>
 }
 
@@ -56,7 +56,7 @@ impl Reactor {
         // into which we place tuples generated across all handlers. Once we've done that,
         // the mutably-borrowed scope is ended (at the closing `}` of the for-loop),
         // and we can re-borrow ourselves to insert the claims into the db.
-        let mut changeQueue: HashSet<(Tuple, Tuple)> = HashSet::new();
+        let mut change_queue: HashSet<(Tuple, Tuple)> = HashSet::new();
 
         for h in self.handlers.iter_mut() {
             let results = self.db.query(h.get_query());
@@ -65,11 +65,11 @@ impl Reactor {
                 let r = result.clone();
                 let wishes = h.handle(result);
                 wishes.into_iter().map(|w| (r.clone(), w))
-                    .for_each(|t| { changeQueue.insert(t); () });
+                    .for_each(|t| { change_queue.insert(t); () });
             }
         }
 
-        for (prov, c) in changeQueue.drain() {
+        for (prov, c) in change_queue.drain() {
             println!("Recording {c:?} into reactor db");
 
             match self.tuple_provenance.get_mut(&prov) {
@@ -78,7 +78,7 @@ impl Reactor {
                     hs.insert(c.clone());
                     self.tuple_provenance.insert(prov, hs);
                 }
-                Some(mut set) => {
+                Some(set) => {
                     set.insert(c.clone());
                 }
             }
