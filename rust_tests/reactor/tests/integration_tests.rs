@@ -67,7 +67,7 @@ fn ffi_finds_tuples() {
 
     let results = reactor.db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
 
-    println!("{:?}", results);
+println!("{:?}", results);
 
     assert_eq!(results.len(), 2);
 }
