@@ -38,6 +38,7 @@ extern "C" {
 ///// A HANDLER FILE ///////////////////////////////////////////////////////////
 
 #include <string>
+#include <iostream>
 
 struct Dog {
     std::string name;
@@ -50,6 +51,8 @@ Tuple GetQuery() {
 }
 
 std::vector<Tuple>* WhenHandler(Tuple* result) {
+    std::cout << "Hello from C++ WhenHandler" << std::endl;
+
     Tuple outTuple {
         static_cast<void *>(lexi)
         , "is a"
@@ -61,8 +64,10 @@ std::vector<Tuple>* WhenHandler(Tuple* result) {
     return out;
 }
 
-void FreeTuple(Tuple* tup) {
-    delete static_cast<Dog *>(tup->object);
-    tup->object = nullptr;
+extern "C" void free_tuple_obj(void* obj) {
+    std::cout << "Cleanin' up some dogs." << std::endl;
+    delete static_cast<Dog *>(obj);
 }
+
+extern "C" void free_tuple_subj(void* subj) {}
 

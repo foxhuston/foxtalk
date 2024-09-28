@@ -1,6 +1,7 @@
 use crate::tuple::{Tuple, TupleNoun};
 
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use crate::query::Query;
 
 pub type DbIndex<K, V> = HashMap<K, HashSet<V>>;
@@ -107,8 +108,20 @@ impl Db {
                 set.remove(&tuple);
             }
         }
+
+        // Call library free on `CPtr`s
+        unsafe { tuple.cleanup(); }
     }
 }
+
+// impl Drop for Db {
+//     fn drop(&mut self) {
+//         let mut tuples: HashSet<Tuple> = self.by_subject.into_iter().flatten().collect();
+//         for t in tuples.drain() {
+//             unsafe { t.cleanup(); }
+//         }
+//     }
+// }
 
 ///// TESTS ////////////////////////////////////////////////////////////////////
 

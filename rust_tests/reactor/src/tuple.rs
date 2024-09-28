@@ -1,10 +1,28 @@
 use std::ffi::c_void;
+use std::mem;
 use std::ptr::NonNull;
+use crate::ffi::CTuple;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TupleNoun {
+    CPtrHeap { data: NonNull<c_void>, destructor: NonNull<c_void> },
     CPtr(NonNull<c_void>),
-    Str(String)
+    Str(String),
+}
+
+type CFreeTuple = unsafe extern "C" fn(*mut c_void) -> ();
+impl TupleNoun {
+
+    pub(super) unsafe fn cleanup(&mut self) {
+        match self {
+            TupleNoun::CPtrHeap { data, destructor } => {
+                let d: CFreeTuple = unsafe { mem::transmute_copy(destructor) };
+                d(data.as_mut());
+            }
+            TupleNoun::CPtr(_) => {}
+            TupleNoun::Str(_) => {}
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -25,5 +43,10 @@ impl Tuple {
             predicate: predicate,
             object: TupleNoun::Str(object),
         }
+    }
+
+    pub unsafe fn cleanup(mut self) {
+        self.subject.cleanup();
+        self.object.cleanup();
     }
 }

@@ -110,13 +110,13 @@ mod tests {
             }
         }
 
-        fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
+        fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
             // Wish (who) is highlighted blue.
-            wish(Tuple {
+            vec![Tuple {
                 subject: results.subject,
                 predicate: "is highlighted".to_string(),
                 object: Str("blue".to_string()),
-            })
+            }]
         }
     }
 
@@ -131,13 +131,13 @@ mod tests {
             }
         }
 
-        fn handle(&mut self, wish: &mut dyn FnMut(Tuple), results: Tuple) -> () {
+        fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
             // Wish (someone) debug_illuminated (color).
-            wish(Tuple {
+            vec![Tuple {
                 subject: results.subject,
                 predicate: "debug_illuminated".to_string(),
                 object: results.object,
-            })
+            }]
         }
     }
 

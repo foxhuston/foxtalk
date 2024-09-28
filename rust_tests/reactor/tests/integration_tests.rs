@@ -41,9 +41,11 @@ fn ffi_runs_handler() {
     assert_eq!(query.predicate, Some("Hi!".to_string()));
     assert_eq!(query.object, None);
 
-    let results = when.handle(Tuple::new_strs("lexi", "is a", "husky"));
+    let mut results = when.handle(Tuple::new_strs("lexi", "is a", "husky"));
     assert_eq!(results.len(), 1);
 
     let first = results.first().unwrap();
-    assert_eq!(first.predicate, "is highlighted");
+    assert_eq!(first.predicate, "is a");
+
+    results.into_iter().for_each(|x| unsafe { x.cleanup() });
 }

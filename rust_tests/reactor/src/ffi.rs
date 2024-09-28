@@ -3,7 +3,7 @@ use crate::tuple::Tuple;
 use crate::when::When;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
-use std::ptr::NonNull;
+use std::ptr::{null, NonNull};
 use crate::tuple::TupleNoun;
 use anyhow::Result;
 use libc::c_char;
@@ -16,12 +16,18 @@ pub struct CTuple {
     pub object: *mut c_void,
 }
 
-impl From<CTuple> for Tuple {
-    fn from(value: CTuple) -> Self {
-        let s = NonNull::new(value.subject).map(TupleNoun::CPtr).unwrap();
+impl Tuple {
+    fn from_ctuple(free_subj: NonNull<c_void>, free_obj: NonNull<c_void>, value: CTuple) -> Self {
+        let s = NonNull::new(value.subject).map(|s| {
+            TupleNoun::CPtrHeap { data: s, destructor: free_subj }
+        }).unwrap();
+
         let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
         let p = p.map(|s| s.to_str().unwrap().to_owned()).unwrap();
-        let o = NonNull::new(value.object).map(TupleNoun::CPtr).unwrap();
+
+        let o = NonNull::new(value.object).map(|s| {
+            TupleNoun::CPtrHeap { data: s, destructor: free_obj }
+        }).unwrap();
 
         Tuple {
             subject: s,
@@ -31,17 +37,18 @@ impl From<CTuple> for Tuple {
     }
 }
 
-
 impl From<TupleNoun> for *mut c_void {
     fn from(value: TupleNoun) -> Self {
-        match value {
+        match &value {
             TupleNoun::CPtr(p) => { p.as_ptr() }
+            TupleNoun::CPtrHeap { data, destructor} => { data.as_ptr() }
             TupleNoun::Str(s) => {
-                CString::new(s).unwrap().into_raw().cast()
+                CString::new(s.clone()).unwrap().into_raw().cast()
             }
         }
     }
 }
+
 
 impl From<Tuple> for CTuple {
     fn from(value: Tuple) -> Self {
@@ -79,8 +86,9 @@ impl Default for CTuple {
 // type CWhenHandler = unsafe extern "C" fn(unsafe extern "C" fn(Tuple) -> (), Tuple) -> ();
 type CWhenHandler = unsafe extern "C" fn(*const CTuple, *mut usize) -> *mut CTuple;
 type CGetQuery = unsafe extern "C" fn(&mut CTuple) -> ();
+type CFreeTuple = unsafe extern "C" fn(&mut CTuple) -> ();
 
-pub type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>);
+pub type Library<'a> = (&'a libloading::Library, libloading::Symbol<'a, CGetQuery>, libloading::Symbol<'a, CWhenHandler>, NonNull<c_void>, NonNull<c_void>);
 
 pub struct LibraryRegistry<'a> {
     lib_map: HashMap<&'static str, libloading::Library>,
@@ -110,8 +118,13 @@ impl<'b> LibraryRegistry<'b> {
 
             let c_get_query: libloading::Symbol<'a, CGetQuery> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"get_query").unwrap() };
             let c_when_handler: libloading::Symbol<'a, CWhenHandler> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"when_handler").unwrap() };
+            let c_free_tuple_subj: libloading::Symbol<'a, CFreeTuple> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"free_tuple_subj").unwrap() };
+            let c_free_tuple_subj = unsafe { NonNull::new(c_free_tuple_subj.try_as_raw_ptr().unwrap()).unwrap() };
 
-            (self.lib_map.get(lib_path).unwrap(), c_get_query, c_when_handler)
+            let c_free_tuple_obj: libloading::Symbol<'a, CFreeTuple> = unsafe { self.lib_map.get(lib_path).unwrap().get(b"free_tuple_obj").unwrap() };
+            let c_free_tuple_obj = unsafe { NonNull::new(c_free_tuple_obj.try_as_raw_ptr().unwrap()).unwrap() };
+
+            (self.lib_map.get(lib_path).unwrap(), c_get_query, c_when_handler, c_free_tuple_subj, c_free_tuple_obj)
         })
     }
 
@@ -120,7 +133,9 @@ impl<'b> LibraryRegistry<'b> {
 pub struct CWhen<'a, 'b> where 'a: 'b {
     lib: &'a libloading::Library,
     c_get_query: &'a libloading::Symbol<'b, CGetQuery>,
-    c_when_handler: &'a libloading::Symbol<'b, CWhenHandler>
+    c_when_handler: &'a libloading::Symbol<'b, CWhenHandler>,
+    c_free_tuple_subj: NonNull<c_void>,
+    c_free_tuple_obj: NonNull<c_void>,
 }
 
 impl<'a, 'b> CWhen<'a, 'b> {
@@ -131,6 +146,8 @@ impl<'a, 'b> CWhen<'a, 'b> {
             lib: &library.0,
             c_get_query: &library.1,
             c_when_handler: &library.2,
+            c_free_tuple_subj: library.3,
+            c_free_tuple_obj: library.4,
         })
     }
 }
@@ -148,12 +165,16 @@ impl<'a, 'b> When for CWhen<'a, 'b> {
 
     fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
         let t: CTuple = results.into();
+
         let mut outSize: usize = 0;
         let ctupleArray = unsafe { (&self.c_when_handler)(&t, &mut outSize) };
 
         if ctupleArray.is_null() { return vec![]; }
 
         let ctuples = unsafe { Vec::from_raw_parts(ctupleArray, outSize, outSize) };
-        ctuples.into_iter().map(|tuple| { tuple.into() }).collect()
+
+        ctuples.into_iter().map(|tuple| {
+            Tuple::from_ctuple(self.c_free_tuple_subj, self.c_free_tuple_obj, tuple)
+        }).collect()
     }
 }
