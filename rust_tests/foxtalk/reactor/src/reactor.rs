@@ -6,7 +6,10 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 type Handler = Box<dyn When>;
-type HandlerId = Uuid;
+
+#[repr(transparent)]
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub struct HandlerId(Uuid);
 
 pub struct Reactor {
     // This uses UUID keys so that we can quickly find handlers
@@ -16,7 +19,7 @@ pub struct Reactor {
     // TODO: UNPUB
     pub db: Db,
 
-    pub handler_provenance: (), // TODO: How do I even express this in Rust?????
+    handler_provenance: DbIndex<HandlerId, Tuple>, // TODO: How do I even express this in Rust?????
     tuple_provenance: DbIndex<Tuple, Tuple>,
 
     // Tuple Triggered handler (TODO: with query?)
@@ -29,7 +32,7 @@ impl Reactor {
             db: Db::new(),
             handlers: HashMap::new(),
 
-            handler_provenance: (),
+            handler_provenance: DbIndex::new(),
             tuple_provenance: DbIndex::new(),
 
             handler_ran_for_tuple: DbIndex::new()
@@ -37,8 +40,23 @@ impl Reactor {
         }
     }
 
-    pub fn add_handler(&mut self, handler: Box<dyn When>) {
-        self.handlers.insert(Uuid::new_v4(), handler);
+    pub fn add_handler(&mut self, handler: Box<dyn When>) -> HandlerId {
+        let id = HandlerId(Uuid::new_v4());
+        self.handlers.insert(id.clone(), handler);
+        id
+    }
+
+    pub fn remove_handler(&mut self, id: HandlerId) {
+        match self.handler_provenance.remove_all_by_key(&id) {
+            None => {}
+            Some(tuples) => {
+                for tuple in tuples {
+                    self.remove_claim(tuple);
+                }
+            }
+        }
+
+        self.handlers.remove(&id);
     }
 
     pub fn claim(&mut self, tuple: Tuple) {
@@ -48,7 +66,10 @@ impl Reactor {
     pub fn remove_claim(&mut self, tuple: Tuple) {
         let mut work_queue: Vec<Tuple> = Vec::new();
 
-        self.handler_ran_for_tuple.remove_all(&tuple);
+        // Clean up provenance / caches.
+        self.handler_ran_for_tuple.remove_all_by_key(&tuple);
+        self.handler_provenance.remove_all_by_value(&tuple);
+        self.tuple_provenance.remove_all_by_value(&tuple);
 
         match self.tuple_provenance.get_mut(&tuple) {
             None => {}
@@ -72,18 +93,19 @@ impl Reactor {
         // into which we place tuples generated across all handlers. Once we've done that,
         // the mutably-borrowed scope is ended (at the closing `}` of the for-loop),
         // and we can re-borrow ourselves to insert the claims into the db.
-        let mut change_queue: HashSet<(Tuple, Tuple)> = HashSet::new();
+        let mut change_queue: HashSet<(Tuple, HandlerId, Tuple)> = HashSet::new();
 
         for (hid, h) in self.handlers.iter_mut() {
             let results = self.db.query(h.get_query());
 
-            for result in results {
-                if !self.handler_ran_for_tuple.contains(&result, hid) {
-                    self.handler_ran_for_tuple.insert(result.clone(), hid.clone());
-                    let r = result.clone();
+            for query_result in results {
+                if !self.handler_ran_for_tuple.contains(&query_result, hid) {
+                    self.handler_ran_for_tuple.insert(query_result.clone(), hid.clone());
+                    let qr = query_result.clone();
 
-                    let wishes = h.handle(result);
-                    wishes.into_iter().map(|w| (r.clone(), w))
+                    let wishes = h.handle(query_result);
+                    wishes.into_iter()
+                        .map(|wished_tuple| (qr.clone(), hid.clone(), wished_tuple))
                         .for_each(|t| {
                             change_queue.insert(t);
                             ()
@@ -92,9 +114,10 @@ impl Reactor {
             }
         }
 
-        for (prov, c) in change_queue.drain() {
+        for (prov, hid, c) in change_queue.drain() {
             println!("Recording {c:?} into reactor db");
 
+            self.handler_provenance.insert(hid, c.clone());
             self.tuple_provenance.insert(prov, c.clone());
             self.db.claim(c);
         }
@@ -222,6 +245,29 @@ mod tests {
         assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
 
         reactor.remove_claim(tuple);
+        reactor.tick();
+
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
+    }
+
+    #[test]
+    fn removed_originial_handlers_transitively_remove_generated_tuples() {
+        let mut reactor = Reactor::new();
+
+        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        reactor.claim(tuple.clone());
+
+        let husky_handler_id = reactor.add_handler(Box::new(HuskyHandler {}));
+        reactor.add_handler(Box::new(HighlightHandler {}));
+
+        reactor.tick();
+        reactor.tick();
+
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
+
+        reactor.remove_handler(husky_handler_id);
         reactor.tick();
 
         assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);

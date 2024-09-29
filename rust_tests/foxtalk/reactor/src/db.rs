@@ -43,8 +43,14 @@ impl<K, V> DbIndex<K, V>
         self.map.get_mut(key)
     }
 
-    pub fn remove_all(&mut self, key: &K) {
-        self.map.remove(key);
+    pub fn remove_all_by_key(&mut self, key: &K) -> Option<HashSet<V>> {
+        self.map.remove(key)
+    }
+
+    pub fn remove_all_by_value(&mut self, value: &V) {
+        self.map.iter_mut().for_each(|(_, vs)| {
+            vs.remove(value);
+        });
     }
 
     pub fn remove(&mut self, key: &K, value: &V) {
