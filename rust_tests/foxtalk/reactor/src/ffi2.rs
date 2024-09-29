@@ -1,4 +1,4 @@
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void, CStr, CString};
 use std::fmt::{write, Debug, Formatter, Pointer};
 use std::mem;
 use std::ptr::NonNull;
@@ -61,7 +61,10 @@ impl Debug for bindings::TupleNoun {
             match self.tag {
                 TupleNoun_Tag_Query => { write!(f, "CQuery") }
                 TupleNoun_Tag_Ptr => { write!(f, "CPtr({:?})", self.dat.ptr) }
-                TupleNoun_Tag_Str => { write!(f, "CStr({:?})", self.dat.str_) }
+                TupleNoun_Tag_Str => {
+                    let s = CStr::from_ptr(self.dat.str_).to_string_lossy();
+                    write!(f, "CStr({})", s)
+                }
                 TupleNoun_Tag_U64 => { write!(f, "CU64({:?})", self.dat.u64_) }
                 TupleNoun_Tag_I64 => { write!(f, "CI64({:?})", self.dat.i64_) }
 
@@ -80,7 +83,6 @@ impl Debug for bindings::Tuple {
             .finish()
     }
 }
-
 
 impl Tuple {
     unsafe fn from_ctuple(free_subj: NonNull<c_void>, free_obj: NonNull<c_void>, value: bindings::Tuple) -> Self {
@@ -128,11 +130,12 @@ impl From<TupleNoun> for bindings::TupleNoun {
                     },
                 }
             }
+
             TupleNoun::Str(s) => {
                 bindings::TupleNoun {
                     tag: bindings::TupleNoun_Tag_Str,
                     dat: bindings::TupleNoun_Dat {
-                        str_: unsafe { mem::transmute(s.clone().as_mut_ptr()) }
+                        str_: CString::new(s).unwrap().into_raw()
                     },
                 }
             }
@@ -183,14 +186,17 @@ impl When for CWhen {
     fn get_query(&self) -> Query {
         // Parens necessary, apparently.
         let mut cq = bindings::Tuple::default();
+        println!("DEBUG! Input query {cq:?}");
         unsafe { (&self.get_query)(&mut cq) };
-
-        println!("DEBUG! Got CQuery {cq:?}");
+        println!("DEBUG! Output query {cq:?}");
 
         cq.into()
     }
 
     fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+        println!("C <--> Rust handler begin for:");
+        println!("    RUST tuple {results:?}");
+
         let s: bindings::TupleNoun = results.subject.into();
         let o: bindings::TupleNoun = results.object.into();
         let p = unsafe { mem::transmute(results.predicate.clone().as_mut_ptr()) };
@@ -201,6 +207,8 @@ impl When for CWhen {
             object: o,
         };
 
+        println!("    Using !!C!! Tuple {query_result_tuple:?}");
+
         let mut out_size: usize = 0;
         let ctuple_array = unsafe { (&self.when_handler)(&query_result_tuple, &mut out_size) };
 
@@ -208,8 +216,12 @@ impl When for CWhen {
 
         let ctuples = unsafe { Vec::from_raw_parts(ctuple_array, out_size, out_size) };
 
-        ctuples.into_iter().map(|tuple| {
+        let out = ctuples.into_iter().map(|tuple| {
             unsafe { Tuple::from_ctuple(self.free_tuple_subj, self.free_tuple_obj, tuple) }
-        }).collect()
+        }).collect();
+
+        println!("C <--> Rust handler end");
+
+        out
     }
 }

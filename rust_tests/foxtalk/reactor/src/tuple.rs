@@ -11,7 +11,6 @@ pub enum TupleNoun {
 
 type CFreeTuple = unsafe extern "C" fn(*mut c_void) -> ();
 impl TupleNoun {
-
     pub(super) unsafe fn cleanup(&mut self) {
         match self {
             TupleNoun::CPtrHeap { data, destructor } => {
