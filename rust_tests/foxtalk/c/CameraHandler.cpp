@@ -2,10 +2,51 @@
 #include <string>
 #include <iostream>
 
+#include <string.h> // this is where strerror lives, apparently.
+#include <fcntl.h>
+#include <functional>
+#include <format>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <sstream>
+#include <linux/videodev2.h>
+
 #include "reactor.hpp"
 
 static char *isA = "is a";
+static char *format = "format";
+static char *hasFormat = "has format";
+static char *hasId = "has id";
 static char* camera = "camera";
+
+////////////////////////////////////////////////////////////////////////////////
+
+// I cannot stress
+//   just how insane
+//     I find this API.
+//
+// Because it's a lot.
+//   Yes, it is that much.
+//     jesus christ.
+template<typename T, unsigned long fmt>
+void v4lEnumerate(int fd, T &desc, std::function<void(const T &)> forEach) {
+    int res = ioctl(fd, fmt, &desc);
+    if (res >= 0) {
+        forEach(desc);
+        desc.index++;
+        return v4lEnumerate<T, fmt>(fd, desc, forEach);
+    }
+
+    // If we get EINVAL, that's actually totally fine! Because who the hell designed this library?!
+    // I mean that's fine & we just stop calling ioctl. Otherwise, there's an actual error.
+    if (res < 0 && errno != EINVAL) {
+        throw new std::runtime_error(
+                 std::format("Error when trying to enumerate {0}: {1}", typeid(T).name(), strerror(errno)));
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 
 Tuple GetQuery() {
     return Tuple {
@@ -18,7 +59,56 @@ Tuple GetQuery() {
 std::vector<Tuple>* WhenHandler(Tuple* result) {
     std::cout << "Hello from CameraHandler" << std::endl;
     std::cout << "    Subject is " << result->subject << std::endl;
-    return new std::vector<Tuple>();
+
+    auto outTuples = new std::vector<Tuple>();
+
+    auto camName = result->subject.dat.str;
+
+    int fd = open(camName, O_NONBLOCK);
+    if (fd < 0) {
+        throw std::runtime_error(
+                std::format("ioctl failed with error: {0}", strerror(errno)));
+    }
+
+    struct v4l2_fmtdesc fmtdesc {
+            .index = 0,
+            .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
+    };
+
+    v4lEnumerate<struct v4l2_fmtdesc, VIDIOC_ENUM_FMT>(fd, fmtdesc, [&camName, &result, &outTuples](auto desc) {
+        std::cout << "Enum'd format [" << desc.index << "]: " << desc.description << std::endl;
+        std::stringstream ss;
+        ss << desc.description;
+
+        outTuples->push_back(Tuple {
+            result->subject,
+            hasFormat,
+            TupleNoun::fromString(ss.str().data())
+        });
+
+//        db.claim(desc.description, "is a", "format");
+//        db.claim(desc.description, "has the id", (void*)desc.pixelformat); // omg.
+//        db.claim(camName, "has the format", desc.description);
+
+//        struct v4l2_frmsizeenum framesize {
+//                .index = 0,
+//                .pixel_format = desc.pixelformat
+//        };
+//        v4lEnumerate<struct v4l2_frmsizeenum, VIDIOC_ENUM_FRAMESIZES>(fd, framesize, [&db, &camName](auto desc) {
+//            if(desc.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+//                // Hm. How do I say "has resolution in pixel format...?"
+//                // Also, I'd like this to be un-nested. The presence of a camera should trigger
+//                // the finding of pixel formats; the presence of pixel formats should find
+////                db.claim(camName, "has resolution", new std::pair { desc.discrete.width, desc.discrete.height });
+//
+//                std::cout << "    Discrete: " << desc.discrete.width << "x" << desc.discrete.height << std::endl;
+//            } else {
+//                throw std::runtime_error("Unimplemented framesize handler...");
+//            }
+//        });
+    });
+
+    return outTuples;
 }
 
 extern "C" void free_tuple_obj(void* obj) {}

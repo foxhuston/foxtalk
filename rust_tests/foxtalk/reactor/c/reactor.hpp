@@ -16,9 +16,14 @@ extern "C" {
     }
 
     Tuple* when_handler(Tuple* result, size_t *outLen) {
-        auto res = WhenHandler(result);
-        *outLen = res->size();
-        return res->data();
+        try {
+            auto res = WhenHandler(result);
+            *outLen = res->size();
+            return res->data();
+        } catch(std::runtime_error &e) {
+            std::cerr << "Critical Exception: " << e.what() << std::endl;
+            return nullptr;
+        }
     }
 }
 

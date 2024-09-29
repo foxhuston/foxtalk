@@ -41,6 +41,15 @@
             }
             return os;
         }
+
+
+        public:
+        static TupleNoun fromString(char* string) {
+            return TupleNoun {
+                Tag::Str,
+                { .str = string }
+            };
+        }
     };
 
     struct Tuple {

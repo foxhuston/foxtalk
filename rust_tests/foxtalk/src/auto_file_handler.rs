@@ -36,8 +36,11 @@ impl AutoFileHandler {
 
         let out = std::process::Command::new("clang++")
             .args([
-                "-Wall", "-Wpedantic", "-shared",
+                // "-Wall", "-Wpedantic",
+                "-std=c++26",
+                "-shared",
                 "-I", include_dir,
+                "-fPIC",
                 &self.src_path,
                 "-o", &self.so_path])
             .output();
