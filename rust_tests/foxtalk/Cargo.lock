@@ -443,6 +443,7 @@ dependencies = [
  "anyhow",
  "libc",
  "libloading",
+ "walkdir",
 ]
 
 [[package]]

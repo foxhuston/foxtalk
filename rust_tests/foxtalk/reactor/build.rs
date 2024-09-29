@@ -2,6 +2,7 @@ use std::process::Command;
 use walkdir::WalkDir;
 
 fn main() {
+
     let walker = WalkDir::new("tests/test_libs/src").into_iter();
     for e in walker {
         if e.is_err() {
@@ -21,7 +22,14 @@ fn main() {
             .unwrap();
 
         let status = Command::new("clang++")
-            .args(["-shared", entry.path().as_os_str().to_str().unwrap(), "-o", format!("tests/test_libs/out/{filename}.so").as_str()])
+            .args([
+                // "-stdlib=libc++",
+                "-shared",
+                entry.path().as_os_str().to_str().unwrap(),
+                "-o", format!("tests/test_libs/out/{filename}.so").as_str(),
+                // "-std=c++23",
+                // "-fmodules"
+            ])
             .status();
 
         assert_eq!(status.unwrap().success(), true);

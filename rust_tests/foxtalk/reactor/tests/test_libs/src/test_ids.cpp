@@ -1,11 +1,7 @@
-
-// extern "C" pub fn wish(tuple: Tuple) {
-
-#include <vector>
-
-static char *husky = "husky";
-
 ///// Header File //////////////////////////////////////////////////////////////
+#include <string>
+#include <iostream>
+#include <vector>
 
 extern "C"
 {
@@ -40,8 +36,7 @@ extern "C"
 
 ///// A HANDLER FILE ///////////////////////////////////////////////////////////
 
-#include <string>
-#include <iostream>
+static char *husky = "husky";
 
 struct Dog
 {

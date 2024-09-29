@@ -2,6 +2,8 @@
 // extern "C" pub fn wish(tuple: Tuple) {
 
 #include <vector>
+#include <string>
+#include <iostream>
 
 static char* lexi = "lexi";
 static char* highlighted = "is highlighted";
@@ -37,8 +39,6 @@ extern "C" {
 
 ///// A HANDLER FILE ///////////////////////////////////////////////////////////
 
-#include <string>
-#include <iostream>
 
 struct Dog {
     std::string name;
