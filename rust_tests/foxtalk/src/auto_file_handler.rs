@@ -1,7 +1,10 @@
-use tokio::sync::Mutex;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use anyhow::{format_err, Result};
 
 use reactor::ffi2::CWhen;
+use reactor::query::Query;
+use reactor::tuple::Tuple;
+use reactor::when::When;
 
 pub struct AutoFileHandler {
     src_path: String,
@@ -11,7 +14,7 @@ pub struct AutoFileHandler {
 }
 
 impl AutoFileHandler {
-    pub async fn new(src_path: &str, so_path: &str) -> Self {
+    pub fn new(src_path: &str, so_path: &str) -> Result<Self> {
         let mut a = AutoFileHandler {
             src_path: src_path.to_string(),
             so_path: so_path.to_string(),
@@ -19,33 +22,58 @@ impl AutoFileHandler {
             c_when: Arc::new(Mutex::new(None))
         };
 
-        a.rebuild();
-        a.tryLoad().await;
+        a.rebuild()?;
+        a.tryLoad()?;
 
-        a
+        Ok(a)
     }
 
-    fn rebuild(&self) {
+    fn rebuild(&self) -> Result<()> {
         let out = std::process::Command::new("clang++")
             .args(["-Wall", "-Wpedantic", "-shared", &self.src_path, "-o", &self.so_path])
-            .output()
-            .expect("Failed to rebuild {&self.src_path}");
+            .output();
 
-
-        let o = String::from_utf8(out.stdout).unwrap();
-        let e = String::from_utf8(out.stderr).unwrap();
-
-        println!("{}", o);
-        println!("{}", e);
-    }
-
-    async fn tryLoad(&mut self) {
-        let mut c_when = self.c_when.lock().await;
-        match unsafe { CWhen::new(&self.so_path) } {
-            Ok(cwhen) => { *c_when = Some(cwhen) }
-            Err(e) => {
+        match out {
+            Ok(out) if out.status.success() => {
+                let o = String::from_utf8(out.stdout)?;
+                let e = String::from_utf8(out.stderr)?;
+                println!("{}", o);
                 println!("{}", e);
+                Ok(())
+            }
+            Ok(out) => {
+                let o = String::from_utf8(out.stdout)?;
+                let e = String::from_utf8(out.stderr)?;
+                println!("{}", o);
+                println!("{}", e);
+
+                Err(format_err!("AutoFileHandler compilation failed!"))
+            }
+            Err(err) => {
+                Err(format_err!("{}", err))
             }
         }
+    }
+
+    fn tryLoad(&mut self) -> Result<()> {
+        let mut c_when = self.c_when.lock().unwrap();
+
+        match unsafe { CWhen::new(&self.so_path) } {
+            Ok(cwhen) => {
+                *c_when = Some(cwhen);
+                Ok(())
+            }
+            Err(e) => { Err(e) }
+        }
+    }
+}
+
+impl When for AutoFileHandler {
+    fn get_query(&self) -> Query {
+        self.c_when.lock().unwrap().as_ref().unwrap().get_query()
+    }
+
+    fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+        self.c_when.lock().unwrap().as_mut().unwrap().handle(results)
     }
 }

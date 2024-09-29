@@ -66,8 +66,25 @@ fn ffi_finds_tuples() {
     reactor.add_handler(Box::new(when));
 
     reactor.tick();
-    // reactor.tick();
-    // reactor.tick();
+
+    let results = reactor.db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
+
+    println!("{:?}", results);
+
+    assert_eq!(results.len(), 2);
+}
+
+#[test]
+fn reactor_does_not_falsely_retrigger_handlers() {
+    let mut reactor = Reactor::new();
+    reactor.claim(Tuple::new_strs("lexi", "is a", "husky"));
+
+    let when = unsafe { CWhen::new(linked_lib_path("test_ids.so").as_str()) }.unwrap();
+    reactor.add_handler(Box::new(when));
+
+    reactor.tick();
+    reactor.tick();
+    reactor.tick();
 
     let results = reactor.db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
 

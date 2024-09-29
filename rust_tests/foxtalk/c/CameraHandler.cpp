@@ -1,19 +1,24 @@
+#include <vector>
+#include <string>
 #include <iostream>
-#include "foxtalk.h"
 
+#include "../reactor/c/reactor.hpp"
+
+static char *isA = "is a";
 static char* camera = "camera";
 
 Tuple GetQuery() {
     return Tuple {
-        nullptr
-        , "is a"
-        , static_cast<void*>(camera)
+        { TupleNoun::Tag::Query },
+        isA,
+        { TupleNoun::Tag::Str, { .str = camera }}
     };
 }
 
 std::vector<Tuple>* WhenHandler(Tuple* result) {
     std::cout << "Hello from CameraHandler" << std::endl;
-    return {};
+    std::cout << "    Subject is " << result->subject << std::endl;
+    return new std::vector<Tuple>();
 }
 
 extern "C" void free_tuple_obj(void* obj) {}

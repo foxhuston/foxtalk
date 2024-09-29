@@ -6,5 +6,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.89"
 reactor = { path = "./reactor" }
-tokio = { version = "1.40.0", features = ["full"] }
-file_watcher_tokio = "0.3.0"
+notify = "6.1.1"
