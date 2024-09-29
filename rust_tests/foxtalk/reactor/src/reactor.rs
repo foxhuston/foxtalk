@@ -1,30 +1,44 @@
-use std::collections::HashSet;
 use crate::db::{Db, DbIndex};
 use crate::tuple::Tuple;
-use crate::when::{When};
+use crate::when::When;
+use std::collections::{HashMap, HashSet};
+
+use uuid::Uuid;
+
+type Handler = Box<dyn When>;
+type HandlerId = Uuid;
 
 pub struct Reactor {
-    handlers: Vec<Box<dyn When>>,
+    // This uses UUID keys so that we can quickly find handlers
+    // without needing the handlers themselves to be hashable.
+    handlers: HashMap<HandlerId, Handler>,
+
     // TODO: UNPUB
     pub db: Db,
 
     pub handler_provenance: (), // TODO: How do I even express this in Rust?????
-    tuple_provenance: DbIndex<Tuple, Tuple>
+    tuple_provenance: DbIndex<Tuple, Tuple>,
+
+    // Tuple Triggered handler (TODO: with query?)
+    handler_ran_for_tuple: DbIndex<Tuple, HandlerId>,
 }
 
 impl Reactor {
     pub fn new() -> Reactor {
         Reactor {
             db: Db::new(),
-            handlers: Vec::new(),
+            handlers: HashMap::new(),
 
             handler_provenance: (),
-            tuple_provenance: DbIndex::new()
+            tuple_provenance: DbIndex::new(),
+
+            handler_ran_for_tuple: DbIndex::new()
+
         }
     }
 
     pub fn add_handler(&mut self, handler: Box<dyn When>) {
-        self.handlers.push(handler);
+        self.handlers.insert(Uuid::new_v4(), handler);
     }
 
     pub fn claim(&mut self, tuple: Tuple) {
@@ -33,6 +47,8 @@ impl Reactor {
 
     pub fn remove_claim(&mut self, tuple: Tuple) {
         let mut work_queue: Vec<Tuple> = Vec::new();
+
+        self.handler_ran_for_tuple.remove_all(&tuple);
 
         match self.tuple_provenance.get_mut(&tuple) {
             None => {}
@@ -58,31 +74,28 @@ impl Reactor {
         // and we can re-borrow ourselves to insert the claims into the db.
         let mut change_queue: HashSet<(Tuple, Tuple)> = HashSet::new();
 
-        for h in self.handlers.iter_mut() {
+        for (hid, h) in self.handlers.iter_mut() {
             let results = self.db.query(h.get_query());
 
             for result in results {
-                let r = result.clone();
-                let wishes = h.handle(result);
-                wishes.into_iter().map(|w| (r.clone(), w))
-                    .for_each(|t| { change_queue.insert(t); () });
+                if !self.handler_ran_for_tuple.contains(&result, hid) {
+                    self.handler_ran_for_tuple.insert(result.clone(), hid.clone());
+                    let r = result.clone();
+
+                    let wishes = h.handle(result);
+                    wishes.into_iter().map(|w| (r.clone(), w))
+                        .for_each(|t| {
+                            change_queue.insert(t);
+                            ()
+                        });
+                }
             }
         }
 
         for (prov, c) in change_queue.drain() {
             println!("Recording {c:?} into reactor db");
 
-            match self.tuple_provenance.get_mut(&prov) {
-                None => {
-                    let mut hs = HashSet::new();
-                    hs.insert(c.clone());
-                    self.tuple_provenance.insert(prov, hs);
-                }
-                Some(set) => {
-                    set.insert(c.clone());
-                }
-            }
-
+            self.tuple_provenance.insert(prov, c.clone());
             self.db.claim(c);
         }
     }
@@ -93,9 +106,9 @@ impl Reactor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::when::{When};
-    use crate::tuple::TupleNoun::*;
     use crate::query::Query;
+    use crate::tuple::TupleNoun::*;
+    use crate::when::When;
 
     ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////
 

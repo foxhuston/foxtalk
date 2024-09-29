@@ -2,8 +2,59 @@ use crate::tuple::{Tuple, TupleNoun};
 
 use crate::query::Query;
 use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
-pub type DbIndex<K, V> = HashMap<K, HashSet<V>>;
+#[repr(transparent)]
+pub struct DbIndex<K, V> { map: HashMap<K, HashSet<V>> }
+
+impl<K, V> DbIndex<K, V>
+    where K: PartialEq + Eq + Hash,
+          V: Hash + Eq
+{
+    pub fn new() -> Self {
+        DbIndex { map: HashMap::new() }
+    }
+
+    pub fn insert(&mut self, key: K, value: V) {
+        match self.map.get_mut(&key) {
+            None => {
+                let mut hs = HashSet::new();
+                hs.insert(value);
+                self.map.insert(key, hs);
+            }
+            Some(mut hs) => {
+                hs.insert(value);
+            }
+        }
+    }
+
+    pub fn contains(&self, key: &K, value: &V) -> bool {
+        match self.map.get(key) {
+            None => { false }
+            Some(hs) => { hs.contains(value) }
+        }
+    }
+
+    pub fn get(&self, key: &K) -> Option<&HashSet<V>> {
+        self.map.get(key)
+    }
+
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut HashSet<V>> {
+        self.map.get_mut(key)
+    }
+
+    pub fn remove_all(&mut self, key: &K) {
+        self.map.remove(key);
+    }
+
+    pub fn remove(&mut self, key: &K, value: &V) {
+        match self.map.get_mut(key) {
+            None => {}
+            Some(mut hs) => { hs.remove(value); }
+        }
+    }
+
+}
 
 pub struct Db {
     by_subject: DbIndex<TupleNoun, Tuple>,
@@ -22,7 +73,7 @@ impl Db {
 
     // TODO: This might should be crate-private?
     pub fn query(&self, query: Query) -> HashSet<Tuple> {
-        let empty = HashSet::new();
+        let empty: HashSet<Tuple> = HashSet::new();
 
         let by_subj: Option<&HashSet<Tuple>> =
             query.subject.map(|subj| { self.by_subject.get(&subj).unwrap_or(&empty) });
@@ -52,61 +103,15 @@ impl Db {
     }
 
     pub fn claim(&mut self, t: Tuple) {
-        match self.by_subject.get_mut(&t.subject) {
-            None => {
-                let mut set = HashSet::new();
-                set.insert(t.clone());
-                self.by_subject.insert(t.subject.clone(), set);
-            }
-            Some(set) => {
-                set.insert(t.clone());
-            }
-        }
-
-        match self.by_predicate.get_mut(&t.predicate) {
-            None => {
-                let mut set = HashSet::new();
-                set.insert(t.clone());
-                self.by_predicate.insert(t.predicate.clone(), set);
-            }
-            Some(set) => {
-                set.insert(t.clone());
-            }
-        }
-
-        match self.by_object.get_mut(&t.object) {
-            None => {
-                let mut set = HashSet::new();
-                set.insert(t.clone());
-                self.by_object.insert(t.object.clone(), set);
-            }
-            Some(set) => {
-                set.insert(t);
-            }
-        }
+        self.by_subject.insert(t.subject.clone(), t.clone());
+        self.by_predicate.insert(t.predicate.clone(), t.clone());
+        self.by_object.insert(t.object.clone(), t.clone());
     }
 
     pub fn remove_claim(&mut self, tuple: Tuple) {
-        match self.by_subject.get_mut(&tuple.subject) {
-            None => {}
-            Some(set) => {
-                set.remove(&tuple);
-            }
-        }
-
-        match self.by_predicate.get_mut(&tuple.predicate) {
-            None => {}
-            Some(set) => {
-                set.remove(&tuple);
-            }
-        }
-
-        match self.by_object.get_mut(&tuple.object) {
-            None => {}
-            Some(set) => {
-                set.remove(&tuple);
-            }
-        }
+        self.by_subject.remove(&tuple.subject, &tuple);
+        self.by_predicate.remove(&tuple.predicate, &tuple);
+        self.by_object.remove(&tuple.object, &tuple);
 
         // Call library free on `CPtr`s
         unsafe { tuple.cleanup(); }
