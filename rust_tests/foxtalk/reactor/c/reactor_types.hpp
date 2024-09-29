@@ -23,6 +23,9 @@
 
         friend std::ostream & operator << (std::ostream &os, const TupleNoun& t) {
             switch(t.tag) {
+                case Query:
+                    os << "Query";
+                    break;
                 case Ptr:
                     os << "Ptr(" << t.dat.ptr << ")";
                     break;

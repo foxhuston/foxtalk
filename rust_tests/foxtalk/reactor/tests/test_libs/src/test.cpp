@@ -2,56 +2,56 @@
 // extern "C" pub fn wish(tuple: Tuple) {
 
 #include <vector>
-#include "c/reactor.hpp"
-
-static char* lexi = "lexi";
-static char* highlighted = "is highlighted";
-static char* blue = "blue";
-
-
-///// A HANDLER FILE ///////////////////////////////////////////////////////////
-
 #include <string>
 #include <iostream>
 
-struct Dog {
+#include "c/reactor.hpp"
+
+static char *hi = "Hi!";
+static char *husky = "husky";
+
+struct Dog
+{
     std::string name;
 };
 
-Tuple GetQuery() {
+Tuple GetQuery()
+{
     return Tuple {
-        nullptr, "Hi!", nullptr
+        { TupleNoun::Tag::Query },
+        hi,
+        { TupleNoun::Tag::Str, { .str = husky }}
     };
 }
 
-std::vector<Tuple>* WhenHandler(Tuple* result) {
+// When (you) is a "husky"
+std::vector<Tuple> *WhenHandler(Tuple *result)
+{
     std::cout << "Hello from C++ WhenHandler" << std::endl;
-
-    auto subj = new TupleNoun {
-        TupleNoun::Tag::Str,
-        { .str = lexi }
-    };
+    std::cout << "Subject is " << result->subject << std::endl;
 
     auto obj = new TupleNoun {
         TupleNoun::Tag::Ptr,
-        { .ptr = new Dog { "lexi" } }
+        // Needs copy??
+        { .ptr = new Dog { result->subject.dat.str } }
     };
 
-    Tuple outTuple { subj, "is a", obj };
-
-    auto out = new std::vector<Tuple> {
-        outTuple
+    Tuple outTuple {
+        result->subject,
+        hi,
+        // Needs string copy??
+        { TupleNoun::Tag::Ptr, { .ptr = new Dog { result->subject.dat.str } } }
     };
+
+    auto out = new std::vector<Tuple>{outTuple};
+
     return out;
 }
 
-extern "C" void free_tuple_obj(TupleNoun* n) {
-//    std::cout << "Cleanin' up some dogs." << std::endl;
-//    delete static_cast<Dog *>(n->dat.ptr);
-//    delete n;
+extern "C" void free_tuple_obj(void *obj)
+{
+    std::cout << "Cleanin' up some dogs." << std::endl;
+    delete static_cast<Dog *>(obj);
 }
 
-extern "C" void free_tuple_subj(TupleNoun* subj) {
-//    delete subj;
-}
-
+extern "C" void free_tuple_subj(void *subj) {}

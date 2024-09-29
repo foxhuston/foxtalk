@@ -2,7 +2,7 @@
 #include <string>
 #include <iostream>
 
-#include "../reactor/c/reactor.hpp"
+#include "reactor.hpp"
 
 static char *isA = "is a";
 static char* camera = "camera";

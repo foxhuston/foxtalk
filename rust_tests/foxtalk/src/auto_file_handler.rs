@@ -29,8 +29,17 @@ impl AutoFileHandler {
     }
 
     fn rebuild(&self) -> Result<()> {
+        let mut dir = std::env::current_dir()?;
+        dir.push("reactor/c");
+        let include_dir = dir.as_os_str().to_str().unwrap();
+        println!("Adding include dir: {include_dir}");
+
         let out = std::process::Command::new("clang++")
-            .args(["-Wall", "-Wpedantic", "-shared", &self.src_path, "-o", &self.so_path])
+            .args([
+                "-Wall", "-Wpedantic", "-shared",
+                "-I", include_dir,
+                &self.src_path,
+                "-o", &self.so_path])
             .output();
 
         match out {

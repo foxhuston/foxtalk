@@ -196,9 +196,9 @@ impl When for CWhen {
     fn get_query(&self) -> Query {
         // Parens necessary, apparently.
         let mut cq = bindings::Tuple::default();
-        println!("DEBUG! Input query {cq:?}");
+        // println!("DEBUG! Input query {cq:?}");
         unsafe { (&self.get_query)(&mut cq) };
-        println!("DEBUG! Output query {cq:?}");
+        // println!("DEBUG! Output query {cq:?}");
 
         cq.into()
     }
