@@ -7,6 +7,8 @@ pub enum TupleNoun {
     CPtrHeap { data: NonNull<c_void>, destructor: NonNull<c_void> },
     CPtr(NonNull<c_void>),
     Str(String),
+    U64(u64),
+    I64(i64)
 }
 
 type CFreeTuple = unsafe extern "C" fn(*mut c_void) -> ();
@@ -17,8 +19,7 @@ impl TupleNoun {
                 // let d: CFreeTuple = unsafe { mem::transmute_copy(destructor) };
                 // d(data.as_mut());
             }
-            TupleNoun::CPtr(_) => {}
-            TupleNoun::Str(_) => {}
+            _ => {}
         }
     }
 }

@@ -6,4 +6,5 @@ set(CMAKE_CXX_STANDARD 23)
 
 include_directories(../reactor/c/)
 
-add_library(camera_handler CameraHandler.cpp)
+add_library(camera_format_handler CameraFormatHandler.cpp)
+add_library(camera_pixel_handler CameraPixelHandler.cpp)

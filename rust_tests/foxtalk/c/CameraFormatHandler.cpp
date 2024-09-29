@@ -16,6 +16,7 @@
 static char *isA = "is a";
 static char *format = "format";
 static char *hasFormat = "has format";
+static char *hasFormatName = "has format name";
 static char *hasId = "has id";
 static char* camera = "camera";
 
@@ -83,29 +84,14 @@ std::vector<Tuple>* WhenHandler(Tuple* result) {
         outTuples->push_back(Tuple {
             result->subject,
             hasFormat,
-            TupleNoun::fromString(ss.str().data())
+            TupleNoun::fromUint(desc.pixelformat),
         });
 
-//        db.claim(desc.description, "is a", "format");
-//        db.claim(desc.description, "has the id", (void*)desc.pixelformat); // omg.
-//        db.claim(camName, "has the format", desc.description);
-
-//        struct v4l2_frmsizeenum framesize {
-//                .index = 0,
-//                .pixel_format = desc.pixelformat
-//        };
-//        v4lEnumerate<struct v4l2_frmsizeenum, VIDIOC_ENUM_FRAMESIZES>(fd, framesize, [&db, &camName](auto desc) {
-//            if(desc.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
-//                // Hm. How do I say "has resolution in pixel format...?"
-//                // Also, I'd like this to be un-nested. The presence of a camera should trigger
-//                // the finding of pixel formats; the presence of pixel formats should find
-////                db.claim(camName, "has resolution", new std::pair { desc.discrete.width, desc.discrete.height });
-//
-//                std::cout << "    Discrete: " << desc.discrete.width << "x" << desc.discrete.height << std::endl;
-//            } else {
-//                throw std::runtime_error("Unimplemented framesize handler...");
-//            }
-//        });
+        outTuples->push_back(Tuple {
+            TupleNoun::fromUint(desc.pixelformat),
+            hasFormatName,
+            TupleNoun::fromString(ss.str())
+        });
     });
 
     return outTuples;

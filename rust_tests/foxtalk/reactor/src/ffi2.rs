@@ -38,10 +38,10 @@ impl From<bindings::TupleNoun> for Option<TupleNoun> {
                     Some(TupleNoun::Str(CStr::from_ptr(value.dat.str_).to_string_lossy().into()))
                 }
                 bindings::TupleNoun_Tag_U64 => {
-                    todo!()
+                    Some(TupleNoun::U64(value.dat.u64_))
                 }
                 bindings::TupleNoun_Tag_I64 => {
-                    todo!()
+                    Some(TupleNoun::I64(value.dat.i64_))
                 }
 
                 _ => unreachable!()
@@ -147,6 +147,24 @@ impl From<TupleNoun> for bindings::TupleNoun {
                     dat: bindings::TupleNoun_Dat {
                         str_: CString::new(s).unwrap().into_raw()
                     },
+                }
+            }
+
+            TupleNoun::U64(u) => {
+                bindings::TupleNoun {
+                    tag: bindings::TupleNoun_Tag_U64,
+                    dat: bindings::TupleNoun_Dat {
+                        u64_: u
+                    }
+                }
+            }
+
+            TupleNoun::I64(i) => {
+                bindings::TupleNoun {
+                    tag: bindings::TupleNoun_Tag_I64,
+                    dat: bindings::TupleNoun_Dat {
+                        i64_: i
+                    }
                 }
             }
         }

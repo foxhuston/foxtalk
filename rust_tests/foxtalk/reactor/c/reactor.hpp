@@ -4,10 +4,12 @@
 #include <vector>
 #include "reactor_types.hpp"
 
+///// REQUIRED IMPLEMENTATIONS /////////////////////////////////////////////////
 std::vector<Tuple>* WhenHandler(Tuple* result);
 Tuple GetQuery();
 
 extern "C" {
+    ///// HANDLER API //////////////////////////////////////////////////////////
     void get_query(Tuple* t) {
         auto q = GetQuery();
         t->subject = q.subject;
@@ -25,6 +27,8 @@ extern "C" {
             return nullptr;
         }
     }
+
+    ///// INTERNAL RUST<--> C NONSENSE /////////////////////////////////////////
 }
 
 #endif // __REACTOR__

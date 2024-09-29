@@ -3,85 +3,69 @@
 
 #include <cstdint>
 #include <iostream>
+#include <cstring>
 
-    struct TupleNoun  {
-        enum Tag {
-            Query,
-            Ptr,
-            Str,
-            U64,
-            I64
+struct TupleNoun  {
+    enum Tag {
+        Query,
+        Ptr,
+        Str,
+        U64,
+        I64
+    };
+
+    Tag tag;
+    union Dat {
+        void* ptr;
+        char* str;
+        uint64_t u64;
+        int64_t i64;
+    } dat;
+
+    friend std::ostream & operator << (std::ostream &os, const TupleNoun& t) {
+        switch(t.tag) {
+            case Query:
+                os << "Query";
+                break;
+            case Ptr:
+                os << "Ptr(" << t.dat.ptr << ")";
+                break;
+            case Str:
+                os << "Str(" << t.dat.str << ")";
+                break;
+            case U64:
+                os << "U64(" << t.dat.u64 << ")";
+                break;
+            case I64:
+                os << "I64(" << t.dat.i64 << ")";
+                break;
+        }
+        return os;
+    }
+
+    static TupleNoun fromUint(uint64_t n) {
+        return TupleNoun {
+            Tag::U64,
+            { .u64 = n }
         };
+    }
 
-        Tag tag;
-        union Dat {
-            void* ptr;
-            char* str;
-            uint64_t u64;
-            int64_t i64;
-        } dat;
+    static TupleNoun fromString(std::string string) {
+        // TODO: SO DAMN MEMORY-LEAKY :<
+        char *str = (char *)malloc(sizeof(char) * string.length());
+        strncpy(str, string.c_str(), string.length());
 
-        friend std::ostream & operator << (std::ostream &os, const TupleNoun& t) {
-            switch(t.tag) {
-                case Query:
-                    os << "Query";
-                    break;
-                case Ptr:
-                    os << "Ptr(" << t.dat.ptr << ")";
-                    break;
-                case Str:
-                    os << "Str(" << t.dat.str << ")";
-                    break;
-                case U64:
-                    os << "U64(" << t.dat.u64 << ")";
-                    break;
-                case I64:
-                    os << "I64(" << t.dat.i64 << ")";
-                    break;
-            }
-            return os;
-        }
+        return TupleNoun {
+            Tag::Str,
+            { .str = str }
+        };
+    }
+};
 
-
-        public:
-        static TupleNoun fromString(char* string) {
-            return TupleNoun {
-                Tag::Str,
-                { .str = string }
-            };
-        }
-    };
-
-    struct Tuple {
-        TupleNoun subject;
-        char *predicate;
-        TupleNoun object;
-    };
-
-//class tn {
-//private:
-//    const TupleNoun& t;
-//
-//public:
-//    tn(const TupleNoun& t): t { t } {}
-//
-//    friend std::ostream& operator<< (std::ostream &os, const tn& t) {
-//        switch(t.t.tag) {
-//            case TupleNoun::Ptr:
-//                os << "Ptr(" << t.t.dat.ptr << ")";
-//                break;
-//            case TupleNoun::Str:
-//                os << "Str(" << t.t.dat.str << ")";
-//                break;
-//            case TupleNoun::U64:
-//                os << "U64(" << t.t.dat.u64 << ")";
-//                break;
-//            case TupleNoun::I64:
-//                os << "I64(" << t.t.dat.i64 << ")";
-//                break;
-//        }
-//        return os;
-//    }
-//};
+struct Tuple {
+    TupleNoun subject;
+    char *predicate;
+    TupleNoun object;
+};
 
 #endif // __REACTOR_TYPES__
