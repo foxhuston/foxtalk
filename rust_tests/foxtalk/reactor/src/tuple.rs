@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::mem;
 use std::ptr::NonNull;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]

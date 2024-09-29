@@ -66,8 +66,8 @@ fn ffi_finds_tuples() {
     reactor.add_handler(Box::new(when));
 
     reactor.tick();
-    reactor.tick();
-    reactor.tick();
+    // reactor.tick();
+    // reactor.tick();
 
     let results = reactor.db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
 

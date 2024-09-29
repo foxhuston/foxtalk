@@ -1,7 +1,6 @@
-use std::process::Command;
-use std::env;
 use std::path::PathBuf;
-use walkdir::WalkDir;
+use std::process::Command;
+use std::{env, fs};
 
 fn main() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -13,6 +12,12 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("c/reactor_types.hpp")
+        .allowlist_recursively(false)
+        .allowlist_type("Tuple")
+        .allowlist_type("TupleNoun")
+        .derive_default(true)
+        .derive_partialeq(true)
+        .derive_eq(true)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
@@ -28,35 +33,65 @@ fn main() {
         .expect("Couldn't write bindings!");
 
 
-    let walker = WalkDir::new("tests/test_libs/src").into_iter();
-    for e in walker {
-        if e.is_err() {
-            continue;
+    // let walker = WalkDir::new("tests/test_libs/src").into_iter();
+    let dirs =  fs::read_dir("tests/test_libs/src").unwrap();
+    fs::create_dir_all("tests/test_libs/out").unwrap();
+    for e in dirs {
+        match e {
+            Ok(entry) if entry.file_type().unwrap().is_file() => {
+                let filename = entry.file_name();
+                let filename = filename.to_string_lossy();
+                let filename = filename.split('.').next().unwrap();
+
+                let filepath = entry.path();
+                let filepath = filepath.to_str().unwrap();
+
+                if filepath.ends_with(".cpp") {
+                    let status = Command::new("clang++")
+                        .args([
+                            "-shared",
+                            "-I", manifest_dir.as_str(),
+                            &filepath,
+                            "-o", format!("tests/test_libs/out/{filename}.so"
+                            ).as_str()])
+                        .status();
+
+                    assert_eq!(status.unwrap().success(), true);
+                    println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+                }
+            }
+            _ => {}
         }
-        if e.as_ref().unwrap().path().is_dir() {
-            continue;
-        }
-
-        let entry = e.unwrap();
-        let filename = entry
-            .file_name()
-            .to_str()
-            .unwrap_or("unknown")
-            .split(".")
-            .next()
-            .unwrap();
-
-        let status = Command::new("clang++")
-            .args([
-                "-shared",
-                "-I", manifest_dir.as_str(),
-                entry.path().as_os_str().to_str().unwrap(),
-                "-o", format!("tests/test_libs/out/{filename}.so"
-                ).as_str()])
-            .status();
-
-        assert_eq!(status.unwrap().success(), true);
-        println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
     }
+
+    // for e in walker {
+    //     if e.is_err() {
+    //         continue;
+    //     }
+    //     if e.as_ref().unwrap().path().is_dir() {
+    //         continue;
+    //     }
+    //
+    //     let entry = e.unwrap();
+    //     let filename = entry
+    //         .file_name()
+    //         .to_str()
+    //         .unwrap_or("unknown")
+    //         .split(".")
+    //         .next()
+    //         .unwrap();
+    //
+    //     let status = Command::new("clang++")
+    //         .args([
+    //             "-shared",
+    //             "-I", manifest_dir.as_str(),
+    //             entry.path().as_os_str().to_str().unwrap(),
+    //             "-o", format!("tests/test_libs/out/{filename}.so"
+    //             ).as_str()])
+    //         .status();
+    //
+    //     assert_eq!(status.unwrap().success(), true);
+    //     println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+    // }
 }
 

@@ -7,6 +7,7 @@
 
 #include "c/reactor.hpp"
 
+static char *isA = "is a";
 static char *husky = "husky";
 
 struct Dog
@@ -16,26 +17,30 @@ struct Dog
 
 Tuple GetQuery()
 {
-    auto obj = new TupleNoun {
-        TupleNoun::Tag::Str,
-        { .str = husky }
+    return Tuple {
+        { TupleNoun::Tag::Query },
+        isA,
+        { TupleNoun::Tag::Str, { .str = husky }}
     };
-
-    return Tuple { nullptr, "is a", obj };
 }
 
 // When (you) is a "husky"
 std::vector<Tuple> *WhenHandler(Tuple *result)
 {
     std::cout << "Hello from C++ WhenHandler" << std::endl;
+    std::cout << "Subject is " << result->subject << std::endl;
 
     auto obj = new TupleNoun {
         TupleNoun::Tag::Ptr,
-        { .ptr = new Dog { static_cast<char *>(result->subject->dat.str) } }
+        // Needs copy??
+        { .ptr = new Dog { result->subject.dat.str } }
     };
 
     Tuple outTuple {
-        result->subject, "is a", obj
+        result->subject,
+        isA,
+        // Needs string copy??
+        { TupleNoun::Tag::Ptr, { .ptr = new Dog { result->subject.dat.str } } }
     };
 
     auto out = new std::vector<Tuple>{outTuple};
