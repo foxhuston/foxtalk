@@ -1,7 +1,33 @@
 use std::process::Command;
+use std::env;
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
 fn main() {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // The bindgen::Builder is the main entry point
+    // to bindgen, and lets you build up options for
+    // the resulting bindings.
+    let bindings = bindgen::Builder::default()
+        // The input header we would like to generate
+        // bindings for.
+        .header("c/reactor_types.hpp")
+        // Tell cargo to invalidate the built crate whenever any of the
+        // included header files changed.
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        // Finish the builder and generate the bindings.
+        .generate()
+        // Unwrap the Result and panic on failure.
+        .expect("Unable to generate bindings");
+
+    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("Couldn't write bindings!");
+
+
     let walker = WalkDir::new("tests/test_libs/src").into_iter();
     for e in walker {
         if e.is_err() {
@@ -21,7 +47,12 @@ fn main() {
             .unwrap();
 
         let status = Command::new("clang++")
-            .args(["-shared", entry.path().as_os_str().to_str().unwrap(), "-o", format!("tests/test_libs/out/{filename}.so").as_str()])
+            .args([
+                "-shared",
+                "-I", manifest_dir.as_str(),
+                entry.path().as_os_str().to_str().unwrap(),
+                "-o", format!("tests/test_libs/out/{filename}.so"
+                ).as_str()])
             .status();
 
         assert_eq!(status.unwrap().success(), true);

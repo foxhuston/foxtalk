@@ -3,6 +3,7 @@ use std::mem;
 use std::ptr::NonNull;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[repr(C)]
 pub enum TupleNoun {
     CPtrHeap { data: NonNull<c_void>, destructor: NonNull<c_void> },
     CPtr(NonNull<c_void>),
@@ -15,8 +16,8 @@ impl TupleNoun {
     pub(super) unsafe fn cleanup(&mut self) {
         match self {
             TupleNoun::CPtrHeap { data, destructor } => {
-                let d: CFreeTuple = unsafe { mem::transmute_copy(destructor) };
-                d(data.as_mut());
+                // let d: CFreeTuple = unsafe { mem::transmute_copy(destructor) };
+                // d(data.as_mut());
             }
             TupleNoun::CPtr(_) => {}
             TupleNoun::Str(_) => {}
@@ -25,6 +26,7 @@ impl TupleNoun {
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[repr(C)]
 pub struct Tuple {
     pub subject: TupleNoun,
     pub predicate: String,
@@ -45,7 +47,7 @@ impl Tuple {
     }
 
     pub unsafe fn cleanup(mut self) {
-        self.subject.cleanup();
-        self.object.cleanup();
+        // self.subject.cleanup();
+        // self.object.cleanup();
     }
 }

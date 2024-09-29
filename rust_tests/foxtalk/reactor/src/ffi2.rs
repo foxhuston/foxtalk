@@ -2,34 +2,87 @@ use crate::query::Query;
 use crate::tuple::{Tuple, TupleNoun};
 use libc::c_char;
 use std::ffi::{c_void, CStr, CString};
-use std::ptr::NonNull;
+use std::mem;
+use std::ptr::{null_mut, NonNull};
 
 use anyhow::{format_err, Result};
 
 use libloading::os::unix::{Library, Symbol};
-
+use crate::bindings;
+use crate::bindings::{std_nullptr_t, TupleNoun_Tag};
 use crate::when::When;
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct CTuple {
-    pub subject: *mut c_void,
-    pub predicate: *mut c_char,
-    pub object: *mut c_void,
+impl From<crate::bindings::TupleNoun> for TupleNoun {
+    fn from(value: crate::bindings::TupleNoun) -> Self {
+        unsafe {
+            match value.tag {
+                crate::bindings::TupleNoun_Tag_Ptr => {
+                    TupleNoun::CPtr(NonNull::new(value.dat.ptr).unwrap())
+                }
+                crate::bindings::TupleNoun_Tag_Str => {
+                    TupleNoun::Str(unsafe { CStr::from_ptr(value.dat.str_).to_string_lossy().into() })
+                }
+                crate::bindings::TupleNoun_Tag_U64 => {
+                    todo!()
+                }
+                crate::bindings::TupleNoun_Tag_I64 => {
+                    todo!()
+                }
+
+                _ => unreachable!()
+            }
+        }
+    }
+}
+
+impl From<crate::bindings::Tuple> for Query {
+    fn from(value: crate::bindings::Tuple) -> Self {
+        unsafe {
+            let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
+            let predicate = p.map(|s| s.to_str().unwrap().to_owned());
+
+            Query {
+                subject: if value.subject.is_null() { None } else { Some((*value.subject).into()) },
+                predicate: predicate,
+                object: if value.object.is_null() { None } else { Some((*value.object).into()) },
+            }
+        }
+    }
+}
+
+impl Default for crate::bindings::Tuple {
+    fn default() -> Self {
+        crate::bindings::Tuple {
+            subject: null_mut(),
+            predicate: null_mut(),
+            object: null_mut(),
+        }
+    }
 }
 
 impl Tuple {
-    fn from_ctuple(free_subj: NonNull<c_void>, free_obj: NonNull<c_void>, value: CTuple) -> Self {
-        let s = NonNull::new(value.subject).map(|s| {
-            TupleNoun::CPtrHeap { data: s, destructor: free_subj }
-        }).unwrap();
+    unsafe fn from_ctuple(free_subj: NonNull<c_void>, free_obj: NonNull<c_void>, value: crate::bindings::Tuple) -> Self {
+        assert!(!value.subject.is_null());
+        assert!(!value.object.is_null());
 
-        let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
-        let p = p.map(|s| s.to_str().unwrap().to_owned()).unwrap();
+        let s: TupleNoun = (*value.subject).into();
+        let o: TupleNoun = (*value.object).into();
 
-        let o = NonNull::new(value.object).map(|s| {
-            TupleNoun::CPtrHeap { data: s, destructor: free_obj }
-        }).unwrap();
+        let s = match s {
+            TupleNoun::CPtr(p) => {
+                TupleNoun::CPtrHeap { data: p, destructor: free_subj }
+            }
+            o => o
+        };
+
+        let p: String = unsafe { CStr::from_ptr(value.predicate).to_string_lossy().into() };
+
+        let o = match o {
+            TupleNoun::CPtr(p) => {
+                TupleNoun::CPtrHeap { data: p, destructor: free_subj }
+            }
+            o => o
+        };
 
         Tuple {
             subject: s,
@@ -39,54 +92,33 @@ impl Tuple {
     }
 }
 
-impl From<TupleNoun> for *mut c_void {
+impl From<TupleNoun> for crate::bindings::TupleNoun {
     fn from(value: TupleNoun) -> Self {
-        match &value {
-            TupleNoun::CPtr(p) => { p.as_ptr() }
-            TupleNoun::CPtrHeap { data, destructor: _} => { data.as_ptr() }
+        match value {
+            TupleNoun::CPtr(data) |
+            TupleNoun::CPtrHeap { data, destructor: _ } => {
+                crate::bindings::TupleNoun {
+                    tag: crate::bindings::TupleNoun_Tag_Ptr,
+                    dat: crate::bindings::TupleNoun__bindgen_ty_1 {
+                        ptr: data.as_ptr()
+                    }
+                }
+            }
             TupleNoun::Str(s) => {
-                CString::new(s.clone()).unwrap().into_raw().cast()
+                crate::bindings::TupleNoun {
+                    tag: crate::bindings::TupleNoun_Tag_Str,
+                    dat: crate::bindings::TupleNoun__bindgen_ty_1 {
+                        str_: unsafe { mem::transmute(s.clone().as_mut_ptr()) }
+                    }
+                }
             }
         }
     }
 }
 
-
-impl From<Tuple> for CTuple {
-    fn from(value: Tuple) -> Self {
-        CTuple {
-            subject: value.subject.into(),
-            predicate: CString::new(value.predicate).unwrap().into_raw(),
-            object: value.object.into()
-        }
-    }
-}
-
-impl From<CTuple> for Query {
-    fn from(value: CTuple) -> Self {
-        let s = NonNull::new(value.subject).map(TupleNoun::CPtr);
-        let p = if value.predicate.is_null() { None } else { Some(unsafe { CStr::from_ptr(value.predicate) }) };
-        let p = p.map(|s| s.to_str().unwrap().to_owned());
-        let o = NonNull::new(value.object).map(TupleNoun::CPtr);
-
-        Query {
-            subject: s,
-            predicate: p,
-            object: o,
-        }
-    }
-}
-
-
-impl Default for CTuple {
-    fn default() -> Self {
-        CTuple { subject: std::ptr::null_mut(), predicate: std::ptr::null_mut(), object: std::ptr::null_mut() }
-    }
-}
-
-type CWhenHandler = unsafe extern "C" fn(*const CTuple, *mut usize) -> *mut CTuple;
-type CGetQuery = unsafe extern "C" fn(&mut CTuple) -> ();
-type CFreeTuple = unsafe extern "C" fn(&mut CTuple) -> ();
+type CWhenHandler = unsafe extern "C" fn(*const crate::bindings::Tuple, *mut usize) -> *mut crate::bindings::Tuple;
+type CGetQuery = unsafe extern "C" fn(&mut crate::bindings::Tuple) -> ();
+type CFreeTuple = unsafe extern "C" fn(&mut crate::bindings::Tuple) -> ();
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -122,7 +154,7 @@ impl CWhen {
 impl When for CWhen {
     fn get_query(&self) -> Query {
         // Parens necessary, apparently.
-        let mut cq = CTuple::default();
+        let mut cq = crate::bindings::Tuple::default();
         unsafe { (&self.get_query)(&mut cq) };
 
         println!("DEBUG! Got CQuery {cq:?}");
@@ -131,17 +163,25 @@ impl When for CWhen {
     }
 
     fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
-        let t: CTuple = results.into();
+        let mut s: crate::bindings::TupleNoun = results.subject.into();
+        let mut o: crate::bindings::TupleNoun = results.object.into();
+        let mut p = unsafe { mem::transmute(results.predicate.clone().as_mut_ptr()) };
+
+        let query_result_tuple = crate::bindings::Tuple {
+            subject: &mut s,
+            predicate: p,
+            object: &mut o
+        };
 
         let mut out_size: usize = 0;
-        let ctuple_array = unsafe { (&self.when_handler)(&t, &mut out_size) };
+        let ctuple_array = unsafe { (&self.when_handler)(&query_result_tuple, &mut out_size) };
 
         if ctuple_array.is_null() { return vec![]; }
 
         let ctuples = unsafe { Vec::from_raw_parts(ctuple_array, out_size, out_size) };
 
         ctuples.into_iter().map(|tuple| {
-            Tuple::from_ctuple(self.free_tuple_subj, self.free_tuple_obj, tuple)
+            unsafe { Tuple::from_ctuple(self.free_tuple_subj, self.free_tuple_obj, tuple) }
         }).collect()
     }
 }

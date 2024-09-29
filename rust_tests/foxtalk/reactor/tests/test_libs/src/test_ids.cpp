@@ -2,46 +2,12 @@
 // extern "C" pub fn wish(tuple: Tuple) {
 
 #include <vector>
-
-static char *husky = "husky";
-
-///// Header File //////////////////////////////////////////////////////////////
-
-extern "C"
-{
-    struct Tuple
-    {
-        void *subject;
-        const char *predicate;
-        void *object;
-    };
-}
-
-std::vector<Tuple> *WhenHandler(Tuple *result);
-Tuple GetQuery();
-
-extern "C"
-{
-    void get_query(Tuple *t)
-    {
-        auto q = GetQuery();
-        t->subject = q.subject;
-        t->predicate = q.predicate;
-        t->object = q.object;
-    }
-
-    Tuple *when_handler(Tuple *result, size_t *outLen)
-    {
-        auto res = WhenHandler(result);
-        *outLen = res->size();
-        return res->data();
-    }
-}
-
-///// A HANDLER FILE ///////////////////////////////////////////////////////////
-
 #include <string>
 #include <iostream>
+
+#include "c/reactor.hpp"
+
+static char *husky = "husky";
 
 struct Dog
 {
@@ -50,8 +16,12 @@ struct Dog
 
 Tuple GetQuery()
 {
-    return Tuple{
-        nullptr, "is a", husky};
+    auto obj = new TupleNoun {
+        TupleNoun::Tag::Str,
+        { .str = husky }
+    };
+
+    return Tuple { nullptr, "is a", obj };
 }
 
 // When (you) is a "husky"
@@ -59,8 +29,14 @@ std::vector<Tuple> *WhenHandler(Tuple *result)
 {
     std::cout << "Hello from C++ WhenHandler" << std::endl;
 
-    Tuple outTuple{
-        result->subject, "is a", new Dog{static_cast<char *>(result->subject)}};
+    auto obj = new TupleNoun {
+        TupleNoun::Tag::Ptr,
+        { .ptr = new Dog { static_cast<char *>(result->subject->dat.str) } }
+    };
+
+    Tuple outTuple {
+        result->subject, "is a", obj
+    };
 
     auto out = new std::vector<Tuple>{outTuple};
 

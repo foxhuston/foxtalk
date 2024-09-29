@@ -52,7 +52,9 @@ fn ffi_runs_handler() {
     let first = results.first().unwrap();
     assert_eq!(first.predicate, "is a");
 
-    results.into_iter().for_each(|x| unsafe { x.cleanup() });
+    for x in results {
+        unsafe { x.cleanup(); }
+    }
 }
 
 #[test]
