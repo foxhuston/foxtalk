@@ -2,7 +2,7 @@ use reactor::query::Query;
 use reactor::tuple::Tuple;
 use reactor::when::When;
 
-use reactor::ffi2::*;
+use reactor::ffi::*;
 use reactor::reactor::Reactor;
 
 use std::path::PathBuf;

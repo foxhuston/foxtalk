@@ -8,7 +8,7 @@ pub mod when;
 pub mod query;
 pub mod reactor;
 // pub mod ffi;
-pub mod ffi2;
+pub mod ffi;
 
 mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
