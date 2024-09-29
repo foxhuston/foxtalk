@@ -14,6 +14,14 @@ use crate::{
 use libloading::os::unix::{Library, Symbol};
 use crate::bindings::TupleNoun_Tag;
 
+/*
+ * The big TODO List:
+ *   - First & Foremost, we're converting strings back and forth quite a lot, and
+ *     I haven't really been keeping track of who's supposed to free them. That is,
+ *     both Rust and C++ can generate strings that both of them need to read, and right now
+ *     I'm just leaking most (if not all) of them.
+ */
+
 impl From<bindings::TupleNoun> for Option<TupleNoun> {
     fn from(value: bindings::TupleNoun) -> Self {
         unsafe {
