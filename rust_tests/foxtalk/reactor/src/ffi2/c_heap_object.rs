@@ -11,23 +11,27 @@
 use std::ffi::c_void;
 use std::rc::Rc;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub struct FfiBlob {
-    data: *mut c_void,
-    destructor: unsafe extern "C" fn(*mut c_void)
-}
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[repr(transparent)]
+pub struct CHeapObject(Rc<FfiBlob>);
 
-impl FfiBlob {
+impl CHeapObject {
     // Since we want to be able to reference this in multiple places, we only return ourselves
     // in RC, so we don't preemptively drop our constructor.
-    pub fn new(data: *mut c_void, destructor: unsafe extern "C" fn(*mut c_void)) -> Rc<Self> {
-        Rc::new(Self { data, destructor })
+    pub fn new(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> CHeapObject {
+        CHeapObject(Rc::new(FfiBlob { data, free_fn }))
     }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+struct FfiBlob {
+    data: *mut c_void,
+    free_fn: unsafe extern "C" fn(*mut c_void)
 }
 
 impl Drop for FfiBlob {
     fn drop(&mut self) {
-        unsafe { (self.destructor)(self.data) };
+        unsafe { (self.free_fn)(self.data) };
     }
 }
 
@@ -45,7 +49,7 @@ mod test {
         let mut n = 0;
         let nptr: *mut usize = &mut n;
         {
-            let fi = FfiBlob::new(nptr.cast(), drop_it);
+            let fi = CHeapObject::new(nptr.cast(), drop_it);
             assert_eq!(n, 0);
         }
 
@@ -60,7 +64,7 @@ mod test {
         let mut n = 0;
         let nptr: *mut usize = &mut n;
         {
-            let fi = FfiBlob::new(nptr.cast(), drop_it);
+            let fi = CHeapObject::new(nptr.cast(), drop_it);
             hs1.insert(fi.clone());
             assert_eq!(n, 0);
 
@@ -85,7 +89,7 @@ mod test {
         let mut n = 0;
         let nptr: *mut usize = &mut n;
         {
-            let fi = FfiBlob::new(nptr.cast(), drop_it);
+            let fi = CHeapObject::new(nptr.cast(), drop_it);
             hs1.insert(fi.clone());
             assert_eq!(n, 0);
 
@@ -93,11 +97,11 @@ mod test {
             assert_eq!(n, 0);
 
             hs2.iter().for_each(|f| {
-                unsafe { *f.data.cast() = 2121; }
+                unsafe { *f.0.data.cast() = 2121; }
             });
 
             hs1.iter().for_each(|f| {
-                assert_eq!(unsafe{ *f.data.cast::<usize>() }, 2121);
+                assert_eq!(unsafe{ *f.0.data.cast::<usize>() }, 2121);
             });
 
             assert!(hs1.remove(&fi));

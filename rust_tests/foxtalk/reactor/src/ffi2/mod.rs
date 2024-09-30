@@ -1,4 +1,4 @@
-
+pub mod c_heap_object;
 
 /*
  * with cbindgen:
@@ -6,15 +6,8 @@
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 use libc::c_char;
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum TupleNoun {
-    Query(),
-    CPtrWithFree { data: NonNull<c_void>, destructor: NonNull<c_void> },
-    Symbol(String),
-    U64(u64),
-    I64(i64)
-}
+use crate::ffi2::c_heap_object::CHeapObject;
+use crate::tuple::{Tuple, TupleNoun};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 #[repr(C)]
@@ -24,12 +17,7 @@ pub struct PtrTuple {
     pub object: *mut TupleNoun
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct Tuple {
-    pub subject: TupleNoun,
-    pub predicate: TupleNoun,
-    pub object: TupleNoun
-}
+///// TUPLE NOUN FFI CONSTRUCTORS //////////////////////////////////////////////
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
@@ -37,8 +25,11 @@ pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
     Box::leak(Box::new(sym))
 }
 
-// #[no_mangle]
-// pub extern "C" fn mk_tuple_noun_ptr() -> TupleNoun { todo!() }
+#[no_mangle]
+pub extern "C" fn mk_tuple_noun_ptr(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> *mut TupleNoun {
+    let tn = TupleNoun::CPtrWithFree(CHeapObject::new(data, free_fn));
+    Box::leak(Box::new(tn))
+}
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
@@ -51,17 +42,21 @@ pub extern "C" fn mk_tuple(subject: *mut TupleNoun, predicate: *mut TupleNoun, o
     Box::leak(Box::new(PtrTuple { subject, predicate, object }))
 }
 
-// #[no_mangle]
-// pub extern "C" fn get_tuple_subject(t: Tuple) -> TupleNoun { todo!() ; }
-// // ...
-//
-// #[no_mangle]
-// pub extern "C" fn get_tuple_noun_as_string(tn: TupleNoun) -> *const c_char { todo!() ; }
-// // ...
+///// TUPLE NOUN IMPORTERS /////////////////////////////////////////////////////
 
 pub fn get_c_tuple_noun(tupn: *mut TupleNoun) -> Box<TupleNoun> {
     unsafe { Box::from_raw(tupn) }
 }
+
+#[no_mangle]
+pub extern "C" fn get_tuple_subject(t: Tuple) -> TupleNoun { todo!() ; }
+// ...
+
+#[no_mangle]
+pub extern "C" fn get_tuple_noun_as_string(tn: TupleNoun) -> *const c_char { todo!() ; }
+// ...
+
+///// TUPLE IMPORTERS //////////////////////////////////////////////////////////
 
 pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
     let t = unsafe { Box::from_raw(tup) };
@@ -77,7 +72,7 @@ pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+///// UNIT TESTS ///////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod test {

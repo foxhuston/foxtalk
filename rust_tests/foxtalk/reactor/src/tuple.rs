@@ -1,25 +1,21 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use crate::ffi2::c_heap_object::CHeapObject;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-#[repr(C)]
 pub enum TupleNoun {
-    CPtrHeap { data: NonNull<c_void>, destructor: NonNull<c_void> },
-    CPtr(NonNull<c_void>),
-    Str(String),
+    Query(),
+    CPtrWithFree(CHeapObject),
+    Symbol(String),
     U64(u64),
     I64(i64)
 }
 
-type CFreeTuple = unsafe extern "C" fn(*mut c_void) -> ();
 impl TupleNoun {
-    pub(super) unsafe fn cleanup(&mut self) {
+    pub fn is_query(&self) -> bool {
         match self {
-            TupleNoun::CPtrHeap { data, destructor } => {
-                // let d: CFreeTuple = unsafe { mem::transmute_copy(destructor) };
-                // d(data.as_mut());
-            }
-            _ => {}
+            TupleNoun::Query() => true,
+            _ => false
         }
     }
 }
@@ -28,25 +24,27 @@ impl TupleNoun {
 #[repr(C)]
 pub struct Tuple {
     pub subject: TupleNoun,
-    pub predicate: String,
+    pub predicate: TupleNoun,
     pub object: TupleNoun
 }
 
-impl Tuple {
-    pub fn new_strs(subject: &str, predicate: &str, object: &str) -> Tuple {
-        Self::new_strings(subject.to_string(), predicate.to_string(), object.to_string())
-    }
+#[cfg(test)]
+pub mod test_helpers {
+    use super::{Tuple, TupleNoun};
 
-    pub fn new_strings(subject: String, predicate: String, object: String) -> Tuple {
+    pub fn mk_query(s: Option<&'static str>, p: Option<&'static str>, o: Option<&'static str>) -> Tuple {
         Tuple {
-            subject: TupleNoun::Str(subject),
-            predicate: predicate,
-            object: TupleNoun::Str(object),
+            subject: s.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
+            predicate: p.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
+            object: o.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
         }
     }
 
-    pub unsafe fn cleanup(mut self) {
-        // self.subject.cleanup();
-        // self.object.cleanup();
+    pub fn mk_tuple(s: &'static str, p: &'static str, o: &'static str) -> Tuple {
+        Tuple {
+            subject: TupleNoun::Symbol(s.to_string()),
+            predicate: TupleNoun::Symbol(p.to_string()),
+            object: TupleNoun::Symbol(o.to_string()),
+        }
     }
 }

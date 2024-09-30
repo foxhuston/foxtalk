@@ -129,50 +129,42 @@ impl Reactor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::Query;
     use crate::tuple::TupleNoun::*;
     use crate::when::When;
+    use crate::tuple::test_helpers::*;
 
     ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////
 
     struct HuskyHandler {}
 
     impl When for HuskyHandler {
-        fn get_query(&self) -> Query {
+        fn get_query(&self) -> Tuple {
             // When /who/ is a husky:
-            Query {
-                subject: None,
-                predicate: Some("is a".to_string()),
-                object: Some(Str("husky".to_string())),
-            }
+            mk_query(None, Some("is a"), Some("husky"))
         }
 
         fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
             // Wish (who) is highlighted blue.
             vec![Tuple {
                 subject: results.subject,
-                predicate: "is highlighted".to_string(),
-                object: Str("blue".to_string()),
+                predicate: Symbol("is highlighted".to_string()),
+                object: Symbol("blue".to_string()),
             }]
         }
     }
 
     struct HighlightHandler {}
     impl When for HighlightHandler {
-        fn get_query(&self) -> Query {
+        fn get_query(&self) -> Tuple {
             // When /someone/ is highlighted /color/:
-            Query {
-                subject: None,
-                predicate: Some("is highlighted".to_string()),
-                object: None
-            }
+            mk_query(None, Some("is highlighted"), None)
         }
 
         fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
             // Wish (someone) debug_illuminated (color).
             vec![Tuple {
                 subject: results.subject,
-                predicate: "debug_illuminated".to_string(),
+                predicate: Symbol("debug_illuminated".to_string()),
                 object: results.object,
             }]
         }
@@ -185,19 +177,19 @@ mod tests {
 
         reactor.add_handler(handler);
 
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         reactor.claim(tuple.clone());
 
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), None, None)).iter().count(), 2);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), None, None)).iter().count(), 2);
     }
 
     #[test]
     fn newly_registered_handlers_trigger() {
         let mut reactor = Reactor::new();
 
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         reactor.claim(tuple.clone());
 
         let handler = Box::new(HuskyHandler {});
@@ -205,14 +197,14 @@ mod tests {
 
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), None, None)).iter().count(), 2);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), None, None)).iter().count(), 2);
     }
 
     #[test]
     fn removed_originial_tuples_remove_generated_tuples() {
         let mut reactor = Reactor::new();
 
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         reactor.claim(tuple.clone());
 
         let handler = Box::new(HuskyHandler {});
@@ -220,19 +212,19 @@ mod tests {
 
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
 
         reactor.remove_claim(tuple);
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
     }
 
     #[test]
     fn removed_originial_tuples_transitively_remove_generated_tuples() {
         let mut reactor = Reactor::new();
 
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         reactor.claim(tuple.clone());
 
         reactor.add_handler(Box::new(HuskyHandler {}));
@@ -241,21 +233,21 @@ mod tests {
         reactor.tick();
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
 
         reactor.remove_claim(tuple);
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
     }
 
     #[test]
     fn removed_originial_handlers_transitively_remove_generated_tuples() {
         let mut reactor = Reactor::new();
 
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         reactor.claim(tuple.clone());
 
         let husky_handler_id = reactor.add_handler(Box::new(HuskyHandler {}));
@@ -264,13 +256,13 @@ mod tests {
         reactor.tick();
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 1);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 1);
 
         reactor.remove_handler(husky_handler_id);
         reactor.tick();
 
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
-        assert_eq!(reactor.db.query(Query::from_strs(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("is highlighted"), Some("blue"))).iter().count(), 0);
+        assert_eq!(reactor.db.query(mk_query(Some("lexi"), Some("debug_illuminated"), Some("blue"))).iter().count(), 0);
     }
 }

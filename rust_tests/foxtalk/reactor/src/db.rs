@@ -1,6 +1,5 @@
 use crate::tuple::{Tuple, TupleNoun};
 
-use crate::query::Query;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
@@ -64,7 +63,7 @@ impl<K, V> DbIndex<K, V>
 
 pub struct Db {
     by_subject: DbIndex<TupleNoun, Tuple>,
-    by_predicate: DbIndex<String, Tuple>,
+    by_predicate: DbIndex<TupleNoun, Tuple>,
     by_object: DbIndex<TupleNoun, Tuple>,
 }
 
@@ -78,18 +77,20 @@ impl Db {
     }
 
     // TODO: This might should be crate-private?
-    pub fn query(&self, query: Query) -> HashSet<Tuple> {
+    pub fn query(&self, query: Tuple) -> HashSet<Tuple> {
         let empty: HashSet<Tuple> = HashSet::new();
 
         let by_subj: Option<&HashSet<Tuple>> =
-            query.subject.map(|subj| { self.by_subject.get(&subj).unwrap_or(&empty) });
-
+            if query.subject.is_query() { None }
+            else { Some(self.by_subject.get(&query.subject).unwrap_or(&empty)) };
 
         let by_pred: Option<&HashSet<Tuple>> =
-            query.predicate.map(|pred| { self.by_predicate.get(&pred).unwrap_or(&empty) });
+            if query.predicate.is_query() { None }
+            else { Some(self.by_predicate.get(&query.predicate).unwrap_or(&empty)) };
 
         let by_obj: Option<&HashSet<Tuple>> =
-            query.object.map(|obj| { self.by_object.get(&obj).unwrap_or(&empty) });
+            if query.object.is_query() { None }
+            else { Some(self.by_object.get(&query.object).unwrap_or(&empty)) };
 
         // Want to return the intersection of non-None sets.
 
@@ -109,6 +110,10 @@ impl Db {
     }
 
     pub fn claim(&mut self, t: Tuple) {
+        assert_ne!(t.subject, TupleNoun::Query());
+        assert_ne!(t.predicate, TupleNoun::Query());
+        assert_ne!(t.object, TupleNoun::Query());
+
         self.by_subject.insert(t.subject.clone(), t.clone());
         self.by_predicate.insert(t.predicate.clone(), t.clone());
         self.by_object.insert(t.object.clone(), t.clone());
@@ -118,9 +123,6 @@ impl Db {
         self.by_subject.remove(&tuple.subject, &tuple);
         self.by_predicate.remove(&tuple.predicate, &tuple);
         self.by_object.remove(&tuple.object, &tuple);
-
-        // Call library free on `CPtr`s
-        unsafe { tuple.cleanup(); }
     }
 }
 
@@ -138,12 +140,13 @@ impl Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::Query;
+    use crate::tuple::test_helpers::*;
 
+    ///// THE BASICS ///////////////////////////////////////////////////////////
     #[test]
     fn db_stores_tuple() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
 
         let mut expected_hash = HashSet::new();
@@ -157,7 +160,7 @@ mod tests {
     #[test]
     fn db_removes_tuple() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
 
         let mut expected_hash = HashSet::new();
@@ -179,15 +182,15 @@ mod tests {
     #[test]
     fn db_query_subject() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(Some("lexi"), None, None));
+        let results = db.query(mk_query(Some("lexi"), None, None));
         assert_eq!(results.len(), 1);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(Some("ammy"), None, None));
+        let results = db.query(mk_query(Some("ammy"), None, None));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }
@@ -195,15 +198,15 @@ mod tests {
     #[test]
     fn db_query_predicate() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(None, Some("is a"), None));
+        let results = db.query(mk_query(None, Some("is a"), None));
         assert_eq!(results.len(), 2);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(None, Some("is highlighted"), None));
+        let results = db.query(mk_query(None, Some("is highlighted"), None));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }
@@ -211,15 +214,15 @@ mod tests {
     #[test]
     fn db_query_object() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(None, None, Some("husky")));
+        let results = db.query(mk_query(None, None, Some("husky")));
         assert_eq!(results.len(), 1);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(None, None, Some("kitten")));
+        let results = db.query(mk_query(None, None, Some("kitten")));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }
@@ -227,19 +230,19 @@ mod tests {
     #[test]
     fn db_query_subject_and_predicate() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(Some("lexi"), Some("is a"), None));
+        let results = db.query(mk_query(Some("lexi"), Some("is a"), None));
         assert_eq!(results.len(), 1);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(Some("lexi"), Some("is highlighted"), None));
+        let results = db.query(mk_query(Some("lexi"), Some("is highlighted"), None));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(Some("fox"), Some("is highlighted"), None));
+        let results = db.query(mk_query(Some("fox"), Some("is highlighted"), None));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }
@@ -247,19 +250,19 @@ mod tests {
     #[test]
     fn db_query_subject_and_object() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(Some("lexi"), None, Some("husky")));
+        let results = db.query(mk_query(Some("lexi"), None, Some("husky")));
         assert_eq!(results.len(), 1);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(Some("lexi"), None, Some("demon fox")));
+        let results = db.query(mk_query(Some("lexi"), None, Some("demon fox")));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(Some("fox"), None, Some("husky")));
+        let results = db.query(mk_query(Some("fox"), None, Some("husky")));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }
@@ -267,19 +270,19 @@ mod tests {
     #[test]
     fn db_query_predicate_and_object() {
         let mut db = Db::new();
-        let tuple = Tuple::new_strs("lexi", "is a", "husky");
+        let tuple = mk_tuple("lexi", "is a", "husky");
         db.claim(tuple.clone());
-        db.claim(Tuple::new_strs("fox", "is a", "demon fox"));
+        db.claim(mk_tuple("fox", "is a", "demon fox"));
 
-        let results = db.query(Query::from_strs(None, Some("is a"), Some("husky")));
+        let results = db.query(mk_query(None, Some("is a"), Some("husky")));
         assert_eq!(results.len(), 1);
         assert!(results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(None, Some("is a"), Some("blue")));
+        let results = db.query(mk_query(None, Some("is a"), Some("blue")));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
 
-        let results = db.query(Query::from_strs(None, Some("is highlighted"), Some("husky")));
+        let results = db.query(mk_query(None, Some("is highlighted"), Some("husky")));
         assert_eq!(results.len(), 0);
         assert!(!results.contains(&tuple));
     }

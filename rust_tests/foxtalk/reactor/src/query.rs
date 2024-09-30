@@ -1,6 +1,7 @@
 use crate::tuple::{Tuple, TupleNoun};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+#[deprecated]
 pub struct Query {
     pub subject: Option<TupleNoun>,
     pub predicate: Option<String>,
@@ -10,9 +11,9 @@ pub struct Query {
 impl Query {
     pub fn from_strs(subject: Option<&str>, predicate: Option<&str>, object: Option<&str>) -> Self {
         Query {
-            subject: subject.map(|s| TupleNoun::Str(s.to_string())),
+            subject: subject.map(|s| TupleNoun::Symbol(s.to_string())),
             predicate: predicate.map(|s| s.to_string()),
-            object: object.map(|s| TupleNoun::Str(s.to_string())),
+            object: object.map(|s| TupleNoun::Symbol(s.to_string())),
         }
     }
 
