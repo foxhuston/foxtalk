@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 
-#include "c/reactor.hpp"
+#include "reactor.h"
 
 static char *isA = "is a";
 static char *husky = "husky";

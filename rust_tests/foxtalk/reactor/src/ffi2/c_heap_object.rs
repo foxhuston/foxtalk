@@ -21,6 +21,10 @@ impl CHeapObject {
     pub fn new(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> CHeapObject {
         CHeapObject(Rc::new(FfiBlob { data, free_fn }))
     }
+
+    pub fn data(&self) -> *mut c_void {
+        self.0.data
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]

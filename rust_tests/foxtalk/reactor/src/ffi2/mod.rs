@@ -18,11 +18,9 @@ pub struct PtrTuple {
 }
 
 ///// TUPLE NOUN FFI CONSTRUCTORS //////////////////////////////////////////////
-
 #[no_mangle]
-pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
-    let sym = TupleNoun::Symbol(unsafe { CStr::from_ptr(s) }.to_owned().to_string_lossy().into_owned());
-    Box::leak(Box::new(sym))
+pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
+    Box::leak(Box::new(TupleNoun::Query()))
 }
 
 #[no_mangle]
@@ -32,31 +30,82 @@ pub extern "C" fn mk_tuple_noun_ptr(data: *mut c_void, free_fn: unsafe extern "C
 }
 
 #[no_mangle]
-pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
-    Box::leak(Box::new(TupleNoun::Query()))
+pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
+    let sym = TupleNoun::Symbol(unsafe { CStr::from_ptr(s) }.to_owned().to_string_lossy().into_owned());
+    Box::leak(Box::new(sym))
 }
-// ...
+
+#[no_mangle]
+pub extern "C" fn mk_tuple_noun_u64(n: u64) -> *mut TupleNoun {
+    Box::leak(Box::new(TupleNoun::U64(n)))
+}
+
+#[no_mangle]
+pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
+    Box::leak(Box::new(TupleNoun::I64(n)))
+}
+
+///// TUPLE NOUN FFI DATA READERS //////////////////////////////////////////////
+
+#[no_mangle]
+pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *mut c_char {
+    todo!();
+}
+
+#[no_mangle]
+pub extern "C" fn get_tuple_noun_as_cptr(tuple_noun: *mut TupleNoun) -> *mut c_void {
+    match unsafe { &*tuple_noun } {
+        TupleNoun::CPtrWithFree(d) => { d.data() }
+        s => panic!("{}", s.mk_panic_msg("a CPtrWithFree"))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_tuple_noun_as_u64(tuple_noun: *mut TupleNoun) -> u64 {
+    match unsafe { &*tuple_noun } {
+        TupleNoun::U64(n) => { *n }
+        s => panic!("{}", s.mk_panic_msg("a U64"))
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_tuple_noun_as_i64(tuple_noun: *mut TupleNoun) -> i64 {
+    match unsafe { &*tuple_noun } {
+        TupleNoun::I64(n) => { *n }
+        s => panic!("{}", s.mk_panic_msg("an I64"))
+    }
+}
+
+///// TUPLE FFI CONSTRUCTOR ////////////////////////////////////////////////////
 
 #[no_mangle]
 pub extern "C" fn mk_tuple(subject: *mut TupleNoun, predicate: *mut TupleNoun, object: *mut TupleNoun) -> *mut PtrTuple {
     Box::leak(Box::new(PtrTuple { subject, predicate, object }))
 }
 
-///// TUPLE NOUN IMPORTERS /////////////////////////////////////////////////////
+///// TUPLE NOUN DATA READERS //////////////////////////////////////////////////
+#[no_mangle]
+pub extern "C" fn get_tuple_subject(t: *mut PtrTuple) -> *mut TupleNoun {
+    unsafe { (*t).subject }
+}
+
+#[no_mangle]
+pub extern "C" fn get_tuple_predicate(t: *mut PtrTuple) -> *mut TupleNoun {
+    unsafe { (*t).predicate }
+}
+
+#[no_mangle]
+pub extern "C" fn get_tuple_object(t: *mut PtrTuple) -> *mut TupleNoun {
+    unsafe { (*t).object }
+}
+
+///// TUPLE NOUN IMPORTER //////////////////////////////////////////////////////
 
 pub fn get_c_tuple_noun(tupn: *mut TupleNoun) -> Box<TupleNoun> {
     unsafe { Box::from_raw(tupn) }
 }
 
-#[no_mangle]
-pub extern "C" fn get_tuple_subject(t: Tuple) -> TupleNoun { todo!() ; }
-// ...
-
-#[no_mangle]
-pub extern "C" fn get_tuple_noun_as_string(tn: TupleNoun) -> *const c_char { todo!() ; }
-// ...
-
-///// TUPLE IMPORTERS //////////////////////////////////////////////////////////
+///// TUPLE IMPORTER ///////////////////////////////////////////////////////////
 
 pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
     let t = unsafe { Box::from_raw(tup) };
@@ -80,7 +129,7 @@ mod test {
     use libloading;
 
     #[test]
-    fn it_should_copy_strings() {
+    fn tuple_noun_string() {
         let lib = unsafe { libloading::Library::new("tests/test_libs/out/string_copy_test.so") }.unwrap();
         let get_query: libloading::Symbol<extern "C" fn () -> *mut PtrTuple> = unsafe { lib.get(b"GetQuery") }.unwrap();
 
@@ -93,6 +142,5 @@ mod test {
             }
             _ => { panic!("Unexpected Query Value") }
         }
-
     }
 }

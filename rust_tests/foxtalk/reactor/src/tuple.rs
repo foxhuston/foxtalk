@@ -18,6 +18,16 @@ impl TupleNoun {
             _ => false
         }
     }
+
+    pub fn mk_panic_msg(&self, should_be: &'static str) -> String {
+        match self {
+            TupleNoun::Query() => { format!("Expected TupleNoun to be {should_be}, but it was actually a Query!") }
+            TupleNoun::CPtrWithFree(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually a CPtrWithFree!") }
+            TupleNoun::Symbol(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually a Symbol!") }
+            TupleNoun::U64(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually a U64!") }
+            TupleNoun::I64(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually an I64!") }
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
