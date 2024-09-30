@@ -11,11 +11,7 @@
 #include <sstream>
 #include <linux/videodev2.h>
 
-#include "reactor.hpp"
-
-static char *hasFormat = "has format";
-static char *hasWidth = "has width";
-static char *hasHeight = "has height";
+#include "reactor.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -47,21 +43,25 @@ void v4lEnumerate(int fd, T &desc, std::function<void(const T &)> forEach) {
 ////////////////////////////////////////////////////////////////////////////////
 
 Tuple GetQuery() {
-    return Tuple {
-        { TupleNoun::Tag::Query },
-        hasFormat,
-        { TupleNoun::Tag::Query }
-    };
+    return mk_tuple(
+        mk_tuple_noun_query(),
+        mk_tuple_noun_symbol("has format"),
+        mk_tuple_noun_query()
+    );
 }
 
 std::vector<Tuple>* WhenHandler(Tuple* result) {
-    std::cout << "Hello from CameraHandler" << std::endl;
-    std::cout << "    Subject is " << result->subject << std::endl;
+    std::cout << "Hello from CameraPixelHandler" << std::endl;
+
+    auto subject = get_tuple_subject(result);
+    auto object = get_tuple_object(result);
 
     auto outTuples = new std::vector<Tuple>();
 
-    auto camName = result->subject.dat.str;
-    auto pixelFormat = result->object.dat.u64;
+    auto camName = get_tuple_noun_as_symbol(subject);
+    auto pixelFormat = get_tuple_noun_as_u64(object);
+
+    std::cout << "    running for camName: " << camName << " and pixel format " << pixelFormat << std::endl;
 
     int fd = open(camName, O_NONBLOCK);
     if (fd < 0) {
@@ -84,21 +84,21 @@ std::vector<Tuple>* WhenHandler(Tuple* result) {
                 .index = 0,
                 .pixel_format = static_cast<uint32_t>(pixelFormat)
         };
-        v4lEnumerate<struct v4l2_frmsizeenum, VIDIOC_ENUM_FRAMESIZES>(fd, framesize, [&result, &outTuples, &camName](auto desc) {
+        v4lEnumerate<struct v4l2_frmsizeenum, VIDIOC_ENUM_FRAMESIZES>(fd, framesize, [&result, &outTuples, &object](auto desc) {
             if(desc.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
                 std::cout << "Discrete: " << desc.discrete.width << "x" << desc.discrete.height << std::endl;
 
-                outTuples->push_back(Tuple {
-                    result->subject,
-                    hasWidth,
-                    TupleNoun::fromUint(desc.discrete.width)
-                });
+                outTuples->push_back(mk_tuple(
+                    object,
+                    mk_tuple_noun_symbol("has width"),
+                    mk_tuple_noun_u64(desc.discrete.width)
+                ));
 
-                outTuples->push_back(Tuple {
-                        result->subject,
-                        hasHeight,
-                        TupleNoun::fromUint(desc.discrete.height)
-                });
+                outTuples->push_back(mk_tuple(
+                        object,
+                        mk_tuple_noun_symbol("has height"),
+                        mk_tuple_noun_u64(desc.discrete.height)
+                ));
             } else {
                 throw std::runtime_error("Unimplemented framesize handler...");
             }

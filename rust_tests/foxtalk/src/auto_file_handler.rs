@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 use anyhow::{format_err, Result};
-
+use reactor::ffi2::CWhen;
 use reactor::tuple::Tuple;
 use reactor::when::When;
 
@@ -79,11 +79,19 @@ impl AutoFileHandler {
 }
 
 impl When for AutoFileHandler {
-    fn get_query(&self) -> Query {
-        self.c_when.lock().unwrap().as_ref().unwrap().get_query()
+    fn get_query(&self) -> Tuple {
+        let src_path = &self.src_path;
+        println!("AFH Query Begin [{src_path}]");
+        let out = self.c_when.lock().unwrap().as_ref().unwrap().get_query();
+        println!("AFH Query End [{src_path}]");
+        out
     }
 
     fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
-        self.c_when.lock().unwrap().as_mut().unwrap().handle(results)
+        let src_path = &self.src_path;
+        println!("AFH Handle Begin [{src_path}]");
+        let out = self.c_when.lock().unwrap().as_mut().unwrap().handle(results);
+        println!("AFH Handle End [{src_path}]");
+        out
     }
 }

@@ -3,7 +3,7 @@ pub mod c_when;
 
 pub use c_when::*;
 
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void, CStr, CString};
 use libc::c_char;
 use crate::ffi2::c_heap_object::CHeapObject;
 use crate::tuple::{Tuple, TupleNoun};
@@ -49,8 +49,14 @@ pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
 ///// TUPLE NOUN FFI DATA READERS //////////////////////////////////////////////
 
 #[no_mangle]
+// TODO: LEAKY!
 pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *mut c_char {
-    todo!();
+    match unsafe { &*tuple_noun } {
+        TupleNoun::Symbol(s) => {
+            CString::new(s.as_bytes()).unwrap().into_raw()
+        }
+        s => panic!("{}", s.mk_panic_msg("a Symbol"))
+    }
 }
 
 #[no_mangle]
@@ -115,11 +121,18 @@ pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
     let o = get_c_tuple_noun(t.object);
 
 
-    Tuple {
+    let out = Tuple {
         subject: *s,
         predicate: *p,
         object: *o
-    }
+    };
+
+    // So what's happening here is that in CPP, we pass the pointer to a `TupleNoun`
+    // we got from the query right back into `mk_tuple` as the subject (for instance).
+    // So we get a double-free, because in this function, `get_c_tuple_noun` always takes
+    // ownership back, which means that some tuple-noun somewhere will get dropped twice.
+    println!("get_c_tuple: {out:?}");
+    out
 }
 
 impl From<*mut PtrTuple> for Tuple {

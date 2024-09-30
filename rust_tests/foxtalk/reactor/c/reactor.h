@@ -38,15 +38,21 @@ extern "C" {
 
     // TODO: Leaky.
     Tuple* when_handler(Tuple result, size_t *outCount) {
-        auto r = WhenHandler(result);
-        *outCount = r->size();
+        try {
+            auto r = WhenHandler(result);
+            *outCount = r->size();
 
-        Tuple* out = (Tuple *)malloc(sizeof(Tuple) * r->size());
-        for(int i = 0; i < r->size(); i++) {
-            out[i] = r->at(i);
+            Tuple *out = (Tuple *) malloc(sizeof(Tuple) * r->size());
+            for (int i = 0; i < r->size(); i++) {
+                out[i] = r->at(i);
+            }
+
+            return out;
+        } catch (std::runtime_error &e) {
+            std::cerr << "When Handler Failed with: " << e.what() << std::endl;
+            *outCount = 0;
+            return nullptr;
         }
-
-        return out;
     }
 }
 

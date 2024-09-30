@@ -1,14 +1,19 @@
-use std::ffi::c_void;
-use std::ptr::NonNull;
+use std::rc::Rc;
 use crate::ffi2::c_heap_object::CHeapObject;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TupleNoun {
-    Query(),
+    Query(), // TODO: get rid of ()? Will the ffi freak out?
     CPtrWithFree(CHeapObject),
     Symbol(String),
     U64(u64),
     I64(i64)
+}
+
+impl Drop for TupleNoun {
+    fn drop(&mut self) {
+        println!("Dropping TupleNoun {self:?}!");
+    }
 }
 
 impl TupleNoun {
@@ -26,35 +31,6 @@ impl TupleNoun {
             TupleNoun::Symbol(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually a Symbol!") }
             TupleNoun::U64(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually a U64!") }
             TupleNoun::I64(_) => { format!("Expected TupleNoun to be {should_be}, but it was actually an I64!") }
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-#[repr(C)]
-pub struct Tuple {
-    pub subject: TupleNoun,
-    pub predicate: TupleNoun,
-    pub object: TupleNoun
-}
-
-// #[cfg(test)]
-pub mod test_helpers {
-    use super::{Tuple, TupleNoun};
-
-    pub fn mk_query(s: Option<&'static str>, p: Option<&'static str>, o: Option<&'static str>) -> Tuple {
-        Tuple {
-            subject: s.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
-            predicate: p.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
-            object: o.map(|s| { TupleNoun::Symbol(s.to_string()) }).unwrap_or(TupleNoun::Query()),
-        }
-    }
-
-    pub fn mk_tuple(s: &'static str, p: &'static str, o: &'static str) -> Tuple {
-        Tuple {
-            subject: TupleNoun::Symbol(s.to_string()),
-            predicate: TupleNoun::Symbol(p.to_string()),
-            object: TupleNoun::Symbol(o.to_string()),
         }
     }
 }

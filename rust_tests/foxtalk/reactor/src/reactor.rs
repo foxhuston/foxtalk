@@ -90,7 +90,7 @@ impl Reactor {
     pub fn tick(&mut self) {
         // Doing this in stages because otherwise `self` is doubly-mutably borrowed...
         // Which like... fine, whatever. The gist is that we have a locally mutable hash set
-        // into which we place tuples generated across all handlers. Once we've done that,
+        // into which we place tuple generated across all handlers. Once we've done that,
         // the mutably-borrowed scope is ended (at the closing `}` of the for-loop),
         // and we can re-borrow ourselves to insert the claims into the db.
         let mut change_queue: HashSet<(Tuple, HandlerId, Tuple)> = HashSet::new();

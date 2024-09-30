@@ -11,14 +11,7 @@
 #include <sstream>
 #include <linux/videodev2.h>
 
-#include "reactor.hpp"
-
-static char *isA = "is a";
-static char *format = "format";
-static char *hasFormat = "has format";
-static char *hasFormatName = "has format name";
-static char *hasId = "has id";
-static char* camera = "camera";
+#include "reactor.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -50,20 +43,22 @@ void v4lEnumerate(int fd, T &desc, std::function<void(const T &)> forEach) {
 ////////////////////////////////////////////////////////////////////////////////
 
 Tuple GetQuery() {
-    return Tuple {
-        { TupleNoun::Tag::Query },
-        isA,
-        { TupleNoun::Tag::Str, { .str = camera }}
-    };
+    return mk_tuple(
+        mk_tuple_noun_query(),
+        mk_tuple_noun_symbol("is a"),
+        mk_tuple_noun_symbol("camera")
+    );
 }
 
-std::vector<Tuple>* WhenHandler(Tuple* result) {
-    std::cout << "Hello from CameraHandler" << std::endl;
-    std::cout << "    Subject is " << result->subject << std::endl;
+std::vector<Tuple>* WhenHandler(Tuple result) {
+    std::cout << "Hello from CameraFormatHandler" << std::endl;
 
     auto outTuples = new std::vector<Tuple>();
 
-    auto camName = result->subject.dat.str;
+    auto subject = get_tuple_subject(result);
+    auto camName = get_tuple_noun_as_symbol(subject);
+
+    std::cout << "    running for camName: " << camName << std::endl;
 
     int fd = open(camName, O_NONBLOCK);
     if (fd < 0) {
@@ -76,28 +71,25 @@ std::vector<Tuple>* WhenHandler(Tuple* result) {
             .type = V4L2_BUF_TYPE_VIDEO_CAPTURE
     };
 
-    v4lEnumerate<struct v4l2_fmtdesc, VIDIOC_ENUM_FMT>(fd, fmtdesc, [&camName, &result, &outTuples](auto desc) {
-        std::cout << "Enum'd format [" << desc.index << "]: " << desc.description << std::endl;
+    v4lEnumerate<struct v4l2_fmtdesc, VIDIOC_ENUM_FMT>(fd, fmtdesc, [subject, &result, &outTuples](auto desc) {
+        std::cout << "Enumd format [" << desc.index << "]: " << desc.description << std::endl;
         std::stringstream ss;
         ss << desc.description;
 
-        outTuples->push_back(Tuple {
-            result->subject,
-            hasFormat,
-            TupleNoun::fromUint(desc.pixelformat),
-        });
+        outTuples->push_back(mk_tuple(
+            subject,
+            mk_tuple_noun_symbol("has format"),
+            mk_tuple_noun_u64(desc.pixelformat)
+        ));
 
-        outTuples->push_back(Tuple {
-            TupleNoun::fromUint(desc.pixelformat),
-            hasFormatName,
-            TupleNoun::fromString(ss.str())
-        });
+        std::string s = ss.str();
+
+        outTuples->push_back(mk_tuple(
+            get_tuple_subject(result),
+            mk_tuple_noun_symbol("has format name"),
+            mk_tuple_noun_symbol(s.c_str())
+        ));
     });
 
     return outTuples;
 }
-
-extern "C" void free_tuple_obj(void* obj) {}
-
-extern "C" void free_tuple_subj(void* subj) {}
-

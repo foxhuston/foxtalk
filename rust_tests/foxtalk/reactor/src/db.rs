@@ -128,8 +128,8 @@ impl Db {
 
 // impl Drop for Db {
 //     fn drop(&mut self) {
-//         let mut tuples: HashSet<Tuple> = self.by_subject.into_iter().flatten().collect();
-//         for t in tuples.drain() {
+//         let mut tuple: HashSet<Tuple> = self.by_subject.into_iter().flatten().collect();
+//         for t in tuple.drain() {
 //             unsafe { t.cleanup(); }
 //         }
 //     }

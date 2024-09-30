@@ -3,7 +3,7 @@ mod auto_file_handler;
 use std::thread::sleep;
 use std::time::Duration;
 use reactor::reactor::*;
-use reactor::tuple::Tuple;
+use reactor::tuple::{Tuple, test_helpers};
 use crate::auto_file_handler::AutoFileHandler;
 
 use anyhow::Result;
@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     let mut reactor = Reactor::new();
 
     println!("Adding boot claims...");
-    reactor.claim(Tuple::new_strs("/dev/video0", "is a", "camera"));
+    reactor.claim(test_helpers::mk_tuple("/dev/video0", "is a", "camera"));
 
     let camera_format_handler = AutoFileHandler::new("./c/CameraFormatHandler.cpp", "./c/libcamera_format_handler.so")?;
     let camera_pixel_handler = AutoFileHandler::new("./c/CameraPixelHandler.cpp", "./c/libcamera_pixel_handler.so")?;

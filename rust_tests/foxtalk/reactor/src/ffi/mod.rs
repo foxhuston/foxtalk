@@ -24,7 +24,7 @@ use crate::bindings::TupleNoun_Tag;
  *     I haven't really been keeping track of who's supposed to free them. That is,
  *     both Rust and C++ can generate strings that both of them need to read, and right now
  *     I'm just leaking most (if not all) of them.
- *   - I also need a better way to do the "wishes" tuples being returned from the handlers.
+ *   - I also need a better way to do the "wishes" tuple being returned from the handlers.
  *     These are also not cleaned up by anything.
  */
 
