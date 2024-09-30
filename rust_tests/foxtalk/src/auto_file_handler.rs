@@ -1,8 +1,6 @@
 use std::sync::{Arc, Mutex};
 use anyhow::{format_err, Result};
 
-use reactor::ffi2::CWhen;
-use reactor::query::Query;
 use reactor::tuple::Tuple;
 use reactor::when::When;
 

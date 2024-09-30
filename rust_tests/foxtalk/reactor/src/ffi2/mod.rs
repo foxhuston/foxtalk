@@ -1,13 +1,14 @@
 pub mod c_heap_object;
+pub mod c_when;
 
-/*
- * with cbindgen:
- */
+pub use c_when::*;
+
 use std::ffi::{c_void, CStr};
-use std::ptr::NonNull;
 use libc::c_char;
 use crate::ffi2::c_heap_object::CHeapObject;
 use crate::tuple::{Tuple, TupleNoun};
+
+///// PtrTuple FFI OBJECT //////////////////////////////////////////////////////
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 #[repr(C)]
@@ -24,7 +25,7 @@ pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
 }
 
 #[no_mangle]
-pub extern "C" fn mk_tuple_noun_ptr(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> *mut TupleNoun {
+pub extern "C" fn mk_tuple_noun_cptr_with_free(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> *mut TupleNoun {
     let tn = TupleNoun::CPtrWithFree(CHeapObject::new(data, free_fn));
     Box::leak(Box::new(tn))
 }
@@ -118,6 +119,22 @@ pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
         subject: *s,
         predicate: *p,
         object: *o
+    }
+}
+
+impl From<*mut PtrTuple> for Tuple {
+    fn from(value: *mut PtrTuple) -> Self {
+        get_c_tuple(value)
+    }
+}
+
+impl From<Tuple> for *mut PtrTuple {
+    fn from(value: Tuple) -> Self {
+        Box::leak(Box::new(PtrTuple {
+            subject: Box::leak(Box::new(value.subject)),
+            predicate: Box::leak(Box::new(value.predicate)),
+            object: Box::leak(Box::new(value.object)),
+        }))
     }
 }
 

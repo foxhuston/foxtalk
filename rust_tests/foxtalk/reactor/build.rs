@@ -2,8 +2,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs};
 
-use cbindgen;
-
 fn main() {
     // This is needed so that dynamically linked libraries can find
     // `pub extern "C" fn`s from the main rust code.
@@ -30,6 +28,7 @@ fn main() {
                         .args([
                             "-shared",
                             "-I", include_dir.as_os_str().to_str().unwrap(),
+                            "-fPIC",
                             &filepath,
                             "-o", format!("tests/test_libs/out/{filename}.so"
                             ).as_str()])

@@ -3,7 +3,7 @@
 
 #include "reactor.h"
 
-extern "C" Tuple GetQuery()
+Tuple GetQuery()
 {
     char description[32] {};
     strcpy(description, "description");

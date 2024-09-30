@@ -38,7 +38,7 @@ pub struct Tuple {
     pub object: TupleNoun
 }
 
-#[cfg(test)]
+// #[cfg(test)]
 pub mod test_helpers {
     use super::{Tuple, TupleNoun};
 
