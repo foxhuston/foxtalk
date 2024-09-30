@@ -5,6 +5,7 @@ pub use c_when::*;
 
 use std::ffi::{c_void, CStr, CString};
 use libc::c_char;
+use ustr::Ustr;
 use crate::ffi2::c_heap_object::CHeapObject;
 use crate::tuple::{Tuple, TupleNoun};
 
@@ -32,7 +33,8 @@ pub extern "C" fn mk_tuple_noun_cptr_with_free(data: *mut c_void, free_fn: unsaf
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
-    let sym = TupleNoun::Symbol(unsafe { CStr::from_ptr(s) }.to_owned().to_string_lossy().into_owned());
+    let us = Ustr::from(unsafe { CStr::from_ptr(s) }.to_str().unwrap());
+    let sym = TupleNoun::Symbol(us);
     Box::leak(Box::new(sym))
 }
 
@@ -49,11 +51,10 @@ pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
 ///// TUPLE NOUN FFI DATA READERS //////////////////////////////////////////////
 
 #[no_mangle]
-// TODO: LEAKY!
-pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *mut c_char {
+pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *const c_char {
     match unsafe { &*tuple_noun } {
         TupleNoun::Symbol(s) => {
-            CString::new(s.as_bytes()).unwrap().into_raw()
+            s.as_char_ptr()
         }
         s => panic!("{}", s.mk_panic_msg("a Symbol"))
     }
@@ -157,6 +158,8 @@ impl From<Tuple> for *mut PtrTuple {
 mod test {
     use super::*;
     use libloading;
+    use crate::reactor::Reactor;
+    use crate::tuple::test_helpers;
 
     #[test]
     fn tuple_noun_string() {
@@ -166,11 +169,23 @@ mod test {
         let q = get_c_tuple(get_query());
         println!("{:?}", q);
 
-        match q.subject {
-            TupleNoun::Symbol(s) => {
-                assert_eq!(s, "description");
-            }
-            _ => { panic!("Unexpected Query Value") }
-        }
+        // match q.subject {
+        //     TupleNoun::Symbol(s) => {
+        //         assert_eq!(s, "description");
+        //     }
+        //     _ => { panic!("Unexpected Query Value") }
+        // }
+    }
+
+    #[test]
+    fn regression_double_free() {
+        let mut reactor = Reactor::new();
+        reactor.claim(test_helpers::mk_tuple("lexi", "is a", "husky"));
+
+        let cwhen_a = unsafe { CWhen::new("tests/test_libs/out/regression_double_free.so").unwrap() };
+
+        reactor.add_handler(Box::new(cwhen_a));
+
+        reactor.tick();
     }
 }

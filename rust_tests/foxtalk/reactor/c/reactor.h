@@ -1,6 +1,8 @@
 #ifndef __REACTOR_H__
 #define __REACTOR_H__
 
+#include <iostream>
+#include <cstdlib>
 #include <cstdint>
 #include <vector>
 

@@ -30,14 +30,14 @@ fn ffi_runs_handler() {
     println!("Got query: {query:?}");
 
     assert_eq!(query.subject, TupleNoun::Query());
-    assert_eq!(query.predicate, TupleNoun::Symbol("is a".to_string()));
-    assert_eq!(query.object, TupleNoun::Symbol("husky".to_string()));
+    assert_eq!(query.predicate, TupleNoun::from_str("is a"));
+    assert_eq!(query.object, TupleNoun::from_str("husky"));
 
     let results = when.handle(mk_tuple("lexi", "is a", "husky"));
     assert_eq!(results.len(), 1);
 
     let first = results.first().unwrap();
-    assert_eq!(first.predicate, TupleNoun::Symbol("is a".to_string()));
+    assert_eq!(first.predicate, TupleNoun::from_str("is a"));
 }
 
 #[test]

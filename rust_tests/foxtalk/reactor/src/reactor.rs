@@ -132,7 +132,7 @@ mod tests {
     use crate::tuple::TupleNoun::*;
     use crate::when::When;
     use crate::tuple::test_helpers::*;
-
+    use crate::tuple::TupleNoun;
     ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////
 
     struct HuskyHandler {}
@@ -147,8 +147,8 @@ mod tests {
             // Wish (who) is highlighted blue.
             vec![Tuple {
                 subject: results.subject,
-                predicate: Symbol("is highlighted".to_string()),
-                object: Symbol("blue".to_string()),
+                predicate: TupleNoun::from_str("is highlighted"),
+                object: TupleNoun::from_str("blue"),
             }]
         }
     }
@@ -164,7 +164,7 @@ mod tests {
             // Wish (someone) debug_illuminated (color).
             vec![Tuple {
                 subject: results.subject,
-                predicate: Symbol("debug_illuminated".to_string()),
+                predicate: TupleNoun::from_str("debug_illuminated"),
                 object: results.object,
             }]
         }

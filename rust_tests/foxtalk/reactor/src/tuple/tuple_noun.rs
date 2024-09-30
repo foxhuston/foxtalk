@@ -1,19 +1,14 @@
-use std::rc::Rc;
 use crate::ffi2::c_heap_object::CHeapObject;
+use std::str::FromStr;
+use ustr::Ustr;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TupleNoun {
     Query(), // TODO: get rid of ()? Will the ffi freak out?
     CPtrWithFree(CHeapObject),
-    Symbol(String),
+    Symbol(Ustr),
     U64(u64),
     I64(i64)
-}
-
-impl Drop for TupleNoun {
-    fn drop(&mut self) {
-        println!("Dropping TupleNoun {self:?}!");
-    }
 }
 
 impl TupleNoun {
@@ -22,6 +17,10 @@ impl TupleNoun {
             TupleNoun::Query() => true,
             _ => false
         }
+    }
+
+    pub fn from_str(s: &'static str) -> TupleNoun {
+        TupleNoun::Symbol(Ustr::from_str(s).unwrap())
     }
 
     pub fn mk_panic_msg(&self, should_be: &'static str) -> String {
