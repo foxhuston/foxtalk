@@ -1,36 +1,60 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs};
 
+use cbindgen;
+
 fn main() {
+    // This is needed so that dynamically linked libraries can find
+    // `pub extern "C" fn`s from the main rust code.
+    // println!("cargo:rustflags=-Zexport-executable-symbols");
+    // println!("cargo::rustc-link-arg=-rdynamic");
+    println!("cargo::rustc-link-arg=-export-dynamic");
+    // println!("cargo::rustc-link-arg=-Wl");
+
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    // The bindgen::Builder is the main entry point
-    // to bindgen, and lets you build up options for
-    // the resulting bindings.
-    let bindings = bindgen::Builder::default()
-        // The input header we would like to generate
-        // bindings for.
-        .header("c/reactor_types.hpp")
-        .allowlist_recursively(false)
-        .allowlist_type("Tuple")
-        .allowlist_type("TupleNoun")
-        .derive_default(true)
-        .derive_partialeq(true)
-        .derive_eq(true)
-        // Tell cargo to invalidate the built crate whenever any of the
-        // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        // Finish the builder and generate the bindings.
-        .generate()
-        // Unwrap the Result and panic on failure.
-        .expect("Unable to generate bindings");
+    let mut pb = PathBuf::from(&manifest_dir);
+    pb.push("c/cbindgen.h");
+    fs::remove_file(pb).expect("could not remove cbindgen header!");
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+    // TODO: DEBUG!
+    let mut pb = PathBuf::from(&manifest_dir);
+    pb.push("tests/test_libs/out/string_copy_test.so");
+    fs::remove_file(pb).expect("Could not remove string_copy_test.so!");
+
+    cbindgen::Builder::new()
+        .with_crate(manifest_dir.clone())
+        .generate()
+        .expect("Unable to generate bindings")
+        .write_to_file("c/cbindgen.h");
+
+    // // The bindgen::Builder is the main entry point
+    // // to bindgen, and lets you build up options for
+    // // the resulting bindings.
+    // let bindings = bindgen::Builder::default()
+    //     // The input header we would like to generate
+    //     // bindings for.
+    //     .header("c/reactor_types.hpp")
+    //     .allowlist_recursively(false)
+    //     .allowlist_type("Tuple")
+    //     .allowlist_type("TupleNoun")
+    //     .derive_default(true)
+    //     .derive_partialeq(true)
+    //     .derive_eq(true)
+    //     // Tell cargo to invalidate the built crate whenever any of the
+    //     // included header files changed.
+    //     .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+    //     // Finish the builder and generate the bindings.
+    //     .generate()
+    //     // Unwrap the Result and panic on failure.
+    //     .expect("Unable to generate bindings");
+    //
+    // // Write the bindings to the $OUT_DIR/bindings.rs file.
+    // let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    // bindings
+    //     .write_to_file(out_path.join("bindings.rs"))
+    //     .expect("Couldn't write bindings!");
 
 
     // let walker = WalkDir::new("tests/test_libs/src").into_iter();
@@ -57,7 +81,7 @@ fn main() {
                         .status();
 
                     assert_eq!(status.unwrap().success(), true);
-                    println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+                    // println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
                 }
             }
             _ => {}

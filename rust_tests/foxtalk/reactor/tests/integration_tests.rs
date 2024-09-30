@@ -1,5 +1,5 @@
 use reactor::query::Query;
-use reactor::tuple::Tuple;
+use reactor::tuple::{Tuple, TupleNoun};
 use reactor::when::When;
 
 use reactor::ffi::*;
@@ -20,6 +20,27 @@ fn linked_lib_path(filename: &str) -> String {
 #[test]
 fn ffi_loads_a_library() {
     unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.expect("opens the library");
+}
+
+#[test]
+fn ffi_string_copy_tests() {
+    let cwhen = unsafe { CWhen::new(linked_lib_path("string_copy_test.so").as_str()) };
+    let q = cwhen.unwrap().get_query();
+
+    match q.subject {
+        None => { panic!("Unexpected query result") }
+        Some(q) => {
+            match q {
+                TupleNoun::CPtrHeap { .. } => { panic!("Unexpected Query TYPE"); }
+                TupleNoun::CPtr(_) => { panic!("Unexpected Query TYPE"); }
+                TupleNoun::Str(s) => {
+                    assert_eq!(s, "description");
+                }
+                TupleNoun::U64(_) => { panic!("Unexpected Query TYPE"); }
+                TupleNoun::I64(_) => { panic!("Unexpected Query TYPE"); }
+            }
+        }
+    }
 }
 
 #[test]

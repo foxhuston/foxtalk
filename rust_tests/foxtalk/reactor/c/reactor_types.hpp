@@ -64,7 +64,7 @@ struct TupleNoun  {
 
 struct Tuple {
     TupleNoun subject;
-    char *predicate;
+    char *predicate; // TODO: TupleNoun
     TupleNoun object;
 };
 
