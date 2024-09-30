@@ -8,22 +8,25 @@ use crate::auto_file_handler::AutoFileHandler;
 
 use anyhow::Result;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let mut reactor = Reactor::new();
 
     println!("Adding boot claims...");
     reactor.claim(Tuple::new_strs("/dev/video0", "is a", "camera"));
 
-    let afh = AutoFileHandler::new("./c/CameraHandler.cpp", "./c/libcamera_handler.so").await;
+    let camera_format_handler = AutoFileHandler::new("./c/CameraFormatHandler.cpp", "./c/libcamera_format_handler.so")?;
+    let camera_pixel_handler = AutoFileHandler::new("./c/CameraPixelHandler.cpp", "./c/libcamera_pixel_handler.so")?;
 
     println!("Adding boot handlers...");
+    reactor.add_handler(Box::new(camera_format_handler));
+    reactor.add_handler(Box::new(camera_pixel_handler));
 
     println!("Foxtalk Start!");
 
     while true {
         reactor.tick();
-        tokio::time::sleep(Duration::from_millis(1));
+        // std::thread::sleep(Duration::from_millis(1));
+        std::thread::sleep(Duration::from_secs(1));
     }
 
     Ok(())

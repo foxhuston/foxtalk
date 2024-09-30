@@ -5,69 +5,53 @@
 #include <string>
 #include <iostream>
 
-static char* lexi = "lexi";
-static char* highlighted = "is highlighted";
-static char* blue = "blue";
+#include "c/reactor.hpp"
 
-///// Header File //////////////////////////////////////////////////////////////
+static char *hi = "Hi!";
+static char *husky = "husky";
 
-extern "C" {
-    struct Tuple {
-        void* subject;
-        const char *predicate;
-        void* object;
-    };
-}
-
-std::vector<Tuple>* WhenHandler(Tuple* result);
-Tuple GetQuery();
-
-extern "C" {
-    void get_query(Tuple* t) {
-        auto q = GetQuery();
-        t->subject = q.subject;
-        t->predicate = q.predicate;
-        t->object = q.object;
-    }
-
-    Tuple* when_handler(Tuple* result, size_t *outLen) {
-        auto res = WhenHandler(result);
-        *outLen = res->size();
-        return res->data();
-    }
-}
-
-///// A HANDLER FILE ///////////////////////////////////////////////////////////
-
-
-struct Dog {
+struct Dog
+{
     std::string name;
 };
 
-Tuple GetQuery() {
+Tuple GetQuery()
+{
     return Tuple {
-        nullptr, "Hi!", nullptr
+        { TupleNoun::Tag::Query },
+        hi,
+        { TupleNoun::Tag::Str, { .str = husky }}
     };
 }
 
-std::vector<Tuple>* WhenHandler(Tuple* result) {
+// When (you) is a "husky"
+std::vector<Tuple> *WhenHandler(Tuple *result)
+{
     std::cout << "Hello from C++ WhenHandler" << std::endl;
+    std::cout << "Subject is " << result->subject << std::endl;
+
+    auto obj = new TupleNoun {
+        TupleNoun::Tag::Ptr,
+        // Needs copy??
+        { .ptr = new Dog { result->subject.dat.str } }
+    };
 
     Tuple outTuple {
-        static_cast<void *>(lexi)
-        , "is a"
-        , new Dog { "lexi" }
+        result->subject,
+        hi,
+        // Needs string copy??
+        { TupleNoun::Tag::Ptr, { .ptr = new Dog { result->subject.dat.str } } }
     };
-    auto out = new std::vector<Tuple> {
-        outTuple
-    };
+
+    auto out = new std::vector<Tuple>{outTuple};
+
     return out;
 }
 
-extern "C" void free_tuple_obj(void* obj) {
+extern "C" void free_tuple_obj(void *obj)
+{
     std::cout << "Cleanin' up some dogs." << std::endl;
     delete static_cast<Dog *>(obj);
 }
 
-extern "C" void free_tuple_subj(void* subj) {}
-
+extern "C" void free_tuple_subj(void *subj) {}

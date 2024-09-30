@@ -1,41 +1,13 @@
-///// Header File //////////////////////////////////////////////////////////////
+
+// extern "C" pub fn wish(tuple: Tuple) {
+
+#include <vector>
 #include <string>
 #include <iostream>
-#include <vector>
 
-extern "C"
-{
-    struct Tuple
-    {
-        void *subject;
-        const char *predicate;
-        void *object;
-    };
-}
+#include "c/reactor.hpp"
 
-std::vector<Tuple> *WhenHandler(Tuple *result);
-Tuple GetQuery();
-
-extern "C"
-{
-    void get_query(Tuple *t)
-    {
-        auto q = GetQuery();
-        t->subject = q.subject;
-        t->predicate = q.predicate;
-        t->object = q.object;
-    }
-
-    Tuple *when_handler(Tuple *result, size_t *outLen)
-    {
-        auto res = WhenHandler(result);
-        *outLen = res->size();
-        return res->data();
-    }
-}
-
-///// A HANDLER FILE ///////////////////////////////////////////////////////////
-
+static char *isA = "is a";
 static char *husky = "husky";
 
 struct Dog
@@ -45,17 +17,31 @@ struct Dog
 
 Tuple GetQuery()
 {
-    return Tuple{
-        nullptr, "is a", husky};
+    return Tuple {
+        { TupleNoun::Tag::Query },
+        isA,
+        { TupleNoun::Tag::Str, { .str = husky }}
+    };
 }
 
 // When (you) is a "husky"
 std::vector<Tuple> *WhenHandler(Tuple *result)
 {
     std::cout << "Hello from C++ WhenHandler" << std::endl;
+    std::cout << "Subject is " << result->subject << std::endl;
 
-    Tuple outTuple{
-        result->subject, "is a", new Dog{static_cast<char *>(result->subject)}};
+    auto obj = new TupleNoun {
+        TupleNoun::Tag::Ptr,
+        // Needs copy??
+        { .ptr = new Dog { result->subject.dat.str } }
+    };
+
+    Tuple outTuple {
+        result->subject,
+        isA,
+        // Needs string copy??
+        { TupleNoun::Tag::Ptr, { .ptr = new Dog { result->subject.dat.str } } }
+    };
 
     auto out = new std::vector<Tuple>{outTuple};
 
