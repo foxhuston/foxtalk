@@ -1,6 +1,10 @@
 use crate::tuple::Tuple;
 
 
+// TODO: `When` should give the entire results set, and then I can write a
+//       `WhenEach` that does the  behavior of looping through each of the tuples.
+//       This way, if a handler needs to do some kind of reduction (like, pick the best camera
+//       resolution, for instance), it can.
 pub trait When {
     fn get_query(&self) -> Tuple;
 

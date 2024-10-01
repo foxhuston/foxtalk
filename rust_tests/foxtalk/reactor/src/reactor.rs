@@ -1,4 +1,4 @@
-use crate::db::{Db, DbIndex};
+use tuple_db::db::{Db, DbIndex};
 use crate::tuple::Tuple;
 use crate::when::When;
 use std::collections::{HashMap, HashSet};
@@ -11,23 +11,23 @@ type Handler = Box<dyn When>;
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct HandlerId(Uuid);
 
-pub struct Reactor {
+pub struct Reactor<'a> {
     // This uses UUID keys so that we can quickly find handlers
     // without needing the handlers themselves to be hashable.
     handlers: HashMap<HandlerId, Handler>,
 
     // TODO: UNPUB
-    pub db: Db,
+    pub db: Db<'a>,
 
-    handler_provenance: DbIndex<HandlerId, Tuple>, // TODO: How do I even express this in Rust?????
-    tuple_provenance: DbIndex<Tuple, Tuple>,
+    handler_provenance: DbIndex<HandlerId, &'a Tuple>,
+    tuple_provenance: DbIndex<&'a Tuple, &'a Tuple>,
 
     // Tuple Triggered handler (TODO: with query?)
-    handler_ran_for_tuple: DbIndex<Tuple, HandlerId>,
+    handler_ran_for_tuple: DbIndex<&'a Tuple, HandlerId>,
 }
 
-impl Reactor {
-    pub fn new() -> Reactor {
+impl Reactor<'_> {
+    pub fn new<'a>() -> Reactor<'a> {
         Reactor {
             db: Db::new(),
             handlers: HashMap::new(),

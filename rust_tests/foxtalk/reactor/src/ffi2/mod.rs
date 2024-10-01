@@ -4,6 +4,8 @@ pub mod c_when;
 pub use c_when::*;
 
 use std::ffi::{c_void, CStr, CString};
+use std::io;
+use std::io::Write;
 use libc::c_char;
 use ustr::Ustr;
 use crate::ffi2::c_heap_object::CHeapObject;
@@ -87,8 +89,11 @@ pub extern "C" fn get_tuple_noun_as_i64(tuple_noun: *mut TupleNoun) -> i64 {
 ///// TUPLE FFI CONSTRUCTOR ////////////////////////////////////////////////////
 
 #[no_mangle]
-pub extern "C" fn mk_tuple(subject: *mut TupleNoun, predicate: *mut TupleNoun, object: *mut TupleNoun) -> *mut PtrTuple {
-    Box::leak(Box::new(PtrTuple { subject, predicate, object }))
+pub extern "C" fn mk_tuple<'a>(subject: *mut TupleNoun, predicate: *mut TupleNoun, object: *mut TupleNoun) -> &'a PtrTuple {
+    println!("Making tuple <{subject:?}, {predicate:?}, {object:?}>...");
+    let out = PtrTuple { subject, predicate, object };
+    println!("Made tuple {out:?}");
+    Box::leak(Box::new(out))
 }
 
 ///// TUPLE NOUN DATA READERS //////////////////////////////////////////////////

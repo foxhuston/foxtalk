@@ -12,6 +12,11 @@ use crate::when::When;
 type CGetQuery = unsafe extern "C" fn() -> *mut PtrTuple;
 type CWhenHandler = unsafe extern "C" fn(*mut PtrTuple, *mut usize) -> *mut *mut PtrTuple;
 
+// TODO: I could make this much nicer by having a pointer to a specific provenance tuple as a
+//   global symbol that each individual CWhen could set when it called its handler. I could probably
+//   set up provenance while still having functions like `claim` and `wish`, which is important
+//   if I ever want to allow programs to `remove` tuples from the db (important for e.g. the
+//   loader that watches for paper program IDs to appear and disappear on/from the table).
 pub struct CWhen {
     lib: Library,
     get_query: Symbol<CGetQuery>,
