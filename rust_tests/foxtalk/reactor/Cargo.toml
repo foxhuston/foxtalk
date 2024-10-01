@@ -15,3 +15,4 @@ uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"] 
 libc = "0.2.159"
 libloading = "0.8.5"
 ustr = "1.0.0"
+sdd = "3.0.3"
