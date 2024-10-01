@@ -1,8 +1,7 @@
 mod db_index;
 use crate::tuple::{Tuple, TupleNoun};
 
-use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
+use std::collections::HashSet;
 use std::sync::Arc;
 pub use db_index::DbIndex;
 
@@ -26,29 +25,46 @@ impl<'a> Db {
         }
     }
 
-    fn intersect_subj(&self, subject: &Arc<TupleNoun>, from: Option<&HashSet<Arc<Tuple>>>, with: &HashSet<Arc<Tuple>>) -> Option<HashSet<Arc<Tuple>>> {
-        if !subject.is_query() {
-            match from {
-                None => { None }
-                Some(by_subject) => {
-                    Some(by_subject.intersection(with).cloned().collect())
-                }
-            }
-        } else {
-            None
-        }
-    }
+    // fn intersect_subj(&self, subject: &Arc<TupleNoun>, from: Option<&HashSet<Arc<Tuple>>>, with: &HashSet<Arc<Tuple>>) -> Option<HashSet<Arc<Tuple>>> {
+    //     if !subject.is_query() {
+    //         match from {
+    //             None => { None }
+    //             Some(by_subject) => {
+    //                 Some(by_subject.intersection(with).cloned().collect())
+    //             }
+    //         }
+    //     } else {
+    //         None
+    //     }
+    // }
+
+
 
     // TODO: This might should be crate-private?
     pub fn query(&self, query: Arc<Tuple>) -> HashSet<Arc<Tuple>> {
-        let empty = HashSet::new();
 
-        let w_subj = self.intersect_subj(&query.subject, self.by_subject.get(&query.subject), &self.tuples);
-        let w_pred =
-            w_subj.and_then(|s| self.intersect_subj(&query.predicate, self.by_predicate.get(&query.predicate), &s))
-                .or_else(|| self.intersect_subj(&query.predicate, self.by_predicate.get(&query.predicate), &self.tuples));
+        // This is not efficient. Let's benchmark and determine how inefficent it is.
+        // We can trade write and read time off by building more indices at write-time.
+        let results = self.tuples.iter().filter(|t| {
+            let s = &t.subject;
+            let p = &t.predicate;
+            let o = &t.object;
 
-        w_pred.unwrap_or(&empty).clone()
+            let subject_matches = query.subject.is_query() || &query.subject == s;
+            let predicate_matches = query.predicate.is_query() || &query.predicate == p;
+            let object_matches = query.object.is_query() || &query.object == o;
+
+            subject_matches && predicate_matches && object_matches
+        }).cloned().collect::<HashSet<Arc<Tuple>>>();
+
+        results
+        //
+        // let w_subj = self.intersect_subj(&query.subject, self.by_subject.get(&query.subject), &self.tuples);
+        // let w_pred =
+        //     w_subj.and_then(|s| self.intersect_subj(&query.predicate, self.by_predicate.get(&query.predicate), &s))
+        //         .or_else(|| self.intersect_subj(&query.predicate, self.by_predicate.get(&query.predicate), &self.tuples));
+        //
+        // w_pred.unwrap_or(&empty).clone()
 
         // let w_obj =
         //     w_pred.and_then(|s| self.intersect_subj(&query.object, self.by_object.get(&query.object), &s))
