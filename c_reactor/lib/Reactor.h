@@ -15,13 +15,13 @@
 namespace foxtalk {
 
     typedef Tuple*(*GetQuery)(void);
-    typedef void(*HandleResults)(size_t result_count, const Tuple* result_tuples);
+    typedef void(*HandleResults)(const TupleVec);
 
     struct Handler : gc {
         GetQuery get_query;
         HandleResults handle_results;
 
-        Handler(Tuple* (*getQuery)(void), void (*handleResults)(size_t, const Tuple *))
+        Handler(GetQuery getQuery, HandleResults handleResults)
             : get_query { getQuery }, handle_results { handleResults } {
             assert(get_query != nullptr);
             assert(handleResults != nullptr);

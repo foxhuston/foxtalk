@@ -18,8 +18,8 @@ Tuple *test_get_query() {
 
 static size_t handler_result_count = 0;
 
-void test_handle_results(size_t result_count, const Tuple *results) {
-    handler_result_count = result_count;
+void test_handle_results(TupleVec query_results) {
+    handler_result_count = query_results.size();
 }
 
 BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
@@ -45,6 +45,12 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         reactor.tick();
 
         BOOST_ASSERT(handler_result_count == 1);
+    }
+
+    BOOST_AUTO_TEST_CASE(ReactorCallsExternalHandler) {
+        Reactor reactor;
+        // TODO
+        BOOST_ASSERT(false);
     }
 
 BOOST_AUTO_TEST_SUITE_END()

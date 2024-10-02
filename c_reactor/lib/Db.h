@@ -16,8 +16,7 @@ namespace foxtalk {
 
     class Db {
     private:
-        traceable_allocator<Tuple> gcAllocator {};
-        std::vector<Tuple, traceable_allocator<Tuple>> _all_tuples { };
+        TupleVec _all_tuples { };
 //        std::unordered_set<Tuple, std::hash<Tuple>, std::equal_to<Tuple>, traceable_allocator<Tuple>> _all_tuples { };
 
     public:

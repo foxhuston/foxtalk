@@ -15,7 +15,7 @@ namespace foxtalk {
 
     void Reactor::tick() {
         for (auto &h: handlers) {
-            std::vector<Tuple*> result_tuples {};
+            TupleVec result_tuples {};
             auto q = h.get_query();
 
             for (auto t: db.get_tuples()) {
@@ -39,11 +39,11 @@ namespace foxtalk {
                     continue;
                 }
 
-                result_tuples.push_back(&t);
+                result_tuples.push_back(t);
             }
 
             if(result_tuples.size() > 0) {
-                h.handle_results(result_tuples.size(), *result_tuples.data());
+                h.handle_results(result_tuples);
             }
         }
     }

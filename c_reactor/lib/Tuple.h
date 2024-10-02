@@ -7,9 +7,11 @@
 
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #include "gc.h"
 #include "gc_cpp.h"
+#include "gc_allocator.h"
 #include "boost/container_hash/hash.hpp"
 
 namespace foxtalk {
@@ -177,6 +179,8 @@ namespace foxtalk {
             return os;
         }
     };
+
+    typedef std::vector<Tuple, traceable_allocator<Tuple>> TupleVec;
 }
 
 template<>
