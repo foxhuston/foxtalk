@@ -10,13 +10,16 @@
 
 //#include <boost/test/included/unit_test.hpp>
 #include <boost/test/unit_test.hpp>
+#include "Tuple.h"
 #include "Db.h"
 
+using namespace foxtalk;
 
 BOOST_AUTO_TEST_SUITE(DB_TESTS)
 
 BOOST_AUTO_TEST_CASE(DbTest) {
-    foxtalk::Db db;
+    Db db;
+    db.add_tuple(Tuple { TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky") });
 }
 
 BOOST_AUTO_TEST_SUITE_END()

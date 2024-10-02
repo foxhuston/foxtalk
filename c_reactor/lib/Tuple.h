@@ -14,24 +14,28 @@ namespace foxtalk {
     struct TupleNoun : gc {
         typedef void (*Free_Fn)(void *);
 
-        static TupleNoun mkQuery() {
+        static TupleNoun* mkQuery() {
             return {};
         }
 
-        static TupleNoun mkSymbol(char *s) {
-            return {Symbol, {.symbol = s}};
+        static TupleNoun* mkSymbol(const char *s) {
+            return new TupleNoun {Symbol, {.symbol = GC_strdup(s) }};
         }
 
-        static TupleNoun mkPtr(void *dat, Free_Fn free_fn) {
-            return {CPtr, {.cptr = {dat, free_fn}}};
+        static TupleNoun* mkSymbol(char *s) {
+            return new TupleNoun {Symbol, {.symbol = GC_strdup(s) }};
         }
 
-        static TupleNoun mkU64(uint64_t n) {
-            return {U64, {.u64 = n}};
+        static TupleNoun* mkPtr(void *dat, Free_Fn free_fn) {
+            return new TupleNoun {CPtr, {.cptr = {dat, free_fn}}};
         }
 
-        static TupleNoun mkI64(int64_t n) {
-            return {I64, {.i64 = n}};
+        static TupleNoun* mkU64(uint64_t n) {
+            return new TupleNoun {U64, {.u64 = n}};
+        }
+
+        static TupleNoun* mkI64(int64_t n) {
+            return new TupleNoun {I64, {.i64 = n}};
         }
 
         ~TupleNoun() {

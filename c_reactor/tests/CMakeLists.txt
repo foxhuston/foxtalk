@@ -10,4 +10,4 @@ target_include_directories(Boost_Tests_run PRIVATE ../lib)
 target_include_directories(Boost_Tests_run PRIVATE ../vendor/gc-8.2.4/include)
 
 target_link_libraries (Boost_Tests_run ${Boost_LIBRARIES})
-target_link_libraries (Boost_Tests_run reactor gc)
+target_link_libraries (Boost_Tests_run reactor gc gccpp)

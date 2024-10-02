@@ -10,6 +10,9 @@ add_library(
     Tuple.h
     Db.cpp
     Db.h
+    Symbol.h
 )
+
+target_link_libraries(reactor gc gccpp)
 
 target_include_directories(reactor PRIVATE ../vendor/gc-8.2.4/include)

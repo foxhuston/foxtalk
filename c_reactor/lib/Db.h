@@ -29,7 +29,7 @@ namespace foxtalk {
         }
 
         void remove_tuple(const Tuple& tuple) {
-            std::remove(_all_tuples.begin(), _all_tuples.end(), tuple);
+            auto _ = std::remove(_all_tuples.begin(), _all_tuples.end(), tuple);
 //            _all_tuples.erase(tuple);
         }
     };
