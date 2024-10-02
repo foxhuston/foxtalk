@@ -11,8 +11,10 @@ add_library(
     Db.cpp
     Db.h
     Symbol.h
+    DynamicHandler.h
+    Handler.h
 )
 
-target_link_libraries(reactor gc gccpp)
+target_link_libraries(reactor gc gccpp dl)
 
 target_include_directories(reactor PRIVATE ../vendor/gc-8.2.4/include)

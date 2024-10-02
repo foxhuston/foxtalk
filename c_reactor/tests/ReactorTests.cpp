@@ -9,18 +9,22 @@
 #include <boost/test/unit_test.hpp>
 #include "Tuple.h"
 #include "Reactor.h"
+#include "DynamicHandler.h"
 
 using namespace foxtalk;
 
-Tuple *test_get_query() {
-    return new Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")};
-}
 
-static size_t handler_result_count = 0;
+static size_t handler_result_count;
 
-void test_handle_results(TupleVec query_results) {
-    handler_result_count = query_results.size();
-}
+struct TestHandler : Handler {
+    Tuple *get_query() const override {
+        return new Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")};
+    }
+
+    void handle_results(TupleVec tv) const override {
+        handler_result_count++;
+    }
+};
 
 BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
@@ -31,16 +35,16 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
     BOOST_AUTO_TEST_CASE(ReactorAddHandlerTest) {
         Reactor reactor;
-        Handler h(test_get_query, test_handle_results);
-        reactor.add_handler(h);
+        TestHandler h {};
+        reactor.add_handler(&h);
     }
 
     BOOST_AUTO_TEST_CASE(ReactorCallsHandlerTest) {
         Reactor reactor;
-        Handler h(test_get_query, test_handle_results);
+        TestHandler h {};
 
         reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
-        reactor.add_handler(h);
+        reactor.add_handler(&h);
 
         reactor.tick();
 
@@ -49,8 +53,12 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
     BOOST_AUTO_TEST_CASE(ReactorCallsExternalHandler) {
         Reactor reactor;
-        // TODO
-        BOOST_ASSERT(false);
+        DynamicHandler dh("../../tests/libreactor_test_handler.so");
+
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+        reactor.add_handler(&dh);
+
+        reactor.tick();
     }
 
 BOOST_AUTO_TEST_SUITE_END()

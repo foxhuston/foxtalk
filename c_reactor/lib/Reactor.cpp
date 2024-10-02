@@ -9,14 +9,14 @@ namespace foxtalk {
         db.add_tuple(tuple);
     }
 
-    void Reactor::add_handler(const Handler &handler) {
+    void Reactor::add_handler(const Handler *handler) {
         handlers.push_back(handler);
     }
 
     void Reactor::tick() {
-        for (auto &h: handlers) {
+        for (auto h: handlers) {
             TupleVec result_tuples {};
-            auto q = h.get_query();
+            auto q = h->get_query();
 
             for (auto t: db.get_tuples()) {
                 std::cout << "Checking query " << *q << " vs tuple " << t << std::endl;
@@ -43,7 +43,7 @@ namespace foxtalk {
             }
 
             if(result_tuples.size() > 0) {
-                h.handle_results(result_tuples);
+                h->handle_results(result_tuples);
             }
         }
     }

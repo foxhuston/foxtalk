@@ -7,7 +7,7 @@
 
 #include "Tuple.h"
 
-foxtalk::Tuple* get_query() {
+extern "C" foxtalk::Tuple* get_query() {
     return new foxtalk::Tuple(
             foxtalk::TupleNoun::mkQuery(),
             foxtalk::TupleNoun::mkSymbol("is a"),
@@ -15,9 +15,9 @@ foxtalk::Tuple* get_query() {
     );
 }
 
-void handle_results(foxtalk::TupleVec query_results) {
+extern "C" void handle_results(foxtalk::TupleVec query_results) {
     for(auto& r : query_results) {
-        std::cout << "Handler query result: " << r << std::endl;
+        std::cout << "Hello from dynamic handler! Handler query result: " << r << std::endl;
     }
 }
 
