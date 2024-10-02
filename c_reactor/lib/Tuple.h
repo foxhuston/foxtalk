@@ -93,9 +93,11 @@ namespace foxtalk {
             return seed;
         }
 
-        bool is_query() const {
-            return type == Type::Query;
-        }
+        bool is_query() const { return type == Type::Query; }
+        bool is_cptr() const { return type == Type::CPtr; }
+        bool is_symbol() const { return type == Type::Symbol; }
+        bool is_u64() const { return type == Type::U64; }
+        bool is_i64() const { return type == Type::I64; }
 
     private:
         enum Type {
@@ -106,6 +108,7 @@ namespace foxtalk {
             I64
         } type;
 
+    public:
         struct CPtrWithFree {
             void *data;
             Free_Fn free_fn;

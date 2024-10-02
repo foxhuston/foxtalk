@@ -120,6 +120,82 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         BOOST_ASSERT(handler_result_count == 2);
     }
 
+    struct MaxHandler : Handler {
+        Tuple *get_query() const override {
+            return new Tuple{
+                    TupleNoun::mkQuery(),
+                    TupleNoun::mkSymbol("has size"),
+                    TupleNoun::mkQuery(),
+            };
+        }
+
+        void handle_results(TupleVec tv, std::function<void(Tuple)> claim) const override {
+            const TupleNoun *max_subj = nullptr;
+            uint64_t max_size = 0;
+
+            for (auto t: tv) {
+                if (t.getObject()->is_u64()
+                    && t.getObject()->data.u64 > max_size) {
+                    max_size = t.getObject()->data.u64;
+                    max_subj = t.getSubject();
+                }
+            }
+
+            if (max_subj != nullptr) {
+                claim(Tuple{
+                        max_subj,
+                        TupleNoun::mkSymbol("is"),
+                        TupleNoun::mkSymbol("the biggest!")
+                });
+            }
+        }
+    };
+
+    BOOST_AUTO_TEST_CASE(ReactorWillRemoveGeneratedTuplesTest) {
+        Reactor reactor;
+        MaxHandler h{};
+
+        reactor.claim(Tuple{TupleNoun::mkSymbol("ball a"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(1)});
+        reactor.claim(Tuple{TupleNoun::mkSymbol("ball b"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(2)});
+        reactor.claim(Tuple{TupleNoun::mkSymbol("ball c"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(3)});
+        reactor.claim(Tuple{TupleNoun::mkSymbol("ball d"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(1000)});
+
+        reactor.add_handler(&h);
+
+        reactor.tick();
+
+        auto q = Tuple{
+                TupleNoun::mkQuery(),
+                TupleNoun::mkSymbol("is"),
+                TupleNoun::mkSymbol("the biggest!")
+        };
+
+        auto results = reactor.query(&q);
+        BOOST_ASSERT(results.contains({
+            TupleNoun::mkSymbol("ball d"),
+            TupleNoun::mkSymbol("is"),
+            TupleNoun::mkSymbol("the biggest!")
+        }));
+
+        reactor.remove(Tuple{TupleNoun::mkSymbol("ball d"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(1000)});
+
+        reactor.tick();
+
+        auto post_delete_results = reactor.query(&q);
+
+        BOOST_ASSERT(!post_delete_results.contains({
+           TupleNoun::mkSymbol("ball d"),
+           TupleNoun::mkSymbol("is"),
+           TupleNoun::mkSymbol("the biggest!")
+        }));
+
+        BOOST_ASSERT(post_delete_results.contains({
+            TupleNoun::mkSymbol("ball c"),
+            TupleNoun::mkSymbol("is"),
+            TupleNoun::mkSymbol("the biggest!")
+        }));
+    }
+
     BOOST_AUTO_TEST_CASE(ReactorCallsExternalHandler) {
         Reactor reactor;
         DynamicHandler dh("../../tests/libreactor_test_handler.so");
@@ -171,12 +247,13 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         Reactor reactor;
         TestClaimingHandler th;
 
-        auto originalClaim = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")};
+        auto originalClaim = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"),
+                                   TupleNoun::mkSymbol("husky")};
         reactor.claim(originalClaim);
         reactor.add_handler(&th);
 
-        auto expectedA = Tuple { TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool") };
-        auto expectedB = Tuple { TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi") };
+        auto expectedA = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool")};
+        auto expectedB = Tuple{TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi")};
 
         reactor.tick();
 

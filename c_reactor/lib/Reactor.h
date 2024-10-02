@@ -42,6 +42,10 @@ namespace foxtalk {
         const Db& get_db() const {
             return db;
         }
+
+        ReactorSet<Tuple>::type query(Tuple q);
+
+        ReactorSet<foxtalk::Tuple>::type query(Tuple *q);
     };
 
 } // foxtalk

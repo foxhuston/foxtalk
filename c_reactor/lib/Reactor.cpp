@@ -72,31 +72,36 @@ namespace foxtalk {
         tuple_provenance.at(from).insert(to);
     }
 
-    void Reactor::tick() {
-        for (auto h: handlers) {
-            ReactorSet<Tuple>::type result_tuples {};
-            auto q = h->get_query();
+    ReactorSet<Tuple>::type Reactor::query(Tuple *q) {
+        ReactorSet<Tuple>::type result_tuples {};
 
-            for (auto t: db.get_tuples()) {
+        for (auto t: db.get_tuples()) {
 //                std::cout << "Checking query " << *q << " vs tuple " << t << std::endl;
 
-                if (!q->getSubject()->is_query()
-                    && *t.getSubject() != *q->getSubject()) {
-                    continue;
-                }
-
-                if (!q->getPredicate()->is_query()
-                    && *t.getPredicate() != *q->getPredicate()) {
-                    continue;
-                }
-
-                if (!q->getObject()->is_query()
-                    && *t.getObject() != *q->getObject()) {
-                    continue;
-                }
-
-                result_tuples.insert(t);
+            if (!q->getSubject()->is_query()
+                && *t.getSubject() != *q->getSubject()) {
+                continue;
             }
+
+            if (!q->getPredicate()->is_query()
+                && *t.getPredicate() != *q->getPredicate()) {
+                continue;
+            }
+
+            if (!q->getObject()->is_query()
+                && *t.getObject() != *q->getObject()) {
+                continue;
+            }
+
+            result_tuples.insert(t);
+        }
+
+        return result_tuples;
+    }
+
+    void Reactor::tick() {
+        for (auto h: handlers) {
+            auto result_tuples = query(h->get_query());
 
             if(result_tuples.size() > 0) {
                 if(!did_tuples_trigger_handler(result_tuples, h)) {
