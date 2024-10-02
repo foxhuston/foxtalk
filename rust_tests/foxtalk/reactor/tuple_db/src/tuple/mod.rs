@@ -14,6 +14,9 @@ pub struct Tuple {
 impl Drop for Tuple {
     fn drop(&mut self) {
         println!("Dropping Tuple: {self:?}");
+        // unsafe { Arc::decrement_strong_count(&self.subject); }
+        // unsafe { Arc::decrement_strong_count(&self.predicate); }
+        // unsafe { Arc::decrement_strong_count(&self.object); }
     }
 }
 
