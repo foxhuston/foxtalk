@@ -187,16 +187,16 @@ pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
         predicate: Arc::clone(&p),
         object: Arc::clone(&o),
     };
-
-    unsafe {
-        Arc::decrement_strong_count(&s);
-        Arc::decrement_strong_count(&p);
-        Arc::decrement_strong_count(&o);
-    }
-    let _ = Arc::into_raw(s);
-    let _ = Arc::into_raw(p);
-    let _ = Arc::into_raw(o);
-
+    //
+    // unsafe {
+    //     Arc::decrement_strong_count(&s);
+    //     Arc::decrement_strong_count(&p);
+    //     Arc::decrement_strong_count(&o);
+    // }
+    // let _ = Arc::into_raw(s);
+    // let _ = Arc::into_raw(p);
+    // let _ = Arc::into_raw(o);
+    //
 
     // So what's happening here is that in CPP, we pass the pointer to a `TupleNoun`
     // we got from the query right back into `mk_tuple` as the subject (for instance).

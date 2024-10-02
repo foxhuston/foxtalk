@@ -3,12 +3,6 @@ name = "reactor"
 version = "0.1.0"
 edition = "2021"
 
-[profile.dev]
-debug = true
-overflow-checks = true
-opt-level = 0
-
-
 [lib]
 crate-type = ["lib", "staticlib"]
 
