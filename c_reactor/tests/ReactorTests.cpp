@@ -93,6 +93,33 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         BOOST_ASSERT(handler_result_count == 1);
     }
 
+    BOOST_AUTO_TEST_CASE(ReactorWillCallHandlerAgainTest) {
+        handler_result_count = 0;
+
+        Reactor reactor;
+        TestHandler h{};
+
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+        reactor.add_handler(&h);
+
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+
+        BOOST_ASSERT(handler_result_count == 1);
+
+        reactor.remove(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+
+        BOOST_ASSERT(handler_result_count == 2);
+    }
+
     BOOST_AUTO_TEST_CASE(ReactorCallsExternalHandler) {
         Reactor reactor;
         DynamicHandler dh("../../tests/libreactor_test_handler.so");

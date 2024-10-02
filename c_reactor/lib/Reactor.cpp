@@ -41,6 +41,19 @@ namespace foxtalk {
                     }
                 }
 
+                // If this was part of a set that triggered a handler, we'll need to run the handler again
+                // TODO: And remove anything that handler had caused to exist.
+                std::vector<ReactorSet<Tuple>::type> keys_to_remove {};
+                for(auto [k, v] : tuples_triggered_handler) {
+                    if(k.contains(curr)) {
+                        keys_to_remove.push_back(k);
+                    }
+                }
+
+                for(auto k : keys_to_remove) {
+                    tuples_triggered_handler.erase(k);
+                }
+
                 // And finally, remove it:
                 db.remove_tuple(curr);
             }
