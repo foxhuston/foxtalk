@@ -11,10 +11,11 @@ add_library(
     Db.cpp
     Db.h
     Symbol.h
-    DynamicHandler.h
+        SharedObjectHandler.h
     Handler.h
         Tuple.cpp
         ReactorSet.h
+        ../DynamicHandler.h
 )
 
 target_link_libraries(reactor gc gccpp dl)

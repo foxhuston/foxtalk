@@ -2,8 +2,8 @@
 // Created by fox on 10/2/24.
 //
 
-#ifndef REACTOR_DYNAMICHANDLER_H
-#define REACTOR_DYNAMICHANDLER_H
+#ifndef REACTOR_SHAREDOBJECTHANDLER_H
+#define REACTOR_SHAREDOBJECTHANDLER_H
 
 #include <optional>
 #include <cstring>
@@ -13,7 +13,7 @@
 #include "Handler.h"
 
 namespace foxtalk {
-    struct DynamicHandler : Handler {
+    struct SharedObjectHandler : Handler {
     private:
         typedef Tuple* (*GetQuery)();
         typedef void (*HandleResults)(TupleVec, std::function<void(Tuple)>);
@@ -22,9 +22,8 @@ namespace foxtalk {
         GetQuery _get_query;
         HandleResults _handle_results;
 
-
     public:
-        DynamicHandler(const char *file_name) {
+        SharedObjectHandler(const char *file_name) {
             handle = dlopen(file_name, RTLD_LOCAL | RTLD_NOW);
             if(handle == nullptr) {
                 throw std::runtime_error(std::format("Could not load dynamic handler! ({0})", strerror(errno)));
@@ -48,11 +47,11 @@ namespace foxtalk {
             return _handle_results(query_results, claim);
         }
 
-        ~DynamicHandler() {
+        ~SharedObjectHandler() {
             dlclose(handle);
         }
     };
 
 }
 
-#endif //REACTOR_DYNAMICHANDLER_H
+#endif //REACTOR_SHAREDOBJECTHANDLER_H

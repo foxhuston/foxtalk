@@ -10,7 +10,7 @@
 #include <boost/test/unit_test.hpp>
 #include "Tuple.h"
 #include "Reactor.h"
-#include "DynamicHandler.h"
+#include "SharedObjectHandler.h"
 
 using namespace foxtalk;
 
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
     BOOST_AUTO_TEST_CASE(ReactorCallsExternalHandler) {
         Reactor reactor;
-        DynamicHandler dh("../../tests/libreactor_test_handler.so");
+        SharedObjectHandler dh("../../tests/libreactor_test_handler.so");
 
         reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
         reactor.add_handler(&dh);
