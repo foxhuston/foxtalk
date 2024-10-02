@@ -5,6 +5,7 @@
 #ifndef REACTOR_REACTOR_H
 #define REACTOR_REACTOR_H
 
+#include <queue>
 #include "gc_cpp.h"
 #include "gc_allocator.h"
 
@@ -23,12 +24,11 @@ namespace foxtalk {
     class Reactor : gc {
     private:
         Db db {};
-        std::vector<const Handler *> handlers { };
+        ReactorSet<const Handler *>::type handlers { };
 
         ReactorMap<ReactorSet<Tuple>::type, ReactorSet<const Handler*>::type>::type tuples_triggered_handler {};
         ReactorMap<Tuple, ReactorSet<Tuple>::type>::type tuple_provenance {};
-
-        void tuple_prov_insert(Tuple from, Tuple to);
+        ReactorMap<const Handler*, ReactorSet<Tuple>::type>::type tuple_handler_provenance {};
 
         void tuples_triggered_handler_insert(ReactorSet<Tuple>::type from, const Handler *to);
         bool did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to);
@@ -36,6 +36,7 @@ namespace foxtalk {
         void claim(const Tuple& tuple);
         void remove(const Tuple& tuple);
         void add_handler(const Handler* handler);
+        void remove_handler(const Handler* handler);
         void tick();
 
         // TODO: FOR TESTING ONLY!!!
@@ -43,9 +44,11 @@ namespace foxtalk {
             return db;
         }
 
-        ReactorSet<Tuple>::type query(Tuple q);
-
         ReactorSet<foxtalk::Tuple>::type query(Tuple *q);
+
+        void remove(std::queue<Tuple> workQueue);
+
+        void remove(ReactorSet<foxtalk::Tuple>::type tuples);
     };
 
 } // foxtalk

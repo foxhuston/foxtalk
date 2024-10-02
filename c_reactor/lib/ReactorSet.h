@@ -22,6 +22,15 @@ namespace foxtalk {
         typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>, traceable_allocator<std::pair<const T, V>>> type;
     };
 
+    template<typename K, typename V>
+    void rm_set_insert(typename ReactorMap<K, typename ReactorSet<V>::type>::type& map, K k, V v) {
+        if(!map.contains(k)) {
+            map.insert({ k, {} });
+        }
+
+        map.at(k).insert(v);
+    }
+
 }
 
 

@@ -16,9 +16,20 @@ namespace foxtalk {
 
     void Reactor::remove(const Tuple &tuple) {
         std::queue<Tuple> workQueue {};
-        ReactorSet<Tuple>::type seen {};
-
         workQueue.push(tuple);
+        remove(workQueue);
+    }
+
+    void Reactor::remove(ReactorSet<Tuple>::type tuples) {
+        std::queue<Tuple> workQueue {};
+        for(auto t : tuples) {
+            workQueue.push(t);
+        }
+        remove(workQueue);
+    }
+
+    void Reactor::remove(std::queue<Tuple> workQueue) {
+        ReactorSet<Tuple>::type seen {};
 
         while(!workQueue.empty()) {
             std::cout << "DEBUG REMOVE: WORK QUEUE IS " << workQueue.size() << std::endl;
@@ -61,23 +72,21 @@ namespace foxtalk {
     }
 
     void Reactor::add_handler(const Handler *handler) {
-        handlers.push_back(handler);
+        handlers.insert(handler);
     }
 
-    void Reactor::tuple_prov_insert(Tuple from, Tuple to) {
-        if(!tuple_provenance.contains(from)) {
-            tuple_provenance.insert({ from, {} });
+    void Reactor::remove_handler(const Handler *handler) {
+        handlers.erase(handler);
+        if(tuple_handler_provenance.contains(handler)) {
+            remove(tuple_handler_provenance.at(handler));
+            tuple_handler_provenance.erase(handler);
         }
-
-        tuple_provenance.at(from).insert(to);
     }
 
     ReactorSet<Tuple>::type Reactor::query(Tuple *q) {
         ReactorSet<Tuple>::type result_tuples {};
 
         for (auto t: db.get_tuples()) {
-//                std::cout << "Checking query " << *q << " vs tuple " << t << std::endl;
-
             if (!q->getSubject()->is_query()
                 && *t.getSubject() != *q->getSubject()) {
                 continue;
@@ -114,9 +123,10 @@ namespace foxtalk {
                     }
 
                     // If not, then run the handler with these results.
-                    h->handle_results(result_tuples_vec, [this, result_tuples](Tuple new_tuple) {
+                    h->handle_results(result_tuples_vec, [this, h, result_tuples](Tuple new_tuple) {
                         for (auto tr: result_tuples) {
-                            tuple_prov_insert(tr, new_tuple);
+                            rm_set_insert(tuple_handler_provenance, h, new_tuple);
+                            rm_set_insert(tuple_provenance, tr, new_tuple);
                         }
                         this->claim(new_tuple);
                     });
