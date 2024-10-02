@@ -13,6 +13,8 @@ add_library(
     Symbol.h
     DynamicHandler.h
     Handler.h
+        Tuple.cpp
+        ReactorCache.h
 )
 
 target_link_libraries(reactor gc gccpp dl)

@@ -28,10 +28,30 @@ struct TestHandler : Handler {
 };
 
 BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
+    BOOST_AUTO_TEST_CASE(TupleNounHashTest) {
+        auto hasher = boost::hash<TupleNoun>();
+        auto h1 = hasher(*TupleNoun::mkSymbol("lexi"));
+        auto h2 = hasher(*TupleNoun::mkSymbol("lexi"));
+
+        std::cout << "h1 = " << h1 << "; h2 = " << h2 << std::endl;
+
+        BOOST_ASSERT(h1 == h2);
+    }
 
     BOOST_AUTO_TEST_CASE(ReactorAddTupleTest) {
         Reactor reactor;
         reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+    }
+
+    BOOST_AUTO_TEST_CASE(ReactorDoubleAddTupleTest) {
+        Reactor reactor;
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+
+        auto size = reactor.get_db().size();
+        std::cout << "db size: " << size << std::endl;
+
+        BOOST_ASSERT(size == 1);
     }
 
     BOOST_AUTO_TEST_CASE(ReactorAddHandlerTest) {
@@ -70,6 +90,9 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         auto expected2 = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("puppy")};
         auto res2 = std::find(tuples.begin(), tuples.end(), expected2);
         BOOST_ASSERT(res2 != std::end(tuples));
+    }
+
+    BOOST_AUTO_TEST_CASE(ReactorGeneratedTuplesAreTransitivelyRemoved) {
     }
 
 BOOST_AUTO_TEST_SUITE_END()
