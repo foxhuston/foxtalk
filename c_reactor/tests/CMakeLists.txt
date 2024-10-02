@@ -4,7 +4,7 @@ set (Boost_USE_STATIC_LIBS OFF)
 find_package (Boost REQUIRED COMPONENTS unit_test_framework)
 include_directories (${Boost_INCLUDE_DIRS})
 
-add_executable (Boost_Tests_run DbTests.cpp)
+add_executable (Boost_Tests_run DbTests.cpp ReactorTests.cpp)
 
 target_include_directories(Boost_Tests_run PRIVATE ../lib)
 target_include_directories(Boost_Tests_run PRIVATE ../vendor/gc-8.2.4/include)

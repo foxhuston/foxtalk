@@ -23,15 +23,10 @@ namespace foxtalk {
     public:
         Db() { }
 
-        void add_tuple(const Tuple& tuple) {
-//            _all_tuples.insert(tuple);
-            _all_tuples.push_back(tuple);
-        }
+        void add_tuple(const Tuple& tuple);
+        const std::vector<Tuple, traceable_allocator<Tuple>>& get_tuples() const;
 
-        void remove_tuple(const Tuple& tuple) {
-            auto _ = std::remove(_all_tuples.begin(), _all_tuples.end(), tuple);
-//            _all_tuples.erase(tuple);
-        }
+        [[maybe_unused]] void remove_tuple(const Tuple& tuple);
     };
 
 } // foxtalk

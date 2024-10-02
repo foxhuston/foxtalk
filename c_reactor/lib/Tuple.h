@@ -5,9 +5,11 @@
 #ifndef REACTOR_TUPLE_H
 #define REACTOR_TUPLE_H
 
+#include <cstdint>
+#include <iostream>
+
 #include "gc.h"
 #include "gc_cpp.h"
-#include <cstdint>
 #include "boost/container_hash/hash.hpp"
 
 namespace foxtalk {
@@ -15,7 +17,7 @@ namespace foxtalk {
         typedef void (*Free_Fn)(void *);
 
         static TupleNoun* mkQuery() {
-            return {};
+            return new TupleNoun { Query, { .u64 = 0 } };
         }
 
         static TupleNoun* mkSymbol(const char *s) {
@@ -39,9 +41,30 @@ namespace foxtalk {
         }
 
         ~TupleNoun() {
+            std::cout << "DEBUG: Freeing Tuple Noun..." << std::endl;
             if (type == CPtr) {
                 data.cptr.free_fn(data.cptr.data);
             }
+        }
+
+        bool operator==(const TupleNoun &rhs) const {
+            if(type == rhs.type) {
+                switch(type) {
+                    case Type::Query:
+                        return true;
+                    case Type::Symbol:
+                        return strcmp(data.symbol, rhs.data.symbol) == 0;
+                    case Type::CPtr:
+                        return data.cptr.data == rhs.data.cptr.data
+                            && data.cptr.free_fn == rhs.data.cptr.free_fn;
+                    case Type::U64:
+                        return data.u64 == rhs.data.u64;
+                    case Type::I64:
+                        return data.i64 == rhs.data.i64;
+                }
+            }
+
+            return false;
         }
 
         const size_t hash() const {
@@ -65,6 +88,10 @@ namespace foxtalk {
             }
 
             return seed;
+        }
+
+        bool is_query() const {
+            return type == Type::Query;
         }
 
     private:
@@ -92,6 +119,29 @@ namespace foxtalk {
 
         TupleNoun(Type type, Data data) : type{type}, data{data} {}
 
+    public:
+        friend std::ostream &operator<<(std::ostream &os, const TupleNoun &noun) {
+            switch (noun.type) {
+                case Type::Query:
+                    os << "Query";
+                    break;
+                case Type::Symbol:
+                    os << noun.data.symbol;
+                    break;
+                case Type::CPtr:
+                    os << "{CPtr " << noun.data.cptr.data << "}";
+                    break;
+                case Type::U64:
+                    os << noun.data.u64;
+                    break;
+                case Type::I64:
+                    os << noun.data.i64;
+                    break;
+            }
+
+            return os;
+        }
+
     };
 
     struct Tuple : public gc {
@@ -105,9 +155,9 @@ namespace foxtalk {
 //        Tuple(Tuple &&) = delete;
 
         bool operator==(const Tuple& other) const {
-            return subject == other.subject
-                && predicate == other.predicate
-                && object == other.object;
+            return *subject == *other.subject
+                && *predicate == *other.predicate
+                && *object == *other.object;
         };
 
         Tuple(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object)
@@ -120,6 +170,12 @@ namespace foxtalk {
         const TupleNoun* getPredicate() const { return predicate; }
 
         const TupleNoun* getObject() const { return object; }
+
+        friend std::ostream &operator<<(std::ostream &os, const Tuple &tuple) {
+            os <<  "<" << *tuple.subject << ", " << *tuple.predicate
+               << ", " << *tuple.object << ">";
+            return os;
+        }
     };
 }
 
