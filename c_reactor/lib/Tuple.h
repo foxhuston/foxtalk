@@ -50,6 +50,7 @@ namespace foxtalk {
         }
 
         bool operator==(const TupleNoun &rhs) const {
+//            std::cout << "DEBUG COMPARE TUPLENOUN " << *this << " WITH " << rhs << std::endl;
             if(type == rhs.type) {
                 switch(type) {
                     case Type::Query:
@@ -181,6 +182,7 @@ namespace foxtalk {
     };
 
     typedef std::vector<Tuple, traceable_allocator<Tuple>> TupleVec;
+    typedef std::vector<Tuple *, traceable_allocator<Tuple*>> TuplePtrVec;
 }
 
 template<>

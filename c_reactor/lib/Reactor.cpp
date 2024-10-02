@@ -43,7 +43,13 @@ namespace foxtalk {
             }
 
             if(result_tuples.size() > 0) {
-                h->handle_results(result_tuples);
+                h->handle_results(result_tuples, [this, result_tuples](Tuple new_tuple) {
+//                    std::cout << "REACTOR GOT WISHED TUPLE: " << new_tuple << std::endl;
+                    for(auto tr : result_tuples) {
+                        tuple_provenance.push_back({ tr, new_tuple });
+                    }
+                    this->claim(new_tuple);
+                });
             }
         }
     }

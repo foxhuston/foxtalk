@@ -16,7 +16,7 @@ namespace foxtalk {
     struct DynamicHandler : Handler {
     private:
         typedef Tuple* (*GetQuery)();
-        typedef void (*HandleResults)(TupleVec);
+        typedef void (*HandleResults)(TupleVec, std::function<void(Tuple)>);
 
         void *handle;
         GetQuery _get_query;
@@ -25,7 +25,7 @@ namespace foxtalk {
 
     public:
         DynamicHandler(const char *file_name) {
-            handle = dlopen(file_name, RTLD_LOCAL | RTLD_LAZY);
+            handle = dlopen(file_name, RTLD_LOCAL | RTLD_NOW);
             if(handle == nullptr) {
                 throw std::runtime_error(std::format("Could not load dynamic handler! ({0})", strerror(errno)));
             }
@@ -44,8 +44,8 @@ namespace foxtalk {
             return _get_query();
         }
 
-        void handle_results(TupleVec query_results) const override {
-            return _handle_results(query_results);
+        void handle_results(TupleVec query_results, std::function<void(Tuple)> claim) const override {
+            return _handle_results(query_results, claim);
         }
 
         ~DynamicHandler() {

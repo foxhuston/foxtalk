@@ -6,6 +6,7 @@
 #define BOOST_TEST_DYN_LINK
 
 //#include <boost/test/included/unit_test.hpp>
+#include <algorithm>
 #include <boost/test/unit_test.hpp>
 #include "Tuple.h"
 #include "Reactor.h"
@@ -21,7 +22,7 @@ struct TestHandler : Handler {
         return new Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")};
     }
 
-    void handle_results(TupleVec tv) const override {
+    void handle_results(TupleVec tv, std::function<void(Tuple)> claim) const override {
         handler_result_count++;
     }
 };
@@ -59,6 +60,16 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         reactor.add_handler(&dh);
 
         reactor.tick();
+
+        auto tuples = reactor.get_db().get_tuples();
+
+        auto expected = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("super cool")};
+        auto res = std::find(tuples.begin(), tuples.end(), expected);
+        BOOST_ASSERT(res != std::end(tuples));
+
+        auto expected2 = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("puppy")};
+        auto res2 = std::find(tuples.begin(), tuples.end(), expected2);
+        BOOST_ASSERT(res2 != std::end(tuples));
     }
 
 BOOST_AUTO_TEST_SUITE_END()
