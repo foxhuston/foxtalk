@@ -24,17 +24,14 @@ namespace foxtalk {
     private:
         Db db {};
         std::vector<const Handler *> handlers { };
-//        std::unordered_map<Tuple, Tuple, traceable_allocator<Tuple>> tuple_provenance {};
 
-        // All of these should at least be hashsets...
-//        std::vector<std::pair<Tuple, const Handler *>, traceable_allocator<std::pair<Tuple, const Handler *>>> tuple_handler_activations {};
-//        std::vector<std::pair<const Handler *, Tuple>, traceable_allocator<std::pair<const Handler *, Tuple>>> handler_provenance {};
-
-//        ReactorSet<std::pair<Tuple, Tuple>>::type tuple_provenance {};
-
+        ReactorMap<ReactorSet<Tuple>::type, ReactorSet<const Handler*>::type>::type tuples_triggered_handler {};
         ReactorMap<Tuple, ReactorSet<Tuple>::type>::type tuple_provenance {};
 
         void tuple_prov_insert(Tuple from, Tuple to);
+
+        void tuples_triggered_handler_insert(ReactorSet<Tuple>::type from, const Handler *to);
+        bool did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to);
     public:
         void claim(const Tuple& tuple);
         void remove(const Tuple& tuple);

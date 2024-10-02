@@ -15,6 +15,7 @@
 using namespace foxtalk;
 
 
+// TODO: This is really not ergonomic.
 static size_t handler_result_count;
 
 struct TestHandler : Handler {
@@ -62,12 +63,31 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
     }
 
     BOOST_AUTO_TEST_CASE(ReactorCallsHandlerTest) {
+        handler_result_count = 0;
+
         Reactor reactor;
         TestHandler h{};
 
         reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
         reactor.add_handler(&h);
 
+        reactor.tick();
+
+        BOOST_ASSERT(handler_result_count == 1);
+    }
+
+    BOOST_AUTO_TEST_CASE(ReactorCallsHandlerOnlyOnceTest) {
+        handler_result_count = 0;
+
+        Reactor reactor;
+        TestHandler h{};
+
+        reactor.claim(Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")});
+        reactor.add_handler(&h);
+
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
         reactor.tick();
 
         BOOST_ASSERT(handler_result_count == 1);

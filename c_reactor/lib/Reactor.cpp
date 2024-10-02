@@ -61,47 +61,64 @@ namespace foxtalk {
 
     void Reactor::tick() {
         for (auto h: handlers) {
-            TupleVec result_tuples {};
+            ReactorSet<Tuple>::type result_tuples {};
             auto q = h->get_query();
 
             for (auto t: db.get_tuples()) {
-                std::cout << "Checking query " << *q << " vs tuple " << t << std::endl;
+//                std::cout << "Checking query " << *q << " vs tuple " << t << std::endl;
 
                 if (!q->getSubject()->is_query()
                     && *t.getSubject() != *q->getSubject()) {
-                    std::cout << "DEBUG QUIT ON SUBJ" << std::endl;
                     continue;
                 }
 
                 if (!q->getPredicate()->is_query()
                     && *t.getPredicate() != *q->getPredicate()) {
-                    std::cout << "DEBUG QUIT ON PRED" << std::endl;
                     continue;
                 }
 
                 if (!q->getObject()->is_query()
                     && *t.getObject() != *q->getObject()) {
-                    std::cout << "DEBUG QUIT ON OBJ" << std::endl;
                     continue;
                 }
 
-                result_tuples.push_back(t);
+                result_tuples.insert(t);
             }
 
             if(result_tuples.size() > 0) {
-                // Has this same set of tuples caused this activation before?
+                if(!did_tuples_trigger_handler(result_tuples, h)) {
+                    TupleVec result_tuples_vec{};
 
+                    tuples_triggered_handler_insert(result_tuples, h);
 
-                // If not, then run the handler with these results.
-                h->handle_results(result_tuples, [this, result_tuples](Tuple new_tuple) {
-//                    std::cout << "REACTOR GOT WISHED TUPLE: " << new_tuple << std::endl;
-                    for(auto tr : result_tuples) {
-                        tuple_prov_insert(tr, new_tuple);
+                    for(auto t : result_tuples) {
+                        result_tuples_vec.push_back(t);
                     }
-                    this->claim(new_tuple);
-                });
+
+                    // If not, then run the handler with these results.
+                    h->handle_results(result_tuples_vec, [this, result_tuples](Tuple new_tuple) {
+                        for (auto tr: result_tuples) {
+                            tuple_prov_insert(tr, new_tuple);
+                        }
+                        this->claim(new_tuple);
+                    });
+                }
             }
         }
+    }
+
+    void Reactor::tuples_triggered_handler_insert(ReactorSet<Tuple>::type from, const Handler *to) {
+        if(!tuples_triggered_handler.contains(from)) {
+            tuples_triggered_handler.insert({ from, {} });
+        }
+
+        tuples_triggered_handler.at(from).insert(to);
+
+    }
+
+    bool Reactor::did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to) {
+        return tuples_triggered_handler.contains(from)
+               && tuples_triggered_handler.at(from).contains(to);
     }
 
 } // foxtalk
