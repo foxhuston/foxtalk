@@ -3,13 +3,11 @@ pub mod c_when;
 
 pub use c_when::*;
 
-use std::ffi::{c_void, CStr, CString};
-use std::io;
-use std::io::Write;
 use libc::c_char;
+use std::ffi::CStr;
+use std::sync::Arc;
+use tuple_db::tuple::{Tuple, TupleNoun};
 use ustr::Ustr;
-use crate::ffi2::c_heap_object::CHeapObject;
-use crate::tuple::{Tuple, TupleNoun};
 
 ///// PtrTuple FFI OBJECT //////////////////////////////////////////////////////
 
@@ -21,40 +19,63 @@ pub struct PtrTuple {
     pub object: *mut TupleNoun
 }
 
+impl PtrTuple {
+    pub fn to_tuple(&self) -> Arc<Tuple> {
+        Arc::new(Tuple {
+            subject: unsafe { Arc::from_raw(self.subject) },
+            predicate: unsafe { Arc::from_raw(self.predicate) },
+            object: unsafe { Arc::from_raw(self.object) }
+        })
+    }
+
+    pub fn from_tuple(t: Arc<Tuple>) -> *mut Self {
+        let subject = Arc::into_raw(t.subject.to_owned()).cast_mut();
+        let predicate = Arc::into_raw(t.predicate.to_owned()).cast_mut();
+        let object = Arc::into_raw(t.object.to_owned()).cast_mut();
+
+        &mut PtrTuple {
+            subject,
+            predicate,
+            object
+        }
+
+    }
+}
+
 ///// TUPLE NOUN FFI CONSTRUCTORS //////////////////////////////////////////////
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
-    Box::leak(Box::new(TupleNoun::Query()))
+    Arc::into_raw(Arc::new(TupleNoun::Query)).cast_mut()
 }
 
-#[no_mangle]
-pub extern "C" fn mk_tuple_noun_cptr_with_free(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> *mut TupleNoun {
-    let tn = TupleNoun::CPtrWithFree(CHeapObject::new(data, free_fn));
-    Box::leak(Box::new(tn))
-}
+// #[no_mangle]
+// pub extern "C" fn mk_tuple_noun_cptr_with_free(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> *mut TupleNoun {
+//     let tn = TupleNoun::CPtrWithFree(CHeapObject::new(data, free_fn));
+//     Box::leak(Box::new(tn))
+// }
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
     let us = Ustr::from(unsafe { CStr::from_ptr(s) }.to_str().unwrap());
-    let sym = TupleNoun::Symbol(us);
-    Box::leak(Box::new(sym))
+    let sym = Arc::into_raw(Arc::new(TupleNoun::Symbol(us)));
+    sym.cast_mut()
 }
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_u64(n: u64) -> *mut TupleNoun {
-    Box::leak(Box::new(TupleNoun::U64(n)))
+    &mut TupleNoun::U64(n)
 }
 
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
-    Box::leak(Box::new(TupleNoun::I64(n)))
+    &mut TupleNoun::I64(n)
 }
 
 ///// TUPLE NOUN FFI DATA READERS //////////////////////////////////////////////
 
 #[no_mangle]
 pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *const c_char {
-    match unsafe { &*tuple_noun } {
+    match unsafe { Arc::from_raw(tuple_noun) }.as_ref() {
         TupleNoun::Symbol(s) => {
             s.as_char_ptr()
         }
@@ -62,13 +83,13 @@ pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *const
     }
 }
 
-#[no_mangle]
-pub extern "C" fn get_tuple_noun_as_cptr(tuple_noun: *mut TupleNoun) -> *mut c_void {
-    match unsafe { &*tuple_noun } {
-        TupleNoun::CPtrWithFree(d) => { d.data() }
-        s => panic!("{}", s.mk_panic_msg("a CPtrWithFree"))
-    }
-}
+// #[no_mangle]
+// pub extern "C" fn get_tuple_noun_as_cptr(tuple_noun: *mut TupleNoun) -> *mut c_void {
+//     match unsafe { &*tuple_noun } {
+//         TupleNoun::CPtrWithFree(d) => { d.data() }
+//         s => panic!("{}", s.mk_panic_msg("a CPtrWithFree"))
+//     }
+// }
 
 #[no_mangle]
 pub extern "C" fn get_tuple_noun_as_u64(tuple_noun: *mut TupleNoun) -> u64 {
@@ -99,38 +120,40 @@ pub extern "C" fn mk_tuple<'a>(subject: *mut TupleNoun, predicate: *mut TupleNou
 ///// TUPLE NOUN DATA READERS //////////////////////////////////////////////////
 #[no_mangle]
 pub extern "C" fn get_tuple_subject(t: *mut PtrTuple) -> *mut TupleNoun {
-    unsafe { (*t).subject }
+
+    unsafe { Arc::from_raw(t.cast_const()) }.subject
+    // unsafe { (*t).subject }
 }
 
 #[no_mangle]
 pub extern "C" fn get_tuple_predicate(t: *mut PtrTuple) -> *mut TupleNoun {
-    unsafe { (*t).predicate }
+    unsafe { Arc::from_raw(t.cast_const()) }.predicate
 }
 
 #[no_mangle]
 pub extern "C" fn get_tuple_object(t: *mut PtrTuple) -> *mut TupleNoun {
-    unsafe { (*t).object }
+    unsafe { Arc::from_raw(t.cast_const()) }.object
 }
 
 ///// TUPLE NOUN IMPORTER //////////////////////////////////////////////////////
 
-pub fn get_c_tuple_noun(tupn: *mut TupleNoun) -> Box<TupleNoun> {
-    unsafe { Box::from_raw(tupn) }
+pub fn get_c_tuple_noun(tupn: *mut TupleNoun) -> Arc<TupleNoun> {
+    unsafe { Arc::from_raw(tupn) }
 }
 
 ///// TUPLE IMPORTER ///////////////////////////////////////////////////////////
 
 pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
-    let t = unsafe { Box::from_raw(tup) };
+    let t = unsafe { Arc::from_raw(tup) };
     let s = get_c_tuple_noun(t.subject);
     let p = get_c_tuple_noun(t.predicate);
     let o = get_c_tuple_noun(t.object);
 
 
     let out = Tuple {
-        subject: *s,
-        predicate: *p,
-        object: *o
+        subject: s,
+        predicate: p,
+        object: o
     };
 
     // So what's happening here is that in CPP, we pass the pointer to a `TupleNoun`
@@ -141,30 +164,30 @@ pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
     out
 }
 
-impl From<*mut PtrTuple> for Tuple {
-    fn from(value: *mut PtrTuple) -> Self {
-        get_c_tuple(value)
-    }
-}
-
-impl From<Tuple> for *mut PtrTuple {
-    fn from(value: Tuple) -> Self {
-        Box::leak(Box::new(PtrTuple {
-            subject: Box::leak(Box::new(value.subject)),
-            predicate: Box::leak(Box::new(value.predicate)),
-            object: Box::leak(Box::new(value.object)),
-        }))
-    }
-}
+// impl From<*mut PtrTuple> for Tuple {
+//     fn from(value: *mut PtrTuple) -> Self {
+//         get_c_tuple(value)
+//     }
+// }
+//
+// impl From<Tuple> for *mut PtrTuple {
+//     fn from(value: Tuple) -> Self {
+//         Box::leak(Box::new(PtrTuple {
+//             subject: Box::leak(Box::new(value.subject)),
+//             predicate: Box::leak(Box::new(value.predicate)),
+//             object: Box::leak(Box::new(value.object)),
+//         }))
+//     }
+// }
 
 ///// UNIT TESTS ///////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use libloading;
     use crate::reactor::Reactor;
-    use crate::tuple::test_helpers;
+    use libloading;
+    use tuple_db::tuple::test_helpers;
 
     #[test]
     fn tuple_noun_string() {

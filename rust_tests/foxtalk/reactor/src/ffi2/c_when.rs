@@ -1,13 +1,10 @@
-use std::ffi::c_void;
-use std::mem;
-use std::ptr::NonNull;
-
 use anyhow::Result;
+use std::sync::Arc;
 
-use libloading::os::unix::{Library, Symbol};
-use crate::ffi2::{get_c_tuple, PtrTuple};
-use crate::tuple::Tuple;
+use crate::ffi2::PtrTuple;
 use crate::when::When;
+use libloading::os::unix::{Library, Symbol};
+use tuple_db::tuple::Tuple;
 
 type CGetQuery = unsafe extern "C" fn() -> *mut PtrTuple;
 type CWhenHandler = unsafe extern "C" fn(*mut PtrTuple, *mut usize) -> *mut *mut PtrTuple;
@@ -17,6 +14,7 @@ type CWhenHandler = unsafe extern "C" fn(*mut PtrTuple, *mut usize) -> *mut *mut
 //   set up provenance while still having functions like `claim` and `wish`, which is important
 //   if I ever want to allow programs to `remove` tuples from the db (important for e.g. the
 //   loader that watches for paper program IDs to appear and disappear on/from the table).
+#[allow(dead_code)]
 pub struct CWhen {
     lib: Library,
     get_query: Symbol<CGetQuery>,
@@ -39,16 +37,19 @@ impl CWhen {
 }
 
 impl When for CWhen {
-    fn get_query(&self) -> Tuple {
+    fn get_query(&self) -> Arc<Tuple> {
         let cq = unsafe { (&self.get_query)() };
-        cq.into()
+        match unsafe { cq.as_ref() } {
+            Some(cq) => cq.to_tuple(),
+            None => panic!("C get_query returned null")
+        }
     }
 
-    fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+    fn handle(&mut self, results: Arc<Tuple>) -> Vec<Arc<Tuple>> {
         println!("C <--> Rust handler begin for:");
         println!("    RUST tuple {results:?}");
 
-        let query_result_tuple = results.into();
+        let query_result_tuple = PtrTuple::from_tuple(results);
 
         let mut out_size: usize = 0;
         let ctuple_array = unsafe { (&self.when_handler)(query_result_tuple, &mut out_size) };
@@ -57,7 +58,12 @@ impl When for CWhen {
 
         let ctuples = unsafe { Vec::from_raw_parts(ctuple_array, out_size, out_size) };
 
-        let out = ctuples.into_iter().map(|ptr_tuple| { ptr_tuple.into() }).collect();
+        let out = ctuples
+            .iter()
+            .map(|ptr_tuple| {
+                PtrTuple::to_tuple(unsafe { ptr_tuple.as_ref().unwrap() })
+            })
+            .collect();
 
         println!("C <--> Rust handler end");
 

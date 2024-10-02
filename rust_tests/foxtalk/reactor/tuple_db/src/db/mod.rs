@@ -45,6 +45,8 @@ impl<'a> Db {
 
         // This is not efficient. Let's benchmark and determine how inefficent it is.
         // We can trade write and read time off by building more indices at write-time.
+
+        
         let results = self.tuples.iter().filter(|t| {
             let s = &t.subject;
             let p = &t.predicate;

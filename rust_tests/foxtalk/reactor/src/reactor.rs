@@ -1,8 +1,8 @@
 use tuple_db::db::{Db, DbIndex};
-use crate::tuple::Tuple;
+use tuple_db::tuple::Tuple;
 use crate::when::When;
 use std::collections::{HashMap, HashSet};
-
+use std::sync::Arc;
 use uuid::Uuid;
 
 type Handler = Box<dyn When>;
@@ -11,23 +11,23 @@ type Handler = Box<dyn When>;
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct HandlerId(Uuid);
 
-pub struct Reactor<'a> {
+pub struct Reactor {
     // This uses UUID keys so that we can quickly find handlers
     // without needing the handlers themselves to be hashable.
     handlers: HashMap<HandlerId, Handler>,
 
     // TODO: UNPUB
-    pub db: Db<'a>,
+    pub db: Db,
 
-    handler_provenance: DbIndex<HandlerId, &'a Tuple>,
-    tuple_provenance: DbIndex<&'a Tuple, &'a Tuple>,
+    handler_provenance: DbIndex<HandlerId, Arc<Tuple>>,
+    tuple_provenance: DbIndex<Arc<Tuple>, Arc<Tuple>>,
 
     // Tuple Triggered handler (TODO: with query?)
-    handler_ran_for_tuple: DbIndex<&'a Tuple, HandlerId>,
+    handler_ran_for_tuple: DbIndex<Arc<Tuple>, HandlerId>,
 }
 
-impl Reactor<'_> {
-    pub fn new<'a>() -> Reactor<'a> {
+impl Reactor {
+    pub fn new<'a>() -> Reactor {
         Reactor {
             db: Db::new(),
             handlers: HashMap::new(),
@@ -59,12 +59,12 @@ impl Reactor<'_> {
         self.handlers.remove(&id);
     }
 
-    pub fn claim(&mut self, tuple: Tuple) {
+    pub fn claim(&mut self, tuple: Arc<Tuple>) {
         self.db.claim(tuple);
     }
 
-    pub fn remove_claim(&mut self, tuple: Tuple) {
-        let mut work_queue: Vec<Tuple> = Vec::new();
+    pub fn remove_claim(&mut self, tuple: Arc<Tuple>) {
+        let mut work_queue: Vec<Arc<Tuple>> = Vec::new();
 
         // Clean up provenance / caches.
         self.handler_ran_for_tuple.remove_all_by_key(&tuple);
@@ -93,7 +93,7 @@ impl Reactor<'_> {
         // into which we place tuple generated across all handlers. Once we've done that,
         // the mutably-borrowed scope is ended (at the closing `}` of the for-loop),
         // and we can re-borrow ourselves to insert the claims into the db.
-        let mut change_queue: HashSet<(Tuple, HandlerId, Tuple)> = HashSet::new();
+        let mut change_queue: HashSet<(Arc<Tuple>, HandlerId, Arc<Tuple>)> = HashSet::new();
 
         for (hid, h) in self.handlers.iter_mut() {
             let results = self.db.query(h.get_query());
@@ -105,7 +105,11 @@ impl Reactor<'_> {
 
                     let wishes = h.handle(query_result);
                     wishes.into_iter()
-                        .map(|wished_tuple| (qr.clone(), hid.clone(), wished_tuple))
+                        .map(|wished_tuple| {
+                            let qrc = qr.clone();
+                            let hidc = hid.clone();
+                            (qrc, hidc, wished_tuple)
+                        })
                         .for_each(|t| {
                             change_queue.insert(t);
                             ()
@@ -128,45 +132,46 @@ impl Reactor<'_> {
 
 #[cfg(test)]
 mod tests {
+    use tuple_db::tuple::test_helpers::mk_query;
+    use tuple_db::tuple::TupleNoun;
     use super::*;
-    use crate::tuple::TupleNoun::*;
+    use tuple_db::tuple::TupleNoun::*;
     use crate::when::When;
-    use crate::tuple::test_helpers::*;
-    use crate::tuple::TupleNoun;
+    use tuple_db::tuple::test_helpers::*;
     ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////
 
     struct HuskyHandler {}
 
     impl When for HuskyHandler {
-        fn get_query(&self) -> Tuple {
+        fn get_query(&self) -> Arc<Tuple> {
             // When /who/ is a husky:
             mk_query(None, Some("is a"), Some("husky"))
         }
 
-        fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+        fn handle(&mut self, results: Arc<Tuple>) -> Vec<Arc<Tuple>> {
             // Wish (who) is highlighted blue.
-            vec![Tuple {
-                subject: results.subject,
-                predicate: TupleNoun::from_str("is highlighted"),
-                object: TupleNoun::from_str("blue"),
-            }]
+            vec![Arc::new(Tuple {
+                subject: results.subject.clone(),
+                predicate: Arc::new(TupleNoun::from_str("is highlighted")),
+                object: Arc::new(TupleNoun::from_str("blue")),
+            })]
         }
     }
 
     struct HighlightHandler {}
     impl When for HighlightHandler {
-        fn get_query(&self) -> Tuple {
+        fn get_query(&self) -> Arc<Tuple> {
             // When /someone/ is highlighted /color/:
             mk_query(None, Some("is highlighted"), None)
         }
 
-        fn handle(&mut self, results: Tuple) -> Vec<Tuple> {
+        fn handle(&mut self, results: Arc<Tuple>) -> Vec<Arc<Tuple>> {
             // Wish (someone) debug_illuminated (color).
-            vec![Tuple {
-                subject: results.subject,
-                predicate: TupleNoun::from_str("debug_illuminated"),
-                object: results.object,
-            }]
+            vec![Arc::new(Tuple {
+                subject: results.subject.clone(),
+                predicate: Arc::new(TupleNoun::from_str("debug_illuminated")),
+                object: results.object.clone(),
+            })]
         }
     }
 
