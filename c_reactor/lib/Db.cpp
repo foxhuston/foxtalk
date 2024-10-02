@@ -14,7 +14,9 @@ namespace foxtalk {
     void Db::remove_tuple(const Tuple &tuple) {
         _all_tuples.erase(tuple);
     }
-    const ReactorCache<Tuple>::Set& Db::get_tuples() const {
+
+    // This copies the whole hash set??????
+    const ReactorSet<Tuple>::type& Db::get_tuples() const {
         return _all_tuples;
     }
 } // foxtalk

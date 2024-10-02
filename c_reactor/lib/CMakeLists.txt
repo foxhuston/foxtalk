@@ -14,7 +14,7 @@ add_library(
     DynamicHandler.h
     Handler.h
         Tuple.cpp
-        ReactorCache.h
+        ReactorSet.h
 )
 
 target_link_libraries(reactor gc gccpp dl)

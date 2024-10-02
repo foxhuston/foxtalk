@@ -188,22 +188,4 @@ namespace foxtalk {
 
 }
 
-//template<>
-//struct std::hash<foxtalk::TupleNoun> {
-//    size_t operator()(const foxtalk::TupleNoun& t) const noexcept {
-//        return t.hash();
-//    }
-//};
-//
-//template<>
-//struct std::hash<foxtalk::Tuple> {
-//    size_t operator()(const foxtalk::Tuple& t) const noexcept {
-//        size_t seed = 0;
-//        boost::hash_combine(seed, t.getSubject());
-//        boost::hash_combine(seed, t.getPredicate());
-//        boost::hash_combine(seed, t.getObject());
-//        return seed;
-//    }
-//};
-
 #endif //REACTOR_TUPLE_H

@@ -14,7 +14,7 @@
 #include "Tuple.h"
 #include "Handler.h"
 
-#include "ReactorCache.h"
+#include "ReactorSet.h"
 
 // GC_malloc & GC_register_finalizer will be the tricks, here.
 
@@ -30,7 +30,11 @@ namespace foxtalk {
 //        std::vector<std::pair<Tuple, const Handler *>, traceable_allocator<std::pair<Tuple, const Handler *>>> tuple_handler_activations {};
 //        std::vector<std::pair<const Handler *, Tuple>, traceable_allocator<std::pair<const Handler *, Tuple>>> handler_provenance {};
 
-        ReactorCache<std::pair<Tuple, Tuple>>::Set tuple_provenance {};
+//        ReactorSet<std::pair<Tuple, Tuple>>::type tuple_provenance {};
+
+        ReactorMap<Tuple, ReactorSet<Tuple>::type>::type tuple_provenance {};
+
+        void tuple_prov_insert(Tuple from, Tuple to);
     public:
         void claim(const Tuple& tuple);
         void remove(const Tuple& tuple);

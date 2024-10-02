@@ -12,7 +12,7 @@
 #include "gc_allocator.h"
 #include "Tuple.h"
 
-#include "ReactorCache.h"
+#include "ReactorSet.h"
 
 namespace foxtalk {
 
@@ -20,13 +20,13 @@ namespace foxtalk {
     private:
 //        TupleVec _all_tuples { };
 //        std::unordered_set<Tuple, std::hash<Tuple>, std::equal_to<Tuple>, traceable_allocator<Tuple>> _all_tuples { };
-        ReactorCache<Tuple>::Set _all_tuples;
+        ReactorSet<Tuple>::type _all_tuples;
 
     public:
         Db() { }
 
         void add_tuple(const Tuple& tuple);
-        [[nodiscard]] const ReactorCache<Tuple>::Set& get_tuples() const;
+        [[nodiscard]] const ReactorSet<Tuple>::type& get_tuples() const;
 
         // TODO: FOR TESTING ONLY!
         size_t size() const {
