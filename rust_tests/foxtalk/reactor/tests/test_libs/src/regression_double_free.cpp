@@ -21,11 +21,17 @@ std::vector<Tuple> *WhenHandler(Tuple result)
         mk_tuple_noun_symbol("cool")
     ));
 
+    std::cout << "a " << subj << std::endl;
+
+    std::cout << "b " << subj << std::endl;
+
     out->push_back(mk_tuple(
         subj,
         mk_tuple_noun_symbol("is a"),
         mk_tuple_noun_symbol("pup")
     ));
+
+    std::cout << "c " << subj << std::endl;
 
     return out;
 }

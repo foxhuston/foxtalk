@@ -17,11 +17,15 @@ struct Dog
 
 Tuple GetQuery()
 {
-    return Tuple {
-        { TupleNoun::Tag::Query },
-        isA,
-        { TupleNoun::Tag::Str, { .str = husky }}
-    };
+
+    auto s = mk_tuple_noun_query();
+    auto p = mk_tuple_noun_symbol("is a");
+    auto o = mk_tuple_noun_symbol("husky");
+    return mk_tuple(
+        s,
+        p,
+        o
+    );
 }
 
 // When (you) is a "husky"
@@ -30,28 +34,21 @@ std::vector<Tuple> *WhenHandler(Tuple *result)
     std::cout << "Hello from C++ WhenHandler" << std::endl;
     std::cout << "Subject is " << result->subject << std::endl;
 
-    auto obj = new TupleNoun {
-        TupleNoun::Tag::Ptr,
-        // Needs copy??
-        { .ptr = new Dog { result->subject.dat.str } }
-    };
+    auto subj = get_tuple_subject(result);
+    auto pred = get_tuple_predicate(result);
+    auto outTuple = mk_tuple(
+        subj,
+        mk_tuple_noun_symbol("is a"),
+        mk_tuple_noun_symbol("dog")
+    );
 
-    Tuple outTuple {
-        result->subject,
-        isA,
-        // Needs string copy??
-        { TupleNoun::Tag::Ptr, { .ptr = new Dog { result->subject.dat.str } } }
-    };
+    auto outTuple2 = mk_tuple(
+        subj,
+        pred,
+        mk_tuple_noun_symbol("bunny")
+    );
 
-    auto out = new std::vector<Tuple>{outTuple};
-
+    auto out = new std::vector<Tuple>{outTuple2};
     return out;
 }
 
-extern "C" void free_tuple_obj(void *obj)
-{
-    std::cout << "Cleanin' up some dogs." << std::endl;
-    delete static_cast<Dog *>(obj);
-}
-
-extern "C" void free_tuple_subj(void *subj) {}

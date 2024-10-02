@@ -19,7 +19,7 @@ where K: PartialEq + Eq + Hash,
                 hs.insert(value);
                 self.map.insert(key, hs);
             }
-            Some(mut hs) => {
+            Some(hs) => {
                 hs.insert(value);
             }
         }
@@ -53,7 +53,7 @@ where K: PartialEq + Eq + Hash,
     pub fn remove(&mut self, key: &K, value: &V) {
         match self.map.get_mut(key) {
             None => {}
-            Some(mut hs) => { hs.remove(value); }
+            Some(hs) => { hs.remove(value); }
         }
     }
 

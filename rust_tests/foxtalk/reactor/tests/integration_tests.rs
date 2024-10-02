@@ -1,11 +1,10 @@
-use reactor::tuple::{Tuple, TupleNoun, test_helpers::{mk_tuple, mk_query}};
 use reactor::when::When;
+use tuple_db::tuple::{test_helpers::{mk_query, mk_tuple}, TupleNoun};
 
 use reactor::ffi2::*;
 use reactor::reactor::Reactor;
 
 use std::path::PathBuf;
-
 
 fn linked_lib_path(filename: &str) -> String {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -16,6 +15,7 @@ fn linked_lib_path(filename: &str) -> String {
     let owned_path = path_str.to_owned();
     owned_path
 }
+
 
 #[test]
 fn ffi_loads_a_library() {
@@ -29,15 +29,15 @@ fn ffi_runs_handler() {
 
     println!("Got query: {query:?}");
 
-    assert_eq!(query.subject, TupleNoun::Query());
-    assert_eq!(query.predicate, TupleNoun::from_str("is a"));
-    assert_eq!(query.object, TupleNoun::from_str("husky"));
+    assert_eq!(*query.subject, TupleNoun::Query);
+    assert_eq!(*query.predicate, TupleNoun::from_str("is a"));
+    assert_eq!(*query.object, TupleNoun::from_str("husky"));
 
     let results = when.handle(mk_tuple("lexi", "is a", "husky"));
     assert_eq!(results.len(), 1);
 
     let first = results.first().unwrap();
-    assert_eq!(first.predicate, TupleNoun::from_str("is a"));
+    assert_eq!(*first.predicate, TupleNoun::from_str("is a"));
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn ffi_finds_tuples() {
     let mut reactor = Reactor::new();
     reactor.claim(mk_tuple("lexi", "is a", "husky"));
 
-    let when = unsafe { CWhen::new(linked_lib_path("test_ids.so").as_str()) }.unwrap();
+    let when = unsafe { CWhen::new(linked_lib_path("tuple_noun_string.so").as_str()) }.unwrap();
     reactor.add_handler(Box::new(when));
 
     reactor.tick();

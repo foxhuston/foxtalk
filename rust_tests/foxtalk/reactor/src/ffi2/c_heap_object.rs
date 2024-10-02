@@ -9,17 +9,17 @@
  * data about a tuple is corrupt, the whole tuple should be thrown out.
  */
 use std::ffi::c_void;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 #[repr(transparent)]
-pub struct CHeapObject(Rc<FfiBlob>);
+pub struct CHeapObject(Arc<FfiBlob>);
 
 impl CHeapObject {
     // Since we want to be able to reference this in multiple places, we only return ourselves
     // in RC, so we don't preemptively drop our constructor.
     pub fn new(data: *mut c_void, free_fn: unsafe extern "C" fn(*mut c_void)) -> CHeapObject {
-        CHeapObject(Rc::new(FfiBlob { data, free_fn }))
+        CHeapObject(Arc::new(FfiBlob { data, free_fn }))
     }
 
     pub fn data(&self) -> *mut c_void {
@@ -53,7 +53,7 @@ mod test {
         let mut n = 0;
         let nptr: *mut usize = &mut n;
         {
-            let fi = CHeapObject::new(nptr.cast(), drop_it);
+            let _ = CHeapObject::new(nptr.cast(), drop_it);
             assert_eq!(n, 0);
         }
 
