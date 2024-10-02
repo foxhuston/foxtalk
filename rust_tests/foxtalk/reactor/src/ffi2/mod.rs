@@ -2,12 +2,18 @@ pub mod c_heap_object;
 pub mod c_when;
 
 pub use c_when::*;
-
 use libc::c_char;
 use std::ffi::CStr;
 use std::sync::Arc;
 use tuple_db::tuple::{Tuple, TupleNoun};
 use ustr::Ustr;
+
+/*
+    For the FFI, we still need to understand borrowing and ownership of pointers
+    or else we'll have to worry about double-freeing or leaking memory.
+
+    Let's label each function with the ownership or borrowing semantics it expects.
+ */
 
 ///// PtrTuple FFI OBJECT //////////////////////////////////////////////////////
 
@@ -21,17 +27,26 @@ pub struct PtrTuple {
 
 impl PtrTuple {
     pub fn to_tuple(&self) -> Arc<Tuple> {
-        Arc::new(Tuple {
-            subject: unsafe { Arc::from_raw(self.subject) },
-            predicate: unsafe { Arc::from_raw(self.predicate) },
-            object: unsafe { Arc::from_raw(self.object) }
+        let subject = unsafe { Arc::from_raw(self.subject) };
+        let predicate = unsafe { Arc::from_raw(self.predicate) };
+        let object = unsafe { Arc::from_raw(self.object) };
+
+        Arc::from(Tuple {
+            subject,
+            predicate,
+            object,
         })
     }
 
     pub fn from_tuple(t: Arc<Tuple>) -> *mut Self {
-        let subject = Arc::into_raw(t.subject.to_owned()).cast_mut();
-        let predicate = Arc::into_raw(t.predicate.to_owned()).cast_mut();
-        let object = Arc::into_raw(t.object.to_owned()).cast_mut();
+
+        let subject = Arc::as_ptr(&t.subject).cast_mut();
+        let predicate = Arc::as_ptr(&t.predicate).cast_mut();
+        let object = Arc::as_ptr(&t.object).cast_mut();
+
+        // let subject = Arc::into_raw(t.subject.as_).cast_mut();
+        // let predicate = Arc::into_raw(t.predicate).cast_mut();
+        // let object = Arc::into_raw(t.object).cast_mut();
 
         &mut PtrTuple {
             subject,
@@ -43,6 +58,9 @@ impl PtrTuple {
 }
 
 ///// TUPLE NOUN FFI CONSTRUCTORS //////////////////////////////////////////////
+
+// This creates a heap object, and gives the ownership of that object to C. C is now responsible
+// for freeing it, OR for giving full ownership back.
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
     Arc::into_raw(Arc::new(TupleNoun::Query)).cast_mut()
@@ -54,6 +72,9 @@ pub extern "C" fn mk_tuple_noun_query() -> *mut TupleNoun {
 //     Box::leak(Box::new(tn))
 // }
 
+
+// This creates a heap object, and gives the ownership of that object to C. C is now responsible
+// for freeing it, OR for giving full ownership back.
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
     let us = Ustr::from(unsafe { CStr::from_ptr(s) }.to_str().unwrap());
@@ -61,11 +82,15 @@ pub extern "C" fn mk_tuple_noun_symbol(s: *const c_char) -> *mut TupleNoun {
     sym.cast_mut()
 }
 
+// This returns a stack value
+// but... it's still a reference to it? I'm a bit confused here, come back to this one
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_u64(n: u64) -> *mut TupleNoun {
     &mut TupleNoun::U64(n)
 }
 
+// This returns a stack value
+// but... it's still a reference to it? I'm a bit confused here, come back to this one
 #[no_mangle]
 pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
     &mut TupleNoun::I64(n)
@@ -73,6 +98,9 @@ pub extern "C" fn mk_tuple_noun_i64(n: i64) -> *mut TupleNoun {
 
 ///// TUPLE NOUN FFI DATA READERS //////////////////////////////////////////////
 
+// tuple_noun here is a pointer that rust has now fully taken ownership back from.
+// It returns a pointer with a `static lifetime (the ustr). So,
+// `tuple_noun` here is fully consumed, and the ffi lang must not use it again.
 #[no_mangle]
 pub extern "C" fn get_tuple_noun_as_symbol(tuple_noun: *mut TupleNoun) -> *const c_char {
     match unsafe { Arc::from_raw(tuple_noun) }.as_ref() {
@@ -110,29 +138,33 @@ pub extern "C" fn get_tuple_noun_as_i64(tuple_noun: *mut TupleNoun) -> i64 {
 ///// TUPLE FFI CONSTRUCTOR ////////////////////////////////////////////////////
 
 #[no_mangle]
-pub extern "C" fn mk_tuple<'a>(subject: *mut TupleNoun, predicate: *mut TupleNoun, object: *mut TupleNoun) -> &'a PtrTuple {
+pub extern "C" fn mk_tuple(subject: *mut TupleNoun, predicate: *mut TupleNoun, object: *mut TupleNoun) -> PtrTuple {
     println!("Making tuple <{subject:?}, {predicate:?}, {object:?}>...");
     let out = PtrTuple { subject, predicate, object };
     println!("Made tuple {out:?}");
-    Box::leak(Box::new(out))
+    out
+
 }
 
 ///// TUPLE NOUN DATA READERS //////////////////////////////////////////////////
 #[no_mangle]
 pub extern "C" fn get_tuple_subject(t: *mut PtrTuple) -> *mut TupleNoun {
 
-    unsafe { Arc::from_raw(t.cast_const()) }.subject
-    // unsafe { (*t).subject }
+    // t.subject;
+    // unsafe { Arc::from_raw(t.cast_const()) }.subject
+    unsafe { (*t).subject }
 }
 
 #[no_mangle]
 pub extern "C" fn get_tuple_predicate(t: *mut PtrTuple) -> *mut TupleNoun {
-    unsafe { Arc::from_raw(t.cast_const()) }.predicate
+    // unsafe { Arc::from_raw(t.cast_const()) }.predicate
+    unsafe { (*t).predicate }
 }
 
 #[no_mangle]
 pub extern "C" fn get_tuple_object(t: *mut PtrTuple) -> *mut TupleNoun {
-    unsafe { Arc::from_raw(t.cast_const()) }.object
+    // unsafe { Arc::from_raw(t.cast_const()) }.object
+    unsafe { (*t).object }
 }
 
 ///// TUPLE NOUN IMPORTER //////////////////////////////////////////////////////
@@ -144,17 +176,27 @@ pub fn get_c_tuple_noun(tupn: *mut TupleNoun) -> Arc<TupleNoun> {
 ///// TUPLE IMPORTER ///////////////////////////////////////////////////////////
 
 pub fn get_c_tuple(tup: *mut PtrTuple) -> Tuple {
-    let t = unsafe { Arc::from_raw(tup) };
-    let s = get_c_tuple_noun(t.subject);
-    let p = get_c_tuple_noun(t.predicate);
-    let o = get_c_tuple_noun(t.object);
+    let t = unsafe { &*tup };
 
+    let s = unsafe { Arc::from_raw(t.subject) };
+    let p = unsafe { Arc::from_raw(t.predicate) };
+    let o = unsafe { Arc::from_raw(t.object) };
 
     let out = Tuple {
-        subject: s,
-        predicate: p,
-        object: o
+        subject: Arc::clone(&s),
+        predicate: Arc::clone(&p),
+        object: Arc::clone(&o),
     };
+
+    unsafe {
+        Arc::decrement_strong_count(&s);
+        Arc::decrement_strong_count(&p);
+        Arc::decrement_strong_count(&o);
+    }
+    let _ = Arc::into_raw(s);
+    let _ = Arc::into_raw(p);
+    let _ = Arc::into_raw(o);
+
 
     // So what's happening here is that in CPP, we pass the pointer to a `TupleNoun`
     // we got from the query right back into `mk_tuple` as the subject (for instance).

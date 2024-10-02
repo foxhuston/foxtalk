@@ -2,6 +2,7 @@ use std::str::FromStr;
 use ustr::Ustr;
 
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[repr(C)]
 pub enum TupleNoun {
     Query, // TODO: get rid of ()? Will the ffi freak out?
     // CPtrWithFree(CHeapObject),

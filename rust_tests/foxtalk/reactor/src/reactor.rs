@@ -135,7 +135,6 @@ mod tests {
     use tuple_db::tuple::test_helpers::mk_query;
     use tuple_db::tuple::TupleNoun;
     use super::*;
-    use tuple_db::tuple::TupleNoun::*;
     use crate::when::When;
     use tuple_db::tuple::test_helpers::*;
     ///// WHEN-HANDLER TESTS ///////////////////////////////////////////////////

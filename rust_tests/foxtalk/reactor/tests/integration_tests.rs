@@ -16,6 +16,7 @@ fn linked_lib_path(filename: &str) -> String {
     owned_path
 }
 
+
 #[test]
 fn ffi_loads_a_library() {
     unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.expect("opens the library");
@@ -44,7 +45,7 @@ fn ffi_finds_tuples() {
     let mut reactor = Reactor::new();
     reactor.claim(mk_tuple("lexi", "is a", "husky"));
 
-    let when = unsafe { CWhen::new(linked_lib_path("test_ids.so").as_str()) }.unwrap();
+    let when = unsafe { CWhen::new(linked_lib_path("tuple_noun_string.so").as_str()) }.unwrap();
     reactor.add_handler(Box::new(when));
 
     reactor.tick();
