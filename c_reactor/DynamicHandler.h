@@ -37,7 +37,7 @@ namespace foxtalk {
         }
 
     public:
-        DynamicHandler(Reactor* db, const char* watch_file) : reactor { reactor }, watch_file { watch_file } {
+        DynamicHandler(Reactor* reactor, const char* watch_file) : reactor { reactor }, watch_file { watch_file } {
             reload();
 
             thread_handle = std::thread([this, watch_file]() {
@@ -55,7 +55,7 @@ namespace foxtalk {
                 }
 
                 /* Allocate memory for watch descriptors. */
-                int wd = inotify_add_watch(fd, watch_file, IN_CLOSE_WRITE);
+                int wd = inotify_add_watch(fd, watch_file, IN_CLOSE);
 
                 std::cout << "Thread will wait for change..." << std::endl;
                 while(running) {
