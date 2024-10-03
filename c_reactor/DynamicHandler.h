@@ -8,11 +8,6 @@
 #include <optional>
 #include <iostream>
 #include <filesystem>
-#include <thread> // Oh boy.
-
-#include <sys/inotify.h>
-#include <poll.h>
-#include <unistd.h>
 
 #include "Reactor.h"
 #include "FsWatcher.h"
@@ -44,7 +39,7 @@ namespace foxtalk {
         }
 
     protected:
-        void file_notification(std::string event_file, uint32_t mask_flags) override {
+        void file_notification(fs::path event_file, uint32_t mask_flags) override {
             if (event_file == watch_file_name) {
                 if (mask_flags & IN_CLOSE_WRITE) {
                     std::cout << "Detected " << event_file << " IN_CLOSE_WRITE" << std::endl;

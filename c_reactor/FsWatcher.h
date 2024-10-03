@@ -22,7 +22,8 @@ private:
     std::thread thread_handle;
 
 protected:
-    virtual void file_notification(std::string file_name, uint32_t mask_flags) = 0;
+    virtual void file_notification(fs::path file_name, uint32_t mask_flags) = 0;
+
     void watch_directory(fs::path watch_directory) {
         thread_handle = std::thread([this, watch_directory]() {
             char buf[4096]
