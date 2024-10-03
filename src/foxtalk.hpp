@@ -29,6 +29,7 @@
 #include <vulkan/vulkan_structs.hpp>
 
 #define GLM_FORCE_RADIANS
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -50,419 +51,372 @@ struct UniformBufferObject {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef void (*ExternalImageProc)(
-  cv::Mat& cameraFrame
-  , cv::Mat& outputFrame
-  , cv::freetype::FreeType2* _cv_ft2
-);
-
-
 class Foxtalk {
-  public:
-    ///// CONSTRUCTOR //////////////////////////////////////////////////////////
-    Foxtalk(
-        // TODO: Needing both the device & physicacalDevice here feels like a
-        //       leaky abstraction...
-        const vk::PhysicalDevice &physicalDevice,
-        const vk::Device &device,
-        const vk::RenderPass &renderPass,
-        float framebufferWidth,
-        float framebufferHeight,
-        uint32_t MAX_FRAMES_IN_FLIGHT
-    )
-      : _physicalDevice { physicalDevice }
-      , _device { device }
-      , _framebufferWidth { framebufferWidth }
-      , _framebufferHeight { framebufferHeight }
-    {
-      updateProjectionMatrix();
+public:
+  ///// CONSTRUCTOR //////////////////////////////////////////////////////////
+  Foxtalk(
+      // TODO: Needing both the device & physicacalDevice here feels like a
+      //       leaky abstraction...
+      const vk::PhysicalDevice &physicalDevice,
+      const vk::Device &device,
+      const vk::RenderPass &renderPass,
+      float framebufferWidth,
+      float framebufferHeight,
+      uint32_t maxFramesInFlight
+  )
+      : _physicalDevice{physicalDevice}, _device{device}, _framebufferWidth{framebufferWidth},
+        _framebufferHeight{framebufferHeight} {
+    updateProjectionMatrix();
 
-      std::cout << "device? " << device << std::endl;
+    std::cout << "device? " << device << std::endl;
 
-      ///// LOAD THE MAGIC LIBRARY /////////////////////////////////////////////
-      // TODO
+    ///// LOAD THE MAGIC LIBRARY /////////////////////////////////////////////
+    // TODO
 
-      ///// (CV2) FREETYPE INITIALIZATION //////////////////////////////////////
-      _cv_ft2 = cv::freetype::createFreeType2();
-      _cv_ft2->loadFontData("/usr/share/fonts/OTF/CascadiaCode-Regular.otf", 0);
+    ///// (CV2) FREETYPE INITIALIZATION //////////////////////////////////////
+    _cv_ft2 = cv::freetype::createFreeType2();
+    _cv_ft2->loadFontData("/usr/share/fonts/OTF/CascadiaCode-Regular.otf", 0);
 
-      ///// VIDEO CAPTURE //////////////////////////////////////////////////////
+    ///// VIDEO CAPTURE //////////////////////////////////////////////////////
 
-      //--- INITIALIZE VIDEOCAPTURE
-      // open the default camera using default API
-      // cap.open(0);
-      // OR advance usage: select any API backend
-      int deviceID = 0;             // 0 = open default camera
-      int apiID = cv::CAP_V4L2;     //
-      // open selected camera using selected API
-      _videoCapture.open(deviceID, apiID);
-      // check if we succeeded
-      if (!_videoCapture.isOpened()) {
-        throw std::runtime_error("ERROR! Unable to open camera");
-      }
+    //--- INITIALIZE VIDEOCAPTURE
+    // open the default camera using default API
+    // cap.open(0);
+    // OR advance usage: select any API backend
+    int deviceID = 0;             // 0 = open default camera
+    int apiID = cv::CAP_V4L2;     //
+    // open selected camera using selected API
+    _videoCapture.open(deviceID, apiID);
+    // check if we succeeded
+    if (!_videoCapture.isOpened()) {
+      throw std::runtime_error("ERROR! Unable to open camera");
+    }
 
-      _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH, 1280);
-      _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT, 720);
+    _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH, 1920);
+    _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT, 1080);
 
-      _camWidth = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
-      _camHeight = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
+    _camWidth = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
+    _camHeight = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
 
-      std::cout << "Found camera with res " << _camWidth << "x" << _camHeight << std::endl;
+    std::cout << "Found camera with res " << _camWidth << "x" << _camHeight << std::endl;
 
-      auto imageSize = _camWidth * _camHeight * 4;
+    auto imageSize = _camWidth * _camHeight * 4;
 
-      ///// DESCRIPTOR SET LAYOUT //////////////////////////////////////////////
-      std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings {
+    ///// DESCRIPTOR SET LAYOUT //////////////////////////////////////////////
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings{
         // Uniform Buffer
-        vk::DescriptorSetLayoutBinding {
-          0
-          , vk::DescriptorType::eUniformBuffer
-          , 1
-          , vk::ShaderStageFlagBits::eVertex
+        vk::DescriptorSetLayoutBinding{
+            0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex
         },
         // Camera Image Sampler
-        vk::DescriptorSetLayoutBinding {
-          1
-          , vk::DescriptorType::eCombinedImageSampler
-          , 1
-          , vk::ShaderStageFlagBits::eFragment
+        vk::DescriptorSetLayoutBinding{
+            1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment
         }
-      };
+    };
 
-      vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo {
-        {}
-        , descriptorSetLayoutBindings
-      };
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{
+        {}, descriptorSetLayoutBindings
+    };
 
-      _descriptorSetLayout = _device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
+    _descriptorSetLayout = _device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
 
-      ///// PIPELINE SETUP /////////////////////////////////////////////////////
-      Shader vertexShader(&device, "src/shaders/simple.vert.bin");
-      Shader fragmentShader(&device, "src/shaders/simple.frag.bin");
-      _pipeline = GraphicsPipeline<Vertex>(
+    ///// PIPELINE SETUP /////////////////////////////////////////////////////
+    Shader vertexShader(&device, "src/shaders/simple.vert.bin");
+    Shader fragmentShader(&device, "src/shaders/simple.frag.bin");
+    _pipeline = GraphicsPipeline<Vertex>(
         device,
         renderPass,
         std::move(vertexShader),
         std::move(fragmentShader),
-        { _descriptorSetLayout }
+        {_descriptorSetLayout}
+    );
+
+    ///// TEMP DATA //////////////////////////////////////////////////////////
+
+    auto width = 1920; //1280.0f;
+//      auto width = 3839.0f; // What. Projector?
+    auto offset = 0.0f; //10.0f;
+
+    auto height = width * (static_cast<float>(_camHeight) / _camWidth);
+
+    _vertices = {
+        {{offset,         offset},          {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+        {{offset,         height + offset}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{width + offset, height + offset}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+        {{width + offset, offset},          {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
+    };
+
+    _indices = {
+        0, 1, 2, 2, 3, 0
+    };
+
+    ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
+
+    _vertexBuffer = VBuffer<Vertex>(physicalDevice, &device, _vertices.size(), vk::BufferUsageFlagBits::eVertexBuffer,
+                                    vk::MemoryPropertyFlagBits::eHostVisible |
+                                    vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    _vertexBuffer.transfer(_vertices);
+
+    ///// INDEX BUFFER SETUP /////////////////////////////////////////////////
+    _indexBuffer = VBuffer<uint32_t>(physicalDevice, &device, _indices.size(), vk::BufferUsageFlagBits::eIndexBuffer,
+                                     vk::MemoryPropertyFlagBits::eHostVisible |
+                                     vk::MemoryPropertyFlagBits::eHostCoherent
+    );
+
+    _indexBuffer.transfer(_indices);
+
+    ///// CREATE UNIFORM BUFFERS /////////////////////////////////////////////
+    for (auto i = 0; i < maxFramesInFlight; i++) {
+      auto buff = VBuffer<UniformBufferObject>(
+          _physicalDevice, &_device, 1, vk::BufferUsageFlagBits::eUniformBuffer,
+          vk::MemoryPropertyFlagBits::eHostVisible
+          | vk::MemoryPropertyFlagBits::eHostCoherent
       );
 
-      ///// TEMP DATA //////////////////////////////////////////////////////////
+      _uniformBuffersMapped.push_back(buff.mapBufferMemory());
+      _uniformBuffers.push_back(std::move(buff));
+    }
 
-      auto width = 1280.0f;
-//      auto width = 3839.0f; // What.
-      auto offset = 0.0f; //10.0f;
+    ///// CREATE VIDEO IMAGES & BUFFERS //////////////////////////////////////
+    for (auto i = 0; i < maxFramesInFlight; i++) {
+      auto buff = VBuffer<uint8_t>(
+          _physicalDevice, &_device, imageSize, vk::BufferUsageFlagBits::eTransferSrc,
+          vk::MemoryPropertyFlagBits::eHostVisible
+          | vk::MemoryPropertyFlagBits::eHostCoherent
+      );
 
-      auto height = width * (static_cast<float>(_camHeight) / _camWidth);
-
-      _vertices = {
-          {{offset,          offset},         {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-          {{offset,          height + offset}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-          {{width + offset, height + offset}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-          {{width + offset, offset},         {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}
+      VImage camImage{
+          _physicalDevice, _device, _camWidth, _camHeight
       };
 
-      _indices = {
-        0, 1, 2, 2, 3, 0
-      };
-
-      ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
-
-      _vertexBuffer = VBuffer<Vertex>(physicalDevice, &device, _vertices.size()
-          , vk::BufferUsageFlagBits::eVertexBuffer
-          , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-
-      _vertexBuffer.transfer(_vertices);
-
-      ///// INDEX BUFFER SETUP /////////////////////////////////////////////////
-      _indexBuffer = VBuffer<uint32_t>(physicalDevice, &device, _indices.size()
-        , vk::BufferUsageFlagBits::eIndexBuffer
-        , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-
-      _indexBuffer.transfer(_indices);
-
-      ///// CREATE UNIFORM BUFFERS /////////////////////////////////////////////
-      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        auto buff = VBuffer<UniformBufferObject>(
-          _physicalDevice
-          , &_device
-          , 1
-          , vk::BufferUsageFlagBits::eUniformBuffer
-          , vk::MemoryPropertyFlagBits::eHostVisible
-            | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-
-        _uniformBuffersMapped.push_back(buff.mapBufferMemory());
-        _uniformBuffers.push_back(std::move(buff));
-      }
-
-      ///// CREATE VIDEO IMAGES & BUFFERS //////////////////////////////////////
-      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        auto buff = VBuffer<uint8_t>(
-          _physicalDevice
-          , &_device
-          , imageSize
-          , vk::BufferUsageFlagBits::eTransferSrc
-          , vk::MemoryPropertyFlagBits::eHostVisible
-            | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-
-        VImage camImage {
-          _physicalDevice
-            , _device
-            , _camWidth
-            , _camHeight
-        };
-
-        _cameraBuffers.push_back(std::move(buff));
-        _cameraImages.push_back(std::move(camImage));
-      }
+      _cameraBuffers.push_back(std::move(buff));
+      _cameraImages.push_back(std::move(camImage));
+    }
 
 
-      ///// CREATE DESCRIPTOR POOL /////////////////////////////////////////////
-      std::vector<vk::DescriptorPoolSize> descriptorPoolSizes {
-        vk::DescriptorPoolSize {
-          vk::DescriptorType::eUniformBuffer, MAX_FRAMES_IN_FLIGHT
+    ///// CREATE DESCRIPTOR POOL /////////////////////////////////////////////
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes{
+        vk::DescriptorPoolSize{
+            vk::DescriptorType::eUniformBuffer, maxFramesInFlight
         },
-        vk::DescriptorPoolSize {
-          vk::DescriptorType::eCombinedImageSampler, MAX_FRAMES_IN_FLIGHT
+        vk::DescriptorPoolSize{
+            vk::DescriptorType::eCombinedImageSampler, maxFramesInFlight
         }
-      };
+    };
 
-      vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo {
-        {}
-        , MAX_FRAMES_IN_FLIGHT
-        , descriptorPoolSizes
-      };
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo{
+        {}, maxFramesInFlight, descriptorPoolSizes
+    };
 
-      _descriptorPool = _device.createDescriptorPool(descriptorPoolCreateInfo);
+    _descriptorPool = _device.createDescriptorPool(descriptorPoolCreateInfo);
 
-      ///// CREATE DESCRIPTORS /////////////////////////////////////////////////
-      std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, _descriptorSetLayout);
+    ///// CREATE DESCRIPTORS /////////////////////////////////////////////////
+    std::vector<vk::DescriptorSetLayout> layouts(maxFramesInFlight, _descriptorSetLayout);
 
-      vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo {
+    vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo{
         _descriptorPool, layouts
+    };
+
+    _descriptorSets = _device.allocateDescriptorSets(descriptorSetAllocateInfo);
+
+    ///// CONFIGURE DESCRIPTORS //////////////////////////////////////////////
+    for (auto i = 0; i < maxFramesInFlight; i++) {
+      vk::DescriptorBufferInfo bufferInfo{
+          _uniformBuffers[i].buffer(), 0, sizeof(UniformBufferObject)
       };
 
-      _descriptorSets = _device.allocateDescriptorSets(descriptorSetAllocateInfo);
-
-      ///// CONFIGURE DESCRIPTORS //////////////////////////////////////////////
-      for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vk::DescriptorBufferInfo bufferInfo {
-          _uniformBuffers[i].buffer(), 0, sizeof(UniformBufferObject)
-        };
-
-        auto& img = _cameraImages[i];
-        vk::DescriptorImageInfo imageInfo {
-          img.sampler()
-          , img.imageView()
+      auto &img = _cameraImages[i];
+      vk::DescriptorImageInfo imageInfo{
+          img.sampler(), img.imageView()
           // TODO: Hmm... I wonder why this isn't the same layout as the actual image?
           , vk::ImageLayout::eShaderReadOnlyOptimal
-        };
+      };
 
-        std::vector<vk::WriteDescriptorSet> writeDescriptorSets {
-          vk::WriteDescriptorSet {
-            _descriptorSets[i], 0, 0, 1
-            , vk::DescriptorType::eUniformBuffer
-            , {}, &bufferInfo, {}
+      std::vector<vk::WriteDescriptorSet> writeDescriptorSets{
+          vk::WriteDescriptorSet{
+              _descriptorSets[i], 0, 0, 1, vk::DescriptorType::eUniformBuffer, {}, &bufferInfo, {}
           },
-          vk::WriteDescriptorSet {
-            _descriptorSets[i], 1, 0, 1,
-            vk::DescriptorType::eCombinedImageSampler
-            , &imageInfo, {}, {}
+          vk::WriteDescriptorSet{
+              _descriptorSets[i], 1, 0, 1,
+              vk::DescriptorType::eCombinedImageSampler, &imageInfo, {}, {}
           }
-        };
+      };
 
-        _device.updateDescriptorSets(writeDescriptorSets, {});
-      }
-
+      _device.updateDescriptorSets(writeDescriptorSets, {});
     }
 
-    ///// DESTRUCTOR ///////////////////////////////////////////////////////////
-    ~Foxtalk() {
-      _device.destroyDescriptorPool(_descriptorPool);
-      _device.destroyDescriptorSetLayout(_descriptorSetLayout);
+  }
+
+  ///// DESTRUCTOR ///////////////////////////////////////////////////////////
+  ~Foxtalk() {
+    _device.destroyDescriptorPool(_descriptorPool);
+    _device.destroyDescriptorSetLayout(_descriptorSetLayout);
+  }
+
+  ///// DRAWING //////////////////////////////////////////////////////////////
+  void tick() {}
+
+  void updateCameraTextureBuffer(VBuffer<uint8_t> &cameraBuffer) {
+    ///// Run the frame...
+    cv::Mat cameraFrame;
+
+    _videoCapture.read(cameraFrame);
+    // check if we succeeded
+    if (cameraFrame.empty()) {
+      throw std::runtime_error("ERROR! blank frame grabbed");
     }
 
-    ///// DRAWING //////////////////////////////////////////////////////////////
-    void tick() { }
+    auto rot_mat = cv::getRotationMatrix2D(
+        {static_cast<float>(_camWidth) / 2.0f, static_cast<float>(_camHeight) / 2.0f}, 180.0, 1.0);
 
-    void updateCameraTextureBuffer(VBuffer<uint8_t>& cameraBuffer) {
-      ///// Run the frame...
-      cv::Mat cameraFrame;
+    cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
 
-      _videoCapture.read(cameraFrame);
-      // check if we succeeded
-      if (cameraFrame.empty()) {
-        throw std::runtime_error("ERROR! blank frame grabbed");
-      }
+    // put outputMat into db.
 
-      auto rot_mat = cv::getRotationMatrix2D(
-          { static_cast<float>(_camWidth) / 2.0f, static_cast<float>(_camHeight) / 2.0f }
-          , 180.0
-          , 1.0);
+    // Add filled alpha channel, since Vulkan drivers seem to not support
+    // alphaless textures
+    std::vector<cv::Mat> channels;
+    cv::split(cameraFrame, channels);
 
-//      cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
+    cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
+    channels.push_back(alphaChannel);
 
-      // put outputMat into db.
-
-      // Add filled alpha channel, since Vulkan drivers seem to not support
-      // alphaless textures
-      std::vector<cv::Mat> channels;
-      cv::split(cameraFrame, channels);
-      cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), cameraFrame.type()) * 255;
-      channels.push_back(alphaChannel);
+    cv::Mat finalOutputMat;
+    cv::merge(channels, finalOutputMat);
 
 
-      cv::Mat finalOutputMat;
-      cv::merge(channels, finalOutputMat);
+    // TODO: SYNC---Handled by sync2 extension??
 
+    // Write camera data
+    // TODO: Image Size!
 
-      // TODO: SYNC---Handled by sync2 extension??
+    memcpy(cameraBuffer.mapBufferMemory(), finalOutputMat.data, static_cast<size_t>(_camWidth * _camHeight * 4));
 
-      // Write camera data
-      // TODO: Image Size!
+    // TODO: SYNC---Handled by sync2 extension??
+  }
 
-      memcpy(cameraBuffer.mapBufferMemory(), finalOutputMat.data, static_cast<size_t>(_camWidth * _camHeight * 4));
+  void render(
+      const vk::CommandBuffer &commandBuffer, const vk::RenderPassBeginInfo &renderPassBeginInfo,
+      const vk::Extent2D swapchainExtent, uint32_t imageIndex
+  ) {
+    ///// SET UP PIPELINE ////////////////////////////////////////////////////
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline.pipeline());
 
-      // TODO: SYNC---Handled by sync2 extension??
-    }
+    commandBuffer.setViewport(0, {{
+                                      0.0f, 0.0f, static_cast<float>(swapchainExtent.width),
+                                      static_cast<float>(swapchainExtent.height), 0.0f, 1.0f
+                                  }});
 
-    void render(
-        const vk::CommandBuffer& commandBuffer
-        , const vk::RenderPassBeginInfo& renderPassBeginInfo
-        , const vk::Extent2D swapchainExtent
-        , uint32_t imageIndex
-    ) {
-      ///// SET UP PIPELINE ////////////////////////////////////////////////////
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline.pipeline());
-
-      commandBuffer.setViewport(0, {{
-          0.0f
-          , 0.0f
-          , static_cast<float>(swapchainExtent.width)
-          , static_cast<float>(swapchainExtent.height)
-          , 0.0f
-          , 1.0f
-        }});
-
-      std::vector<vk::Rect2D> scissors {
+    std::vector<vk::Rect2D> scissors{
         {
-          {0, 0}
-          , swapchainExtent
+            {0, 0}, swapchainExtent
         }
-      };
+    };
 
-      ///// CAPTURE CAM IMAGE //////////////////////////////////////////////////
-      // TODO: This should probably *not* be done in the render loop??
+    ///// CAPTURE CAM IMAGE //////////////////////////////////////////////////
+    // TODO: This should probably *not* be done in the render loop??
 
-      auto& camImage        = _cameraImages[imageIndex];
-      auto& camBuffer       = _cameraBuffers[imageIndex];
+    auto &camImage = _cameraImages[imageIndex];
+    auto &camBuffer = _cameraBuffers[imageIndex];
 
-      // TODO: COPY IMAGE DATA INTO MAPPED BUFFER
-      camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eTransferDstOptimal);
+    // TODO: COPY IMAGE DATA INTO MAPPED BUFFER
+    camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eTransferDstOptimal);
 
-      updateCameraTextureBuffer(camBuffer);
-      camImage.copyBufferToImage(commandBuffer, camBuffer);
+    updateCameraTextureBuffer(camBuffer);
+    camImage.copyBufferToImage(commandBuffer, camBuffer);
 
-      camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eReadOnlyOptimal);
+    camImage.transitionImageLayout(commandBuffer, vk::ImageLayout::eReadOnlyOptimal);
 
-      ///// BEGIN RENDERPASS ///////////////////////////////////////////////////
+    ///// BEGIN RENDERPASS ///////////////////////////////////////////////////
 
-      commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+    commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
-      ///// SET UP UBO /////////////////////////////////////////////////////////
+    ///// SET UP UBO /////////////////////////////////////////////////////////
 
-      UniformBufferObject ubo{};
-      ubo.model = glm::mat4(1.0f); //glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-      ubo.view = glm::lookAt(
-          glm::vec3(0.0f, 0.001f, 3.0f)
-          , glm::vec3(0.0f, 0.0f, 0.0f)
-          , glm::vec3(0.0f, 0.0f, 1.0f));
+    UniformBufferObject ubo{};
+    ubo.model = glm::mat4(1.0f); //glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(
+        glm::vec3(0.0f, 0.001f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-      ubo.view = glm::mat4(1.0f);
-      ubo.proj = glm::ortho(0.0f, _framebufferWidth, _framebufferHeight, 0.0f);
+    ubo.view = glm::mat4(1.0f);
+    ubo.proj = glm::ortho(0.0f, _framebufferWidth, _framebufferHeight, 0.0f);
 
 
-      /* ubo.proj[1][1] *= -1; */
+    /* ubo.proj[1][1] *= -1; */
 
-      memcpy(_uniformBuffersMapped[imageIndex], &ubo, sizeof(ubo));
+    memcpy(_uniformBuffersMapped[imageIndex], &ubo, sizeof(ubo));
 
-      commandBuffer.setScissor(0, scissors);
+    commandBuffer.setScissor(0, scissors);
 
-      commandBuffer.bindVertexBuffers(0, _vertexBuffer.buffer(), { 0 });
-      commandBuffer.bindIndexBuffer(_indexBuffer.buffer(), 0, vk::IndexType::eUint32);;
-      commandBuffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics
-        , _pipeline.layout()
-        , 0
-        , _descriptorSets[imageIndex]
-        , {}
-      );
-      commandBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+    commandBuffer.bindVertexBuffers(0, _vertexBuffer.buffer(), {0});
+    commandBuffer.bindIndexBuffer(_indexBuffer.buffer(), 0, vk::IndexType::eUint32);;
+    commandBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics, _pipeline.layout(), 0, _descriptorSets[imageIndex], {}
+    );
+    commandBuffer.drawIndexed(static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
 
-      ///// END RENDERPASS /////////////////////////////////////////////////////
+    ///// END RENDERPASS /////////////////////////////////////////////////////
 
-      commandBuffer.endRenderPass();
-    }
+    commandBuffer.endRenderPass();
+  }
 
-    ///// GETTERS & SETTERS ////////////////////////////////////////////////////
-    void setFramebufferWidth(float newWidth) {
-      _framebufferWidth = newWidth;
-      updateProjectionMatrix();
-    }
+  ///// GETTERS & SETTERS ////////////////////////////////////////////////////
+  void setFramebufferWidth(float newWidth) {
+    _framebufferWidth = newWidth;
+    updateProjectionMatrix();
+  }
 
-    void setFramebufferHeight(float newHeight) {
-      _framebufferHeight = newHeight;
-      updateProjectionMatrix();
-    }
+  void setFramebufferHeight(float newHeight) {
+    _framebufferHeight = newHeight;
+    updateProjectionMatrix();
+  }
 
-  private:
-    const vk::Device& _device;
-    const vk::PhysicalDevice& _physicalDevice;
+private:
+  const vk::Device &_device;
+  const vk::PhysicalDevice &_physicalDevice;
 
-    cv::VideoCapture _videoCapture;
-    cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
+  cv::VideoCapture _videoCapture;
+  cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
 
-    uint32_t _camWidth;
-    uint32_t _camHeight;
+  uint32_t _camWidth;
+  uint32_t _camHeight;
 
-    GraphicsPipeline<Vertex> _pipeline;
+  GraphicsPipeline<Vertex> _pipeline;
 
-    float _framebufferWidth;
-    float _framebufferHeight;
+  float _framebufferWidth;
+  float _framebufferHeight;
 
-    float _far = 1.0;
-    float _near = -1.0;
+  float _far = 1.0;
+  float _near = -1.0;
 
-    glm::mat4 _projection;
+  glm::mat4 _projection;
 
-    std::vector<Vertex> _vertices;
-    VBuffer<Vertex> _vertexBuffer;
+  std::vector<Vertex> _vertices;
+  VBuffer<Vertex> _vertexBuffer;
 
-    std::vector<uint32_t> _indices;
-    VBuffer<uint32_t> _indexBuffer;
+  std::vector<uint32_t> _indices;
+  VBuffer<uint32_t> _indexBuffer;
 
-    std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
-    std::vector<void*> _uniformBuffersMapped;
+  std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
+  std::vector<void *> _uniformBuffersMapped;
 
-    std::vector<VBuffer<uint8_t>> _cameraBuffers;
-    std::vector<VImage> _cameraImages;
+  std::vector<VBuffer<uint8_t>> _cameraBuffers;
+  std::vector<VImage> _cameraImages;
 
-    vk::DescriptorSetLayout _descriptorSetLayout;
-    vk::DescriptorPool _descriptorPool;
-    std::vector<vk::DescriptorSet> _descriptorSets;
+  vk::DescriptorSetLayout _descriptorSetLayout;
+  vk::DescriptorPool _descriptorPool;
+  std::vector<vk::DescriptorSet> _descriptorSets;
 
-    // Orthorgraphic.
-    void updateProjectionMatrix() {
-      _projection = {
-        { 2 / _framebufferWidth , 0.0f                   , 0.0f               , -1.0f },
-        { 0.0f                  , 2 / _framebufferHeight , 0.0f               , -1.0f },
-        { 0.0f                  , 0.0f                   , 2 / (_far - _near) ,  0.0f },
-        { 0.0f                  , 0.0f                   , 0.0f               ,  1.0f }
-      };
-    }
+  // Orthorgraphic.
+  void updateProjectionMatrix() {
+    _projection = {
+        {2 / _framebufferWidth, 0.0f,                   0.0f,               -1.0f},
+        {0.0f,                  2 / _framebufferHeight, 0.0f,               -1.0f},
+        {0.0f,                  0.0f,                   2 / (_far - _near), 0.0f},
+        {0.0f,                  0.0f,                   0.0f,               1.0f}
+    };
+  }
 
 };
 
