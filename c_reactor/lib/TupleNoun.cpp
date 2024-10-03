@@ -107,16 +107,15 @@ static void FinalizeCptrTupleNoun(GC_PTR void_obj, GC_PTR void_env) {
 
 extern "C" {
 
-__attribute__((visibility("default")))
 foxtalk::TupleNoun *mkQuery() {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc_atomic(sizeof(foxtalk::TupleNoun), "QueryNoun", 0);
     tn->type = foxtalk::TupleNoun::Type::Query;
     tn->data.u64 = 0;
     return tn;
 }
 
 foxtalk::TupleNoun *mkPair(foxtalk::TupleNoun *a, foxtalk::TupleNoun *b) {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc(sizeof(foxtalk::TupleNoun), "PairNoun", 0);
     tn->type = foxtalk::TupleNoun::Type::Pair;
     tn->data.pair.fst = a;
     tn->data.pair.snd = b;
@@ -124,14 +123,14 @@ foxtalk::TupleNoun *mkPair(foxtalk::TupleNoun *a, foxtalk::TupleNoun *b) {
 }
 
 foxtalk::TupleNoun *mkSymbol(const char *s) {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc(sizeof(foxtalk::TupleNoun), "SymbolNoun", 0);
     tn->type = foxtalk::TupleNoun::Type::Symbol;
     tn->data.symbol = GC_strdup(s);
     return tn;
 }
 
 foxtalk::TupleNoun *mkPtr(void *dat, foxtalk::TupleNoun::Free_Fn free_fn) {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc(sizeof(foxtalk::TupleNoun), "CPtrNoun", 0);
     tn->type = foxtalk::TupleNoun::Type::CPtr;
     tn->data.cptr.data = dat;
     tn->data.cptr.free_fn = free_fn;
@@ -146,7 +145,7 @@ foxtalk::TupleNoun *mkPtr(void *dat, foxtalk::TupleNoun::Free_Fn free_fn) {
 }
 
 foxtalk::TupleNoun *mkU64(uint64_t n) {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc_atomic(sizeof(foxtalk::TupleNoun), "U64Noun", 0);
     tn->type = foxtalk::TupleNoun::Type::U64;
     tn->data.u64 = n;
 
@@ -154,7 +153,7 @@ foxtalk::TupleNoun *mkU64(uint64_t n) {
 }
 
 foxtalk::TupleNoun *mkI64(int64_t n) {
-    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    auto tn = (foxtalk::TupleNoun *) GC_debug_malloc_atomic(sizeof(foxtalk::TupleNoun), "I64Noun", 0);
     tn->type = foxtalk::TupleNoun::Type::I64;
     tn->data.i64 = n;
 

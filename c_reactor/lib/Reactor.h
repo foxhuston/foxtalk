@@ -23,8 +23,9 @@ namespace foxtalk {
     class Reactor {
     private:
         std::mutex handlerMutex{};
+        std::mutex tupleMutex{};
 
-        Db db {};
+        Db db{};
         ReactorSet<const Handler *>::type handlers{};
 
         ReactorMap<ReactorSet<const Tuple *>::type, ReactorSet<const Handler *>::type>::type tuples_triggered_handler{};
@@ -42,6 +43,8 @@ namespace foxtalk {
 
         void remove(const Tuple *tuple);
 
+        void remove(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object);
+
         void add_handler(const Handler *handler);
 
         void remove_handler(const Handler *handler);
@@ -54,6 +57,9 @@ namespace foxtalk {
         }
 
         ReactorSet<const Tuple *>::type query(const Tuple *q);
+
+        ReactorSet<const Tuple *>::type
+        query(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object);
 
         void remove(std::queue<const Tuple *> workQueue);
 

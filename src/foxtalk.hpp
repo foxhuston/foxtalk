@@ -310,12 +310,15 @@ public:
   void tick() {}
 
   static void cvFree(void *ptr) {
-    std::cout << "cvFree! " << ptr << std::endl;
+//    std::cout << "cvFree! " << ptr << std::endl;
     delete static_cast<cv::Mat *>(ptr);
   }
 
   void updateCameraTextureBuffer(VBuffer<uint8_t> &cameraBuffer) {
-    static cv::Mat* image_frame = nullptr;
+    // remove any old frames.
+    auto old_frames = _reactor.query(
+        mkQuery(), mkSymbol("is a"), mkSymbol("camera frame"));
+    _reactor.remove(old_frames);
 
     ///// Run the frame...
     cv::Mat cameraFrame;
@@ -331,18 +334,8 @@ public:
 
     cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
 
-    // Remove old image.
-    if(image_frame != nullptr) {
-      auto imagePtr = mkPtr(image_frame, cvFree);
-      _reactor.remove(foxtalk::Tuple::mk(
-          imagePtr,
-          mkSymbol("is a"),
-          mkSymbol("camera frame")
-      ));
-    }
-
     // Insert new image.
-    image_frame = new cv::Mat(cameraFrame);
+    auto image_frame = new cv::Mat(cameraFrame);
     auto imagePtr = mkPtr(image_frame, cvFree);
     _reactor.claim(
         imagePtr,
@@ -350,6 +343,10 @@ public:
         mkSymbol("camera frame")
     );
 
+    // TODO: This is here because removes are eager, while
+    // evaluation happens every tick. I think I need to have
+    // a marker for tuples / handlers that get removed, and do so
+    // at the end of a tick, rather than eagerly.
     _reactor.tick(); // TODO: WOAH, CHEATING
 
     auto output_layers = _reactor.query(foxtalk::Tuple::mk(
@@ -374,6 +371,8 @@ public:
       channels.push_back(alphaChannel);
 
       cv::merge(channels, finalOutputMat);
+
+      _reactor.remove(output_layers);
     } else {
       // Add filled alpha channel, since Vulkan drivers seem to not support
       // alphaless textures

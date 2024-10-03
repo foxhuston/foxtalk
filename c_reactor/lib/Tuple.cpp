@@ -31,7 +31,7 @@ namespace foxtalk {
     }
 
     Tuple *Tuple::mk(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) {
-        auto t = (Tuple*) GC_malloc(sizeof(Tuple));
+        auto t = (Tuple*) GC_debug_malloc(sizeof(Tuple), "Tuple", 0);
         t->subject = subject;
         t->predicate = predicate;
         t->object = object;
