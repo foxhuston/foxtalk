@@ -28,6 +28,8 @@
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
+#include "Reactor.h"
+
 #define GLM_FORCE_RADIANS
 
 #include <glm/glm.hpp>
@@ -52,9 +54,58 @@ struct UniformBufferObject {
 ////////////////////////////////////////////////////////////////////////////////
 
 class Foxtalk {
+private:
+  foxtalk::Reactor& _reactor;
+
+  const vk::Device &_device;
+  const vk::PhysicalDevice &_physicalDevice;
+
+  cv::VideoCapture _videoCapture;
+  cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
+
+  uint32_t _camWidth;
+  uint32_t _camHeight;
+
+  GraphicsPipeline<Vertex> _pipeline;
+
+  float _framebufferWidth;
+  float _framebufferHeight;
+
+  float _far = 1.0;
+  float _near = -1.0;
+
+  glm::mat4 _projection;
+
+  std::vector<Vertex> _vertices;
+  VBuffer<Vertex> _vertexBuffer;
+
+  std::vector<uint32_t> _indices;
+  VBuffer<uint32_t> _indexBuffer;
+
+  std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
+  std::vector<void *> _uniformBuffersMapped;
+
+  std::vector<VBuffer<uint8_t>> _cameraBuffers;
+  std::vector<VImage> _cameraImages;
+
+  vk::DescriptorSetLayout _descriptorSetLayout;
+  vk::DescriptorPool _descriptorPool;
+  std::vector<vk::DescriptorSet> _descriptorSets;
+
+  // Orthorgraphic.
+  void updateProjectionMatrix() {
+    _projection = {
+        {2 / _framebufferWidth, 0.0f,                   0.0f,               -1.0f},
+        {0.0f,                  2 / _framebufferHeight, 0.0f,               -1.0f},
+        {0.0f,                  0.0f,                   2 / (_far - _near), 0.0f},
+        {0.0f,                  0.0f,                   0.0f,               1.0f}
+    };
+  }
+
 public:
   ///// CONSTRUCTOR //////////////////////////////////////////////////////////
   Foxtalk(
+      foxtalk::Reactor& reactor,
       // TODO: Needing both the device & physicacalDevice here feels like a
       //       leaky abstraction...
       const vk::PhysicalDevice &physicalDevice,
@@ -64,7 +115,7 @@ public:
       float framebufferHeight,
       uint32_t maxFramesInFlight
   )
-      : _physicalDevice{physicalDevice}, _device{device}, _framebufferWidth{framebufferWidth},
+      : _reactor{reactor}, _physicalDevice{physicalDevice}, _device{device}, _framebufferWidth{framebufferWidth},
         _framebufferHeight{framebufferHeight} {
     updateProjectionMatrix();
 
@@ -258,7 +309,14 @@ public:
   ///// DRAWING //////////////////////////////////////////////////////////////
   void tick() {}
 
+  static void cvFree(void *ptr) {
+    std::cout << "cvFree! " << ptr << std::endl;
+    delete static_cast<cv::Mat *>(ptr);
+  }
+
   void updateCameraTextureBuffer(VBuffer<uint8_t> &cameraBuffer) {
+    static cv::Mat* image_frame = nullptr;
+
     ///// Run the frame...
     cv::Mat cameraFrame;
 
@@ -273,18 +331,60 @@ public:
 
     cv::warpAffine(cameraFrame, cameraFrame, rot_mat, cameraFrame.size());
 
-    // put outputMat into db.
+    // Remove old image.
+    if(image_frame != nullptr) {
+      auto imagePtr = mkPtr(image_frame, cvFree);
+      _reactor.remove(foxtalk::Tuple::mk(
+          imagePtr,
+          mkSymbol("is a"),
+          mkSymbol("camera frame")
+      ));
+    }
 
-    // Add filled alpha channel, since Vulkan drivers seem to not support
-    // alphaless textures
-    std::vector<cv::Mat> channels;
-    cv::split(cameraFrame, channels);
+    // Insert new image.
+    image_frame = new cv::Mat(cameraFrame);
+    auto imagePtr = mkPtr(image_frame, cvFree);
+    _reactor.claim(
+        imagePtr,
+        mkSymbol("is a"),
+        mkSymbol("camera frame")
+    );
 
-    cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
-    channels.push_back(alphaChannel);
+    _reactor.tick(); // TODO: WOAH, CHEATING
+
+    auto output_layers = _reactor.query(foxtalk::Tuple::mk(
+        mkQuery(),
+        mkSymbol("is a"),
+        mkSymbol("output layer")
+    ));
 
     cv::Mat finalOutputMat;
-    cv::merge(channels, finalOutputMat);
+    if(!output_layers.empty()) {
+      auto fst = *output_layers.begin();
+//      std::cout << "Using " << *fst << std::endl;
+
+      auto img = (cv::Mat *) fst->getSubject()->data.cptr.data;
+
+      // Add filled alpha channel, since Vulkan drivers seem to not support
+      // alphaless textures
+      std::vector<cv::Mat> channels;
+      cv::split(*img, channels);
+
+      cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 255;
+      channels.push_back(alphaChannel);
+
+      cv::merge(channels, finalOutputMat);
+    } else {
+      // Add filled alpha channel, since Vulkan drivers seem to not support
+      // alphaless textures
+      std::vector<cv::Mat> channels;
+      cv::split(cameraFrame, channels);
+
+      cv::Mat alphaChannel = cv::Mat::ones(cameraFrame.size(), CV_8UC1) * 127;
+      channels.push_back(alphaChannel);
+
+      cv::merge(channels, finalOutputMat);
+    }
 
 
     // TODO: SYNC---Handled by sync2 extension??
@@ -371,52 +471,6 @@ public:
   void setFramebufferHeight(float newHeight) {
     _framebufferHeight = newHeight;
     updateProjectionMatrix();
-  }
-
-private:
-  const vk::Device &_device;
-  const vk::PhysicalDevice &_physicalDevice;
-
-  cv::VideoCapture _videoCapture;
-  cv::Ptr<cv::freetype::FreeType2> _cv_ft2;
-
-  uint32_t _camWidth;
-  uint32_t _camHeight;
-
-  GraphicsPipeline<Vertex> _pipeline;
-
-  float _framebufferWidth;
-  float _framebufferHeight;
-
-  float _far = 1.0;
-  float _near = -1.0;
-
-  glm::mat4 _projection;
-
-  std::vector<Vertex> _vertices;
-  VBuffer<Vertex> _vertexBuffer;
-
-  std::vector<uint32_t> _indices;
-  VBuffer<uint32_t> _indexBuffer;
-
-  std::vector<VBuffer<UniformBufferObject>> _uniformBuffers;
-  std::vector<void *> _uniformBuffersMapped;
-
-  std::vector<VBuffer<uint8_t>> _cameraBuffers;
-  std::vector<VImage> _cameraImages;
-
-  vk::DescriptorSetLayout _descriptorSetLayout;
-  vk::DescriptorPool _descriptorPool;
-  std::vector<vk::DescriptorSet> _descriptorSets;
-
-  // Orthorgraphic.
-  void updateProjectionMatrix() {
-    _projection = {
-        {2 / _framebufferWidth, 0.0f,                   0.0f,               -1.0f},
-        {0.0f,                  2 / _framebufferHeight, 0.0f,               -1.0f},
-        {0.0f,                  0.0f,                   2 / (_far - _near), 0.0f},
-        {0.0f,                  0.0f,                   0.0f,               1.0f}
-    };
   }
 
 };

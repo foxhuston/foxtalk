@@ -18,6 +18,41 @@
 #include <opencv2/features2d.hpp>
 #include <string>
 
+#include "ReactorSet.h"
+#include "Tuple.h"
+
+
+///// FOXTALK API //////////////////////////////////////////////////////////////
+
+extern "C" foxtalk::Tuple* get_query() {
+  return foxtalk::Tuple::mk(
+      mkQuery(),
+      mkSymbol("is a"),
+      mkSymbol("camera frame")
+  );
+}
+
+extern "C" void handle_results(foxtalk::ReactorVec<const foxtalk::Tuple*>::type query_results, std::function<void(const foxtalk::Tuple*)> claim) {
+  for(auto r : query_results) {
+//    std::cout << "Hello from CvDotSandbox handler! Handler query result: " << *r << std::endl;
+
+    if(r->getSubject()->is_cptr()) {
+      cv::Mat *cameraMat = (cv::Mat *)r->getSubject()->data.cptr.data;
+
+      auto outputMat = new cv::Mat(*cameraMat); // Copy?
+
+      claim(foxtalk::Tuple::mk(
+          mkPtr(outputMat, r->getSubject()->data.cptr.free_fn),
+          mkSymbol("is a"),
+          mkSymbol("output layer")
+      ));
+    }
+  }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 
 constexpr int COLOR_THRESHOLD = 50;
 

@@ -1,4 +1,5 @@
 build
+*.so
 cmake-build-*
 .cache/
 .idea/

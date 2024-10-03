@@ -44,7 +44,7 @@ endfunction()
 ##### DYNAMIC LIBS #############################################################
 
 add_library(image_proc SHARED src/CvProcessor.cpp)
-add_library(dot_sandbox SHARED src/CvDotSandbox.cpp
+add_library(dot_sandbox SHARED src/foxtalk_handlers/CvDotSandbox.cpp
         src/VImage.h
         src/VulkUtils.h
         src/VBuffer.h)
@@ -74,9 +74,9 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${FREETYPE_INCLUDE_DIRS}
-#        c_reactor/
-#        c_reactor/lib
-#        c_reactor/vendor/gc-8.2.4
+        c_reactor/
+        c_reactor/lib
+        c_reactor/vendor/gc-8.2.4/include # TODO: Get rid of this
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")

@@ -8,10 +8,7 @@
 #include <vector>
 #include <unordered_set>
 
-#include "gc_cpp.h"
-#include "gc_allocator.h"
 #include "Tuple.h"
-
 #include "ReactorSet.h"
 
 namespace foxtalk {

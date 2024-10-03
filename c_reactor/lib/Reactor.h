@@ -7,8 +7,6 @@
 
 #include <mutex>
 #include <queue>
-#include "gc_cpp.h"
-#include "gc_allocator.h"
 
 #include "boost/functional/hash.hpp"
 
@@ -22,7 +20,7 @@
 
 namespace foxtalk {
 
-    class Reactor : gc {
+    class Reactor {
     private:
         std::mutex handlerMutex{};
 

@@ -22,61 +22,67 @@ namespace foxtalk {
     struct DynamicCompilingHandler : FsDirectoryWatcher {
     private:
         const fs::path watch_dir;
+        const std::string extra_flags;
         Reactor *reactor;
 
         std::unordered_map<fs::path, SharedObjectHandler *> handlers;
 
-        void remove_handler_for_path(const fs::path& p) {
-            if(handlers[p] != nullptr) {
+        void remove_handler_for_path(const fs::path &p) {
+            if (handlers[p] != nullptr) {
                 reactor->remove_handler(handlers[p]);
                 delete handlers[p];
                 handlers[p] = nullptr;
             }
         }
 
-        void add_handler_for_path(const fs::path& path) {
+        void add_handler_for_path(const fs::path &path) {
             remove_handler_for_path(path);
             handlers[path] = new SharedObjectHandler((watch_dir / path).c_str());
             reactor->add_handler(handlers[path]);
         }
 
-        fs::path compile_cpp_file(const fs::path& path) {
+        fs::path compile_cpp_file(const fs::path &path) {
             auto out_file_path = path.filename();
             out_file_path.replace_extension(".so");
 
             std::stringstream command;
-            command << "clang++ -I lib/ -I vendor/gc-8.2.4/include -shared -fPIC "
-                    << fs::absolute (watch_dir / path)
+            command << "clang++ -I lib/ -I vendor/gc-8.2.4/include "
+                    << extra_flags
+                    << " -shared -fPIC "
+                    << fs::absolute(watch_dir / path)
                     << " -o " << fs::absolute(watch_dir / out_file_path);
 
 
-            std::array<char, 1024> buff {};
+            std::array<char, 1024> buff{};
             FILE *pipe = popen(command.str().c_str(), "r");
-            if(!pipe) {
+            if (!pipe) {
                 throw std::runtime_error(
                         std::format("Couldn't run command: {0}", command.str()));
             }
 
-            while(fgets(buff.data(), buff.size(), pipe) != NULL) {
+            while (fgets(buff.data(), buff.size(), pipe) != NULL) {
                 std::cout << buff.data();
             }
 
             auto returnCode = pclose(pipe);
 
-            if(returnCode != 0) {
+            if (returnCode != 0) {
                 throw std::runtime_error(
                         std::format("clang++ exited with code: {0}", returnCode));
             }
 
             return out_file_path;
         }
+
     public:
-        DynamicCompilingHandler(Reactor *reactor, const char *dir)
-                : reactor{reactor}, watch_dir{fs::path(dir)} {
+        DynamicCompilingHandler(Reactor *reactor, const char *dir) : DynamicCompilingHandler(reactor, dir, "") {}
+
+        DynamicCompilingHandler(Reactor *reactor, const char *dir, std::string extra_args)
+                : reactor{reactor}, watch_dir{fs::path(dir)}, extra_flags{extra_args} {
 
             // Compile and load any .so files in the path on startup.
-            for(auto& entry : fs::directory_iterator(dir)) {
-                if(entry.path().extension() == ".cpp") {
+            for (auto &entry: fs::directory_iterator(dir)) {
+                if (entry.path().extension() == ".cpp") {
                     auto input_name = entry.path().filename();
                     auto compiled_name = entry.path().filename();
                     compiled_name.replace_extension(".so");
@@ -84,7 +90,7 @@ namespace foxtalk {
 
                     std::cout << "Boot compiling " << compiled_name << std::endl;
 
-                    if(!exists(compiled_name)) {
+                    if (!exists(compiled_name)) {
                         auto out_file = compile_cpp_file(input_name);
                     }
 
@@ -98,7 +104,7 @@ namespace foxtalk {
 
     protected:
         void file_notification(fs::path event_file, uint32_t mask_flags) override {
-            if(event_file.extension() != ".cpp") return;
+            if (event_file.extension() != ".cpp") return;
 
             if (mask_flags & IN_CREATE) {
                 std::cout << "Detected " << event_file << " IN_CREATE" << std::endl;
