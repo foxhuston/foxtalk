@@ -168,14 +168,14 @@ class Foxtalk {
 
       ///// VERTEX BUFFER SETUP ////////////////////////////////////////////////
 
-      _vertexBuffer = VBuffer<Vertex>(physicalDevice, device, _vertices.size()
+      _vertexBuffer = VBuffer<Vertex>(physicalDevice, &device, _vertices.size()
           , vk::BufferUsageFlagBits::eVertexBuffer
           , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
       _vertexBuffer.transfer(_vertices);
 
       ///// INDEX BUFFER SETUP /////////////////////////////////////////////////
-      _indexBuffer = VBuffer<uint32_t>(physicalDevice, device, _indices.size()
+      _indexBuffer = VBuffer<uint32_t>(physicalDevice, &device, _indices.size()
         , vk::BufferUsageFlagBits::eIndexBuffer
         , vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
         );
@@ -186,7 +186,7 @@ class Foxtalk {
       for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         auto buff = VBuffer<UniformBufferObject>(
           _physicalDevice
-          , _device
+          , &_device
           , 1
           , vk::BufferUsageFlagBits::eUniformBuffer
           , vk::MemoryPropertyFlagBits::eHostVisible
@@ -201,7 +201,7 @@ class Foxtalk {
       for(auto i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         auto buff = VBuffer<uint8_t>(
           _physicalDevice
-          , _device
+          , &_device
           , imageSize
           , vk::BufferUsageFlagBits::eTransferSrc
           , vk::MemoryPropertyFlagBits::eHostVisible

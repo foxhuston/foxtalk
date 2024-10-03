@@ -19,9 +19,12 @@ private:
 
 public:
   ///// MAIN CONSTRUCTOR /////////////////////////////////////////////////////
-  VBuffer(const vk::PhysicalDevice &physicalDevice, const vk::Device &device,
+  VBuffer(const vk::PhysicalDevice &physicalDevice, const vk::Device *device,
           size_t count, vk::BufferUsageFlags bufferUsageFlags,
-          vk::MemoryPropertyFlags memoryPropertyFlags) {
+          vk::MemoryPropertyFlags memoryPropertyFlags)
+
+      : _device{device}
+  {
     _bufferInfo = {{}, sizeof(T) * count, bufferUsageFlags};
     _buffer = _device->createBuffer(_bufferInfo);
 
@@ -31,7 +34,7 @@ public:
         findMemoryType(physicalDevice, vertexBufferMemReq.memoryTypeBits,
                        memoryPropertyFlags)};
 
-    _bufferMemory = device.allocateMemory(vertexAllocInfo);
+    _bufferMemory = _device->allocateMemory(vertexAllocInfo);
     _device->bindBufferMemory(_buffer.value(), _bufferMemory.value(), 0);
   }
 
