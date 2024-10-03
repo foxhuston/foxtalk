@@ -22,6 +22,10 @@ namespace foxtalk {
             return new TupleNoun { Query, { .u64 = 0 } };
         }
 
+        static TupleNoun* mkPair(TupleNoun * a, TupleNoun* b) {
+            return new TupleNoun { Pair, { .pair = { .fst = a, .snd = b } } };
+        }
+
         static TupleNoun* mkSymbol(const char *s) {
             return new TupleNoun {Symbol, {.symbol = GC_strdup(s) }};
         }
@@ -55,6 +59,9 @@ namespace foxtalk {
                 switch(type) {
                     case Type::Query:
                         return true;
+                    case Type::Pair:
+                        return data.pair.fst == rhs.data.pair.fst
+                            && data.pair.snd == rhs.data.pair.snd;
                     case Type::Symbol:
                         return strcmp(data.symbol, rhs.data.symbol) == 0;
                     case Type::CPtr:
@@ -72,8 +79,14 @@ namespace foxtalk {
 
         const size_t hash() const {
             size_t seed = 0;
+            boost::hash_combine(seed, type);
+
             switch (type) {
                 case Type::Query:
+                    break;
+                case Type::Pair:
+                    boost::hash_combine(seed, data.pair.fst);
+                    boost::hash_combine(seed, data.pair.snd);
                     break;
                 case Type::Symbol:
                     boost::hash_combine(seed, std::string(data.symbol));
@@ -94,6 +107,7 @@ namespace foxtalk {
         }
 
         bool is_query() const { return type == Type::Query; }
+        bool is_pair() const { return type == Type::Pair; }
         bool is_cptr() const { return type == Type::CPtr; }
         bool is_symbol() const { return type == Type::Symbol; }
         bool is_u64() const { return type == Type::U64; }
@@ -102,6 +116,7 @@ namespace foxtalk {
     private:
         enum Type {
             Query,
+            Pair,
             Symbol,
             CPtr,
             U64,
@@ -114,7 +129,13 @@ namespace foxtalk {
             Free_Fn free_fn;
         };
 
+        struct TuplePair {
+            TupleNoun *fst;
+            TupleNoun *snd;
+        };
+
         union Data {
+            TuplePair pair;
             char *symbol;
             CPtrWithFree cptr;
             uint64_t u64;
@@ -125,11 +146,13 @@ namespace foxtalk {
 
         TupleNoun(Type type, Data data) : type{type}, data{data} {}
 
-    public:
         friend std::ostream &operator<<(std::ostream &os, const TupleNoun &noun) {
             switch (noun.type) {
                 case Type::Query:
                     os << "Query";
+                    break;
+                case Type::Pair:
+                    os << "<" << noun.data.pair.fst << ", " << noun.data.pair.snd << ">";
                     break;
                 case Type::Symbol:
                     os << noun.data.symbol;

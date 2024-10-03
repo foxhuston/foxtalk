@@ -26,16 +26,16 @@ namespace foxtalk {
         SharedObjectHandler(const char *file_name) {
             handle = dlopen(file_name, RTLD_LOCAL | RTLD_NOW);
             if(handle == nullptr) {
-                throw std::runtime_error(std::format("Could not load dynamic handler! ({0})", strerror(errno)));
+                throw std::runtime_error(std::format("Could not load dynamic handler for {0}! ({1})", file_name, dlerror()));
             }
             _get_query = reinterpret_cast<GetQuery>(dlsym(handle, "get_query"));
             if(_get_query == nullptr) {
-                throw std::runtime_error(std::format("Could not find get_query! ({0})", strerror(errno)));
+                throw std::runtime_error(std::format("Could not find get_query for {0}! ({1})", file_name, dlerror()));
             }
 
             _handle_results = reinterpret_cast<HandleResults>(dlsym(handle, "handle_results"));
             if(_handle_results == nullptr) {
-                throw std::runtime_error(std::format("Could not find handle_results! ({0})", strerror(errno)));
+                throw std::runtime_error(std::format("Could not find handle_results for {0}! ({1})", file_name, dlerror()));
             }
         }
 
@@ -48,7 +48,11 @@ namespace foxtalk {
         }
 
         ~SharedObjectHandler() {
-            dlclose(handle);
+            auto res = dlclose(handle);
+            if(res != 0) {
+                throw std::runtime_error(
+                        std::format("Error when closing SharedObjectHandler: {0}", dlerror()));
+            }
         }
     };
 

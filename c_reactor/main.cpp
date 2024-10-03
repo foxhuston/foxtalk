@@ -20,7 +20,7 @@ int main() {
         for(auto t : reactor.get_db().get_tuples()) {
             std::cout << "  In DB: " << t << std::endl;
         }
-        sleep(5);
+        sleep(1);
     }
 
     return 0;

@@ -14,5 +14,6 @@ add_subdirectory(tests)
 
 find_package(Boost REQUIRED)
 
-add_executable(reactor_run main.cpp)
+add_executable(reactor_run main.cpp
+        FsWatcher.h)
 target_link_libraries(reactor_run reactor gc)
