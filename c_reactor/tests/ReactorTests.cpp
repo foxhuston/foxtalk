@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         auto res = std::find(tuples.begin(), tuples.end(), expected);
         BOOST_ASSERT(res != std::end(tuples));
 
-        auto expected2 = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("puppy")};
+        auto expected2 = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is an"), TupleNoun::mkSymbol("awesome puppy")};
         auto res2 = std::find(tuples.begin(), tuples.end(), expected2);
         BOOST_ASSERT(res2 != std::end(tuples));
     }
