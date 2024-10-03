@@ -12,7 +12,7 @@ namespace foxtalk {
     struct TupleNoun {
         typedef void (*Free_Fn)(void *);
 
-    private:
+    public:
         enum Type {
             Query,
             Pair,
@@ -22,7 +22,6 @@ namespace foxtalk {
             I64
         } type;
 
-    public:
         struct CPtrWithFree {
             void *data;
             Free_Fn free_fn;
@@ -44,22 +43,6 @@ namespace foxtalk {
 //        TupleNoun(Type type, Data data) : type{type}, data{data} {}
         TupleNoun() = delete;
         TupleNoun(Type type, Data data) = delete;
-
-        static TupleNoun *mkQuery();
-
-        static TupleNoun *mkPair(TupleNoun *a, TupleNoun *b);
-
-        static TupleNoun *mkSymbol(const char *s);
-
-        static TupleNoun *mkSymbol(char *s);
-
-        static void FinalizeCptrTupleNoun(void* void_obj, void* void_env);
-
-        static TupleNoun *mkPtr(void *dat, Free_Fn free_fn);
-
-        static TupleNoun *mkU64(uint64_t n);
-
-        static TupleNoun *mkI64(int64_t n);
 
         ~TupleNoun();
 
@@ -84,5 +67,14 @@ namespace foxtalk {
     };
 
 } // foxtalk
+
+extern "C" {
+foxtalk::TupleNoun *mkQuery();
+foxtalk::TupleNoun *mkPair(foxtalk::TupleNoun *a, foxtalk::TupleNoun *b);
+foxtalk::TupleNoun *mkSymbol(const char *s);
+foxtalk::TupleNoun *mkPtr(void *dat, foxtalk::TupleNoun::Free_Fn free_fn);
+foxtalk::TupleNoun *mkU64(uint64_t n);
+foxtalk::TupleNoun *mkI64(int64_t n);
+}
 
 #endif //REACTOR_TUPLENOUN_H

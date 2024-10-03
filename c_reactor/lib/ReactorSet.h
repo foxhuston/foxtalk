@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
 
+#include "Tuple.h"
+
 #include "gc_allocator.h"
 
 namespace foxtalk {

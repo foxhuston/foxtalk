@@ -19,19 +19,19 @@ BOOST_AUTO_TEST_SUITE(DB_TESTS)
 
     BOOST_AUTO_TEST_CASE(DbAddsTupleTest) {
         Db db;
-        db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+        db.add_tuple(Tuple::mk(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky")));
         auto count = db.get_tuples().size();
         BOOST_ASSERT(count == 1);
     }
 
     BOOST_AUTO_TEST_CASE(DbRemovesTupleTest) {
         Db db;
-        db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+        db.add_tuple(Tuple::mk(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky")));
 
         auto count = db.get_tuples().size();
         BOOST_ASSERT(count == 1);
 
-        db.remove_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+        db.remove_tuple(Tuple::mk(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky")));
 
         auto post_delete_count = db.get_tuples().size();
         BOOST_ASSERT(post_delete_count == 0);

@@ -50,7 +50,7 @@ namespace foxtalk {
                     << " -o " << fs::absolute(watch_dir / out_file_path);
 
 
-            std::array<char, 1024> buff;
+            std::array<char, 1024> buff {};
             FILE *pipe = popen(command.str().c_str(), "r");
             if(!pipe) {
                 throw std::runtime_error(

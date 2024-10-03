@@ -2,6 +2,7 @@
 // Created by fox on 10/2/24.
 //
 
+#include <iostream>
 #include <cstdint>
 #include <cstddef>
 #include <functional>
@@ -11,9 +12,9 @@
 
 extern "C" foxtalk::Tuple* get_query() {
     return foxtalk::Tuple::mk(
-            foxtalk::TupleNoun::mkQuery(),
-            foxtalk::TupleNoun::mkSymbol("is a"),
-            foxtalk::TupleNoun::mkSymbol("camera")
+            mkQuery(),
+            mkSymbol("is a"),
+            mkSymbol("camera")
     );
 }
 

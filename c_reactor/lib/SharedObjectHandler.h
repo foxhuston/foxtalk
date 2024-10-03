@@ -28,7 +28,7 @@ namespace foxtalk {
         SharedObjectHandler(const char *file_name) {
             handle = dlopen(file_name, RTLD_LOCAL | RTLD_NOW);
             if(handle == nullptr) {
-                throw std::runtime_error(std::format("Could not load dynamic handler for {0}! ({1})", file_name, dlerror()));
+                throw std::runtime_error(std::format("Could not DLOPEN dynamic handler for {0}! ({1})", file_name, dlerror()));
             }
             _get_query = reinterpret_cast<GetQuery>(dlsym(handle, "get_query"));
             if(_get_query == nullptr) {

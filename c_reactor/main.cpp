@@ -6,12 +6,12 @@
 
 int main() {
     foxtalk::Reactor reactor{};
-    foxtalk::DynamicCompilingHandler d{&reactor, "handlers/"};
+    foxtalk::DynamicCompilingHandler d {&reactor, "handlers/"};
 
     reactor.claim(
-            foxtalk::TupleNoun::mkSymbol("/dev/video0"),
-            foxtalk::TupleNoun::mkSymbol("is a"),
-            foxtalk::TupleNoun::mkSymbol("camera")
+        mkSymbol("/dev/video0"),
+        mkSymbol("is a"),
+        mkSymbol("camera")
     );
 
     while (true) {

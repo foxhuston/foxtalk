@@ -10,9 +10,9 @@
 
 extern "C" foxtalk::Tuple* get_query() {
     return foxtalk::Tuple::mk(
-            foxtalk::TupleNoun::mkQuery(),
-            foxtalk::TupleNoun::mkSymbol("is a"),
-            foxtalk::TupleNoun::mkSymbol("husky")
+            mkQuery(),
+            mkSymbol("is a"),
+            mkSymbol("husky")
     );
 }
 
@@ -22,14 +22,14 @@ extern "C" void handle_results(foxtalk::ReactorVec<const foxtalk::Tuple*>::type 
 
         claim(foxtalk::Tuple::mk(
             r->getSubject(),
-            foxtalk::TupleNoun::mkSymbol("is"),
-            foxtalk::TupleNoun::mkSymbol("super cool")
+            mkSymbol("is"),
+            mkSymbol("super cool")
         ));
 
         claim(foxtalk::Tuple::mk(
             r->getSubject(),
-            foxtalk::TupleNoun::mkSymbol("is an"),
-            foxtalk::TupleNoun::mkSymbol("awesome puppy")
+            mkSymbol("is an"),
+            mkSymbol("awesome puppy")
         ));
     }
 }

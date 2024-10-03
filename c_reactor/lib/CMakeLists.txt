@@ -2,8 +2,11 @@ set(CMAKE_CXX_STANDARD 26)
 
 find_package(Boost REQUIRED)
 
+# N.B.: This feels like it should be static, but if it is, dlopen can't find
+# symbols. I got tired of dealing with it, so I'll just have to manually link
+# gc and reactor together whenever I need to make a new project -_-
 add_library(
-        reactor STATIC
+        reactor
         Reactor.cpp
         Reactor.h
         Tuple.h
@@ -23,4 +26,4 @@ target_include_directories(reactor PRIVATE
         ../vendor/gc-8.2.4/include
 )
 
-target_link_libraries(reactor PRIVATE gc dl)
+target_link_libraries(reactor gc dl)

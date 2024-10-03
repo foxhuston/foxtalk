@@ -10,75 +10,6 @@
 
 namespace foxtalk {
 
-    TupleNoun *TupleNoun::mkQuery() {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = Query;
-        tn->data.u64 = 0;
-        return tn;
-    }
-
-    TupleNoun *TupleNoun::mkPair(TupleNoun *a, TupleNoun *b) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = Pair;
-        tn->data.pair.fst = a;
-        tn->data.pair.snd = b;
-        return tn;
-    }
-
-    TupleNoun *TupleNoun::mkSymbol(const char *s) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = Symbol;
-        tn->data.symbol = GC_strdup(s);
-        return tn;
-    }
-
-    TupleNoun *TupleNoun::mkSymbol(char *s) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = Symbol;
-        tn->data.symbol = GC_strdup(s);
-        return tn;
-    }
-
-    void TupleNoun::FinalizeCptrTupleNoun(GC_PTR void_obj, GC_PTR void_env) {
-        auto tn = (TupleNoun*)void_obj;
-        if(tn->is_cptr()) {
-            tn->data.cptr.free_fn(tn->data.cptr.data);
-        } else {
-            std::cout << "WARNING! GC Trying to finalize non-cptr tuple noun!" << std::endl;
-        }
-    }
-
-    TupleNoun *TupleNoun::mkPtr(void *dat, TupleNoun::Free_Fn free_fn) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = CPtr;
-        tn->data.cptr.data = dat;
-        tn->data.cptr.free_fn = free_fn;
-
-        GC_finalization_proc old_proc;
-        size_t my_env;
-        void *old_env;
-        // TODO: Hmm...
-        GC_register_finalizer(tn, FinalizeCptrTupleNoun, &my_env, &old_proc, &old_env);
-
-        return tn;
-    }
-
-    TupleNoun *TupleNoun::mkU64(uint64_t n) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = U64;
-        tn->data.u64 = n;
-
-        return tn;
-    }
-
-    TupleNoun *TupleNoun::mkI64(int64_t n) {
-        auto tn = (TupleNoun *)GC_malloc(sizeof(TupleNoun));
-        tn->type = I64;
-        tn->data.i64 = n;
-
-        return tn;
-    }
-
     TupleNoun::~TupleNoun() {
         std::cout << "DEBUG: Freeing Tuple Noun..." << std::endl;
         if (type == CPtr) {
@@ -162,4 +93,71 @@ namespace foxtalk {
 
         return os;
     }
+
 } //foxtalk
+
+static void FinalizeCptrTupleNoun(GC_PTR void_obj, GC_PTR void_env) {
+    auto tn = (foxtalk::TupleNoun *) void_obj;
+    if (tn->is_cptr()) {
+        tn->data.cptr.free_fn(tn->data.cptr.data);
+    } else {
+        std::cout << "WARNING! GC Trying to finalize non-cptr tuple noun!" << std::endl;
+    }
+}
+
+extern "C" {
+
+__attribute__((visibility("default")))
+foxtalk::TupleNoun *mkQuery() {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::Query;
+    tn->data.u64 = 0;
+    return tn;
+}
+
+foxtalk::TupleNoun *mkPair(foxtalk::TupleNoun *a, foxtalk::TupleNoun *b) {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::Pair;
+    tn->data.pair.fst = a;
+    tn->data.pair.snd = b;
+    return tn;
+}
+
+foxtalk::TupleNoun *mkSymbol(const char *s) {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::Symbol;
+    tn->data.symbol = GC_strdup(s);
+    return tn;
+}
+
+foxtalk::TupleNoun *mkPtr(void *dat, foxtalk::TupleNoun::Free_Fn free_fn) {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::CPtr;
+    tn->data.cptr.data = dat;
+    tn->data.cptr.free_fn = free_fn;
+
+    GC_finalization_proc old_proc;
+    size_t my_env;
+    void *old_env;
+    // TODO: Hmm...
+    GC_register_finalizer(tn, FinalizeCptrTupleNoun, &my_env, &old_proc, &old_env);
+
+    return tn;
+}
+
+foxtalk::TupleNoun *mkU64(uint64_t n) {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::U64;
+    tn->data.u64 = n;
+
+    return tn;
+}
+
+foxtalk::TupleNoun *mkI64(int64_t n) {
+    auto tn = (foxtalk::TupleNoun *) GC_malloc(sizeof(foxtalk::TupleNoun));
+    tn->type = foxtalk::TupleNoun::Type::I64;
+    tn->data.i64 = n;
+
+    return tn;
+}
+}
