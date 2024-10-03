@@ -24,7 +24,7 @@ find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 
 function(compile_shader target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "ENV;FORMAT" "SOURCES")
-    foreach(source ${arg_SOURCES})
+    foreach (source ${arg_SOURCES})
         add_custom_command(
                 OUTPUT ${source}.${arg_FORMAT}
                 DEPENDS ${source}
@@ -38,13 +38,16 @@ function(compile_shader target)
                 ${CMAKE_CURRENT_SOURCE_DIR}/${source}
         )
         target_sources(${target} PRIVATE ${source}.${arg_FORMAT})
-    endforeach()
+    endforeach ()
 endfunction()
 
 ##### DYNAMIC LIBS #############################################################
 
 add_library(image_proc SHARED src/CvProcessor.cpp)
-add_library(dot_sandbox SHARED src/CvDotSandbox.cpp)
+add_library(dot_sandbox SHARED src/CvDotSandbox.cpp
+        src/VImage.h
+        src/VulkUtils.h
+        src/VBuffer.h)
 
 ##### UTILS ####################################################################
 
@@ -76,30 +79,42 @@ target_link_libraries(reactive_db lua m)
 
 ################################################################################
 
+#add_subdirectory(c_reactor)
 
 #TODO: This is probably not the way to do it.
 include_directories(
-  ${OpenCV_INCLUDE_DIRS}
-  ${FREETYPE_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        ${FREETYPE_INCLUDE_DIRS}
+#        c_reactor/
+#        c_reactor/lib
+#        c_reactor/vendor/gc-8.2.4
 )
-add_executable(${PROJECT_NAME}
-  src/main.cpp
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+
+add_executable(foxtalk
+        src/main.cpp
+        src/VulkUtils.h
+        src/VBuffer.h
+        src/VImage.h
         src/boot/BuildAndNotify.cpp
         src/boot/BuildAndNotify.h
 )
 
-compile_shader(${PROJECT_NAME}
+compile_shader(foxtalk
         ENV vulkan
         FORMAT bin
         SOURCES
-            src/shaders/simple.vert
-            src/shaders/simple.frag
+        src/shaders/simple.vert
+        src/shaders/simple.frag
 )
 
 
-target_link_libraries(${PROJECT_NAME}
-  ${OpenCV_LIBS}
-  ${FREETYPE_LIBRARIES}
+target_link_libraries(foxtalk
+        ${OpenCV_LIBS}
+        ${FREETYPE_LIBRARIES}
         Vulkan::Vulkan glfw glm::glm
         Vulkan::Headers
+
+#        reactor gc
 )

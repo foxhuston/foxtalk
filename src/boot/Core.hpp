@@ -325,7 +325,7 @@ class Core {
       auto renderFinishedSemaphore = _renderFinishedSemaphores[_currentFrame];
       auto commandBuffer = _commandBuffers[_currentFrame];
 
-      device().waitForFences(inFlightFence, vk::True, UINT64_MAX);
+      std::ignore = device().waitForFences(inFlightFence, vk::True, UINT64_MAX);
 
       ///// ACQUIRE IMAGE //////////////////////////////////////////////////////
       auto nextImageResult = device().acquireNextImageKHR(
