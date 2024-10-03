@@ -9,10 +9,10 @@ int main() {
     foxtalk::DynamicHandler d { &reactor, "../tests/libreactor_test_handler.so" };
 
     reactor.claim({
-                          foxtalk::TupleNoun::mkSymbol("lexi"),
-                          foxtalk::TupleNoun::mkSymbol("is a"),
-                          foxtalk::TupleNoun::mkSymbol("husky")
-                  });
+        foxtalk::TupleNoun::mkSymbol("lexi"),
+        foxtalk::TupleNoun::mkSymbol("is a"),
+        foxtalk::TupleNoun::mkSymbol("husky")
+    });
 
     while(true) {
         reactor.tick();

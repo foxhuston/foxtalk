@@ -5,6 +5,7 @@
 #ifndef REACTOR_REACTOR_H
 #define REACTOR_REACTOR_H
 
+#include <mutex>
 #include <queue>
 #include "gc_cpp.h"
 #include "gc_allocator.h"
@@ -23,6 +24,8 @@ namespace foxtalk {
 
     class Reactor : gc {
     private:
+        std::mutex handlerMutex {};
+
         Db db {};
         ReactorSet<const Handler *>::type handlers { };
 

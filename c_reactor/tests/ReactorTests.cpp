@@ -298,4 +298,40 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         BOOST_ASSERT(!tuples2.contains(expectedB));
     }
 
+    BOOST_AUTO_TEST_CASE(ReactorHandlerDeleteAndReaddWorks) {
+        Reactor reactor;
+        TestClaimingHandler th;
+
+        auto originalClaim = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")};
+
+        reactor.claim(originalClaim);
+        reactor.add_handler(&th);
+
+        auto expectedA = Tuple{TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool")};
+        auto expectedB = Tuple{TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi")};
+
+        reactor.tick();
+
+        auto tuples = reactor.get_db().get_tuples();
+        BOOST_ASSERT(tuples.contains(originalClaim));
+        BOOST_ASSERT(tuples.contains(expectedA));
+        BOOST_ASSERT(tuples.contains(expectedB));
+
+        reactor.remove_handler(&th);
+        reactor.tick();
+
+        auto tuples2 = reactor.get_db().get_tuples();
+        BOOST_ASSERT(tuples2.contains(originalClaim));
+        BOOST_ASSERT(!tuples2.contains(expectedA));
+        BOOST_ASSERT(!tuples2.contains(expectedB));
+
+        reactor.add_handler(&th);
+        reactor.tick();
+
+        auto tuples3 = reactor.get_db().get_tuples();
+        BOOST_ASSERT(tuples3.contains(originalClaim));
+        BOOST_ASSERT(tuples3.contains(expectedA));
+        BOOST_ASSERT(tuples3.contains(expectedB));
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -28,8 +28,8 @@ extern "C" void handle_results(foxtalk::TupleVec query_results, std::function<vo
 
         claim({
             r.getSubject(),
-            foxtalk::TupleNoun::mkSymbol("is a"),
-            foxtalk::TupleNoun::mkSymbol("great puppy"),
+            foxtalk::TupleNoun::mkSymbol("is an"),
+            foxtalk::TupleNoun::mkSymbol("awesome puppy"),
         });
     }
 }

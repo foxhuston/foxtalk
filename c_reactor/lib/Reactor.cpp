@@ -22,7 +22,7 @@ namespace foxtalk {
 
     void Reactor::remove(ReactorSet<Tuple>::type tuples) {
         std::queue<Tuple> workQueue {};
-        for(auto t : tuples) {
+        for(auto& t : tuples) {
             workQueue.push(t);
         }
         remove(workQueue);
@@ -46,7 +46,7 @@ namespace foxtalk {
 
                 // Enqueue all the things this tuple has created...
                 if(tuple_provenance.contains(curr)) {
-                    for (auto tup: tuple_provenance.at(curr)) {
+                    for (auto& tup: tuple_provenance.at(curr)) {
                         std::cout << "DEBUG REMOVE: ENQUEUEING " << tup << std::endl;
                         workQueue.push(tup);
                     }
@@ -55,13 +55,13 @@ namespace foxtalk {
                 // If this was part of a set that triggered a handler, we'll need to run the handler again
                 // TODO: And remove anything that handler had caused to exist.
                 std::vector<ReactorSet<Tuple>::type> keys_to_remove {};
-                for(auto [k, v] : tuples_triggered_handler) {
+                for(auto& [k, v] : tuples_triggered_handler) {
                     if(k.contains(curr)) {
                         keys_to_remove.push_back(k);
                     }
                 }
 
-                for(auto k : keys_to_remove) {
+                for(auto& k : keys_to_remove) {
                     tuples_triggered_handler.erase(k);
                 }
 
@@ -72,21 +72,29 @@ namespace foxtalk {
     }
 
     void Reactor::add_handler(const Handler *handler) {
+        std::lock_guard<std::mutex> guard(handlerMutex);
+        std::cout << "Adding handler " << handler << std::endl;
         handlers.insert(handler);
     }
 
     void Reactor::remove_handler(const Handler *handler) {
+        std::lock_guard<std::mutex> guard(handlerMutex);
+        std::cout << "Removing handler " << handler << std::endl;
         handlers.erase(handler);
         if(tuple_handler_provenance.contains(handler)) {
             remove(tuple_handler_provenance.at(handler));
             tuple_handler_provenance.erase(handler);
+        }
+
+        for(auto& kv : tuples_triggered_handler) {
+            kv.second.erase(handler);
         }
     }
 
     ReactorSet<Tuple>::type Reactor::query(Tuple *q) {
         ReactorSet<Tuple>::type result_tuples {};
 
-        for (auto t: db.get_tuples()) {
+        for (auto& t: db.get_tuples()) {
             if (!q->getSubject()->is_query()
                 && *t.getSubject() != *q->getSubject()) {
                 continue;
@@ -109,7 +117,8 @@ namespace foxtalk {
     }
 
     void Reactor::tick() {
-        for (auto h: handlers) {
+        std::lock_guard<std::mutex> guard(handlerMutex);
+        for (auto& h: handlers) {
             auto result_tuples = query(h->get_query());
 
             if(result_tuples.size() > 0) {
@@ -118,13 +127,13 @@ namespace foxtalk {
 
                     tuples_triggered_handler_insert(result_tuples, h);
 
-                    for(auto t : result_tuples) {
+                    for(auto& t : result_tuples) {
                         result_tuples_vec.push_back(t);
                     }
 
                     // If not, then run the handler with these results.
                     h->handle_results(result_tuples_vec, [this, h, result_tuples](Tuple new_tuple) {
-                        for (auto tr: result_tuples) {
+                        for (auto& tr: result_tuples) {
                             rm_set_insert(tuple_handler_provenance, h, new_tuple);
                             rm_set_insert(tuple_provenance, tr, new_tuple);
                         }
@@ -141,7 +150,6 @@ namespace foxtalk {
         }
 
         tuples_triggered_handler.at(from).insert(to);
-
     }
 
     bool Reactor::did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to) {
