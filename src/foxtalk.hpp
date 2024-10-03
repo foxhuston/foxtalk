@@ -94,6 +94,7 @@ public:
 
     _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH, 1920);
     _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT, 1080);
+    _videoCapture.set(cv::VideoCaptureProperties::CAP_PROP_FPS, 60);
 
     _camWidth = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
     _camHeight = _videoCapture.get(cv::VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);

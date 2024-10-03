@@ -64,30 +64,19 @@ FetchContent_MakeAvailable(argparse)
 add_executable(pdf-identify src/utils/pdf_identify.cpp)
 target_link_libraries(pdf-identify argparse podofo)
 
-##### REACTIVE DB ##############################################################
-
-find_package(Lua REQUIRED)
-
-add_executable(reactive_db
-        src/utils/reactive-db-test.cpp
-        src/reactive_db/Symbol.h
-        src/reactive_db/Reactor.cpp
-        src/reactive_db/Reactor.h
-        src/reactive_db/Tuple.h)
-
-target_link_libraries(reactive_db lua m)
-
 ################################################################################
 
-#add_subdirectory(c_reactor)
+add_subdirectory(c_reactor)
+
+set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
 #TODO: This is probably not the way to do it.
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${FREETYPE_INCLUDE_DIRS}
-#        c_reactor/
-#        c_reactor/lib
-#        c_reactor/vendor/gc-8.2.4
+        c_reactor/
+        c_reactor/lib
+        c_reactor/vendor/gc-8.2.4
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -116,5 +105,5 @@ target_link_libraries(foxtalk
         Vulkan::Vulkan glfw glm::glm
         Vulkan::Headers
 
-#        reactor gc
+        reactor
 )

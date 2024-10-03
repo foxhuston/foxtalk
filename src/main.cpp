@@ -3,8 +3,7 @@
 #include "boot/VkDisplay.hpp"
 #include "foxtalk.hpp"
 
-int main()
-{
+int main() {
   Glfw container{};
   // VkDisplay container {};
 
@@ -19,12 +18,13 @@ int main()
       static_cast<float>(fbSize.height),
       MAX_FRAMES_IN_FLIGHT};
 
-  container.mainLoop([&core, &foxtalk]()
-                     {
-    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto renderPassBeginInfo, auto swapchainExtent, auto imageIndex) {
-        foxtalk.render(cmdBuffer, renderPassBeginInfo, swapchainExtent, imageIndex);
+  container.mainLoop([&core, &foxtalk]() {
+    core.withRenderPass([&foxtalk](const vk::CommandBuffer &cmdBuffer, auto renderPassBeginInfo, auto swapchainExtent,
+                                   auto imageIndex) {
+      foxtalk.render(cmdBuffer, renderPassBeginInfo, swapchainExtent, imageIndex);
     });
-    core.incrementFrame(); });
+    core.incrementFrame();
+  });
 
   core.device().waitIdle();
 
