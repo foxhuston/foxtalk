@@ -26,17 +26,17 @@ namespace foxtalk {
 
         std::unordered_map<fs::path, SharedObjectHandler *> handlers;
 
-        void remove_handler_for_path(const fs::path& path) {
-            if(handlers[path] != nullptr) {
-                reactor->remove_handler(handlers[path]);
-                delete handlers[path];
-                handlers[path] = nullptr;
+        void remove_handler_for_path(const fs::path& p) {
+            if(handlers[p] != nullptr) {
+                reactor->remove_handler(handlers[p]);
+                delete handlers[p];
+                handlers[p] = nullptr;
             }
         }
 
         void add_handler_for_path(const fs::path& path) {
             remove_handler_for_path(path);
-            handlers[path] = new SharedObjectHandler(path.c_str());
+            handlers[path] = new SharedObjectHandler((watch_dir / path).c_str());
             reactor->add_handler(handlers[path]);
         }
 
@@ -62,13 +62,37 @@ namespace foxtalk {
             }
 
             auto returnCode = pclose(pipe);
-            std::cout << "command returned with code " << returnCode << std::endl;
+
+            if(returnCode != 0) {
+                throw std::runtime_error(
+                        std::format("clang++ exited with code: {0}", returnCode));
+            }
 
             return out_file_path;
         }
     public:
         DynamicCompilingHandler(Reactor *reactor, const char *dir)
                 : reactor{reactor}, watch_dir{fs::path(dir)} {
+
+            // Compile and load any .so files in the path on startup.
+            for(auto& entry : fs::directory_iterator(dir)) {
+                if(entry.path().extension() == ".cpp") {
+                    auto input_name = entry.path().filename();
+                    auto compiled_name = entry.path().filename();
+                    compiled_name.replace_extension(".so");
+                    compiled_name = compiled_name;
+
+                    std::cout << "Boot compiling " << compiled_name << std::endl;
+
+                    if(!exists(compiled_name)) {
+                        auto out_file = compile_cpp_file(input_name);
+                    }
+
+                    add_handler_for_path(compiled_name);
+                }
+            }
+
+            // Then watch for future changes.
             watch_directory(watch_dir.c_str());
         }
 
@@ -79,14 +103,16 @@ namespace foxtalk {
             if (mask_flags & IN_CREATE) {
                 std::cout << "Detected " << event_file << " IN_CREATE" << std::endl;
                 auto out_file = compile_cpp_file(event_file);
+                add_handler_for_path(out_file);
 
             } else if (mask_flags & IN_CLOSE_WRITE) {
                 std::cout << "Detected " << event_file << " IN_CLOSE_WRITE" << std::endl;
                 auto out_file = compile_cpp_file(event_file);
+                add_handler_for_path(out_file);
 
             } else if (mask_flags & IN_DELETE) {
                 std::cout << "Detected " << event_file << " IN_DELETE" << std::endl;
-
+                remove_handler_for_path(event_file);
             } else {
                 std::cout << "Detected " << event_file << " unknown" << std::endl;
             }

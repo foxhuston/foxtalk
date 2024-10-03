@@ -9,9 +9,9 @@ int main() {
     foxtalk::DynamicCompilingHandler d { &reactor, "handlers/" };
 
     reactor.claim({
-        foxtalk::TupleNoun::mkSymbol("lexi"),
+        foxtalk::TupleNoun::mkSymbol("/dev/video0"),
         foxtalk::TupleNoun::mkSymbol("is a"),
-        foxtalk::TupleNoun::mkSymbol("husky")
+        foxtalk::TupleNoun::mkSymbol("camera")
     });
 
     while(true) {

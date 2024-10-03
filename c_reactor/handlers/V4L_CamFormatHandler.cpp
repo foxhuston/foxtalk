@@ -12,7 +12,7 @@ extern "C" foxtalk::Tuple* get_query() {
     return new foxtalk::Tuple(
             foxtalk::TupleNoun::mkQuery(),
             foxtalk::TupleNoun::mkSymbol("is a"),
-            foxtalk::TupleNoun::mkSymbol("cameraaaa")
+            foxtalk::TupleNoun::mkSymbol("camera")
     );
 }
 
