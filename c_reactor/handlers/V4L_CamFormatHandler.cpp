@@ -6,17 +6,18 @@
 #include <cstddef>
 #include <functional>
 
+#include "ReactorSet.h"
 #include "Tuple.h"
 
 extern "C" foxtalk::Tuple* get_query() {
-    return new foxtalk::Tuple(
+    return foxtalk::Tuple::mk(
             foxtalk::TupleNoun::mkQuery(),
             foxtalk::TupleNoun::mkSymbol("is a"),
             foxtalk::TupleNoun::mkSymbol("camera")
     );
 }
 
-extern "C" void handle_results(foxtalk::TupleVec query_results, std::function<void(foxtalk::Tuple)> claim) {
+extern "C" void handle_results(foxtalk::ReactorVec<const foxtalk::Tuple*>::type query_results, std::function<void(const foxtalk::Tuple*)> claim) {
     for(auto r : query_results) {
         std::cout << "Hello from V4L handler! Handler query result: " << r << std::endl;
     }

@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_SUITE(DB_TESTS)
 
 BOOST_AUTO_TEST_CASE(DbTest) {
     Db db;
-    db.add_tuple(Tuple { TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky") });
+    db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

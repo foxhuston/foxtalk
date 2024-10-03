@@ -5,16 +5,16 @@
 #include "DynamicCompilingHandler.h"
 
 int main() {
-    foxtalk::Reactor reactor {};
-    foxtalk::DynamicCompilingHandler d { &reactor, "handlers/" };
+    foxtalk::Reactor reactor{};
+    foxtalk::DynamicCompilingHandler d{&reactor, "handlers/"};
 
-    reactor.claim({
-        foxtalk::TupleNoun::mkSymbol("/dev/video0"),
-        foxtalk::TupleNoun::mkSymbol("is a"),
-        foxtalk::TupleNoun::mkSymbol("camera")
-    });
+    reactor.claim(
+            foxtalk::TupleNoun::mkSymbol("/dev/video0"),
+            foxtalk::TupleNoun::mkSymbol("is a"),
+            foxtalk::TupleNoun::mkSymbol("camera")
+    );
 
-    while(true) {
+    while (true) {
         reactor.tick();
 //        std::cout << "Tick!" << std::endl;
 //        for(auto t : reactor.get_db().get_tuples()) {

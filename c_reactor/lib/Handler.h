@@ -9,6 +9,7 @@
 //#include <boost/uuid/uuid.hpp>
 //#include <boost/uuid/random_generator.hpp>
 #include "Tuple.h"
+#include "ReactorSet.h"
 
 namespace foxtalk {
     class Handler {
@@ -21,7 +22,7 @@ namespace foxtalk {
 //        }
 //
         virtual Tuple* get_query() const = 0;
-        virtual void handle_results(TupleVec tv, std::function<void(Tuple)> claim) const = 0;
+        virtual void handle_results(ReactorVec<const Tuple*>::type tv, std::function<void(const Tuple*)> claim) const = 0;
     };
 }
 

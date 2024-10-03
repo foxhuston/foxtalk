@@ -5,175 +5,10 @@
 #ifndef REACTOR_TUPLE_H
 #define REACTOR_TUPLE_H
 
-#include <cstdint>
-#include <iostream>
-#include <vector>
-
-#include "gc.h"
-#include "gc_cpp.h"
-#include "gc_allocator.h"
-#include "boost/container_hash/hash.hpp"
+#include "TupleNoun.h"
 
 namespace foxtalk {
-    struct TupleNoun : gc {
-        typedef void (*Free_Fn)(void *);
-
-        static TupleNoun* mkQuery() {
-            return new TupleNoun { Query, { .u64 = 0 } };
-        }
-
-        static TupleNoun* mkPair(TupleNoun * a, TupleNoun* b) {
-            return new TupleNoun { Pair, { .pair = { .fst = a, .snd = b } } };
-        }
-
-        static TupleNoun* mkSymbol(const char *s) {
-            return new TupleNoun {Symbol, {.symbol = GC_strdup(s) }};
-        }
-
-        static TupleNoun* mkSymbol(char *s) {
-            return new TupleNoun {Symbol, {.symbol = GC_strdup(s) }};
-        }
-
-        static TupleNoun* mkPtr(void *dat, Free_Fn free_fn) {
-            return new TupleNoun {CPtr, {.cptr = {dat, free_fn}}};
-        }
-
-        static TupleNoun* mkU64(uint64_t n) {
-            return new TupleNoun {U64, {.u64 = n}};
-        }
-
-        static TupleNoun* mkI64(int64_t n) {
-            return new TupleNoun {I64, {.i64 = n}};
-        }
-
-        ~TupleNoun() {
-            std::cout << "DEBUG: Freeing Tuple Noun..." << std::endl;
-            if (type == CPtr) {
-                data.cptr.free_fn(data.cptr.data);
-            }
-        }
-
-        bool operator==(const TupleNoun &rhs) const {
-//            std::cout << "DEBUG COMPARE TUPLENOUN " << *this << " WITH " << rhs << std::endl;
-            if(type == rhs.type) {
-                switch(type) {
-                    case Type::Query:
-                        return true;
-                    case Type::Pair:
-                        return data.pair.fst == rhs.data.pair.fst
-                            && data.pair.snd == rhs.data.pair.snd;
-                    case Type::Symbol:
-                        return strcmp(data.symbol, rhs.data.symbol) == 0;
-                    case Type::CPtr:
-                        return data.cptr.data == rhs.data.cptr.data
-                            && data.cptr.free_fn == rhs.data.cptr.free_fn;
-                    case Type::U64:
-                        return data.u64 == rhs.data.u64;
-                    case Type::I64:
-                        return data.i64 == rhs.data.i64;
-                }
-            }
-
-            return false;
-        }
-
-        const size_t hash() const {
-            size_t seed = 0;
-            boost::hash_combine(seed, type);
-
-            switch (type) {
-                case Type::Query:
-                    break;
-                case Type::Pair:
-                    boost::hash_combine(seed, data.pair.fst);
-                    boost::hash_combine(seed, data.pair.snd);
-                    break;
-                case Type::Symbol:
-                    boost::hash_combine(seed, std::string(data.symbol));
-                    break;
-                case Type::CPtr:
-                    boost::hash_combine(seed, data.cptr.data);
-                    boost::hash_combine(seed, data.cptr.free_fn);
-                    break;
-                case Type::U64:
-                    boost::hash_combine(seed, data.u64);
-                    break;
-                case Type::I64:
-                    boost::hash_combine(seed, data.i64);
-                    break;
-            }
-
-            return seed;
-        }
-
-        bool is_query() const { return type == Type::Query; }
-        bool is_pair() const { return type == Type::Pair; }
-        bool is_cptr() const { return type == Type::CPtr; }
-        bool is_symbol() const { return type == Type::Symbol; }
-        bool is_u64() const { return type == Type::U64; }
-        bool is_i64() const { return type == Type::I64; }
-
-    private:
-        enum Type {
-            Query,
-            Pair,
-            Symbol,
-            CPtr,
-            U64,
-            I64
-        } type;
-
-    public:
-        struct CPtrWithFree {
-            void *data;
-            Free_Fn free_fn;
-        };
-
-        struct TuplePair {
-            TupleNoun *fst;
-            TupleNoun *snd;
-        };
-
-        union Data {
-            TuplePair pair;
-            char *symbol;
-            CPtrWithFree cptr;
-            uint64_t u64;
-            int64_t i64;
-        } data;
-
-        TupleNoun() : type{Query}, data{} {}
-
-        TupleNoun(Type type, Data data) : type{type}, data{data} {}
-
-        friend std::ostream &operator<<(std::ostream &os, const TupleNoun &noun) {
-            switch (noun.type) {
-                case Type::Query:
-                    os << "Query";
-                    break;
-                case Type::Pair:
-                    os << "<" << noun.data.pair.fst << ", " << noun.data.pair.snd << ">";
-                    break;
-                case Type::Symbol:
-                    os << noun.data.symbol;
-                    break;
-                case Type::CPtr:
-                    os << "{CPtr " << noun.data.cptr.data << "}";
-                    break;
-                case Type::U64:
-                    os << noun.data.u64;
-                    break;
-                case Type::I64:
-                    os << noun.data.i64;
-                    break;
-            }
-
-            return os;
-        }
-
-    };
-
-    struct Tuple : public gc {
+    struct Tuple {
     private:
         const TupleNoun *subject;
         const TupleNoun *predicate;
@@ -182,6 +17,9 @@ namespace foxtalk {
     public:
 //        Tuple(Tuple &) = delete;
 //        Tuple(Tuple &&) = delete;
+        Tuple(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) = delete;
+
+        static Tuple* mk(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object);
 
         bool operator==(const Tuple& other) const {
             return *subject == *other.subject
@@ -189,16 +27,11 @@ namespace foxtalk {
                 && *object == *other.object;
         };
 
-        Tuple(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object)
-                : subject(subject),
-                  predicate(predicate),
-                  object(object) {}
+        [[nodiscard]] const TupleNoun* getSubject() const { return subject; }
 
-        const TupleNoun* getSubject() const { return subject; }
+        [[nodiscard]] const TupleNoun* getPredicate() const { return predicate; }
 
-        const TupleNoun* getPredicate() const { return predicate; }
-
-        const TupleNoun* getObject() const { return object; }
+        [[nodiscard]] const TupleNoun* getObject() const { return object; }
 
         friend std::ostream &operator<<(std::ostream &os, const Tuple &tuple) {
             os <<  "<" << *tuple.subject << ", " << *tuple.predicate
@@ -207,11 +40,8 @@ namespace foxtalk {
         }
     };
 
-    std::size_t hash_value(TupleNoun const& t);
-    std::size_t hash_value(Tuple const& t);
-
-    typedef std::vector<Tuple, traceable_allocator<Tuple>> TupleVec;
-
+    std::size_t hash_value(const TupleNoun* t);
+    std::size_t hash_value(const Tuple* t);
 }
 
 #endif //REACTOR_TUPLE_H

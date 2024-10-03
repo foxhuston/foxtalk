@@ -6,17 +6,16 @@
 #include "Db.h"
 
 namespace foxtalk {
-    void Db::add_tuple(const Tuple &tuple) {
-//        std::cout << "Database Inserting tuple: " << tuple << std::endl;
+    void Db::add_tuple(const Tuple *tuple) {
         _all_tuples.insert(tuple);
     }
 
-    void Db::remove_tuple(const Tuple &tuple) {
+    void Db::remove_tuple(const Tuple *tuple) {
         _all_tuples.erase(tuple);
     }
 
     // This copies the whole hash set??????
-    const ReactorSet<Tuple>::type& Db::get_tuples() const {
+    const ReactorSet<const Tuple*>::type& Db::get_tuples() const {
         return _all_tuples;
     }
 } // foxtalk

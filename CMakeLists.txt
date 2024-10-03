@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 23)
 find_package(OpenCV REQUIRED)
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 # find_package(vk-bootstrap CONFIG REQUIRED)
-## TODO: Optional, once I move to the "just use the display dierctly"
+## TODO: Optional, once I move to the "just use the display directly"
 ##       magic vulkan code.
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -66,7 +66,7 @@ target_link_libraries(pdf-identify argparse podofo)
 
 ################################################################################
 
-add_subdirectory(c_reactor)
+add_subdirectory(c_reactor/lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
@@ -74,9 +74,9 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${FREETYPE_INCLUDE_DIRS}
-        c_reactor/
-        c_reactor/lib
-        c_reactor/vendor/gc-8.2.4
+#        c_reactor/
+#        c_reactor/lib
+#        c_reactor/vendor/gc-8.2.4
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -99,7 +99,10 @@ compile_shader(foxtalk
 )
 
 
-target_link_libraries(foxtalk
+target_link_libraries(
+        foxtalk
+
+        PRIVATE
         ${OpenCV_LIBS}
         ${FREETYPE_LIBRARIES}
         Vulkan::Vulkan glfw glm::glm

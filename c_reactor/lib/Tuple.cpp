@@ -4,6 +4,11 @@
 
 #include "Tuple.h"
 
+#include "boost/container_hash/hash.hpp"
+
+#include "gc.h"
+#include "gc_allocator.h"
+
 namespace foxtalk {
     std::size_t hash_value(const TupleNoun &t) {
         return t.hash();
@@ -15,5 +20,22 @@ namespace foxtalk {
         boost::hash_combine(seed, *t.getPredicate());
         boost::hash_combine(seed, *t.getObject());
         return seed;
+    }
+
+    std::size_t hash_value(const TupleNoun *t) {
+        return hash_value(*t);
+    }
+
+    std::size_t hash_value(const Tuple *t) {
+        return hash_value(*t);
+    }
+
+    Tuple *Tuple::mk(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) {
+        auto t = (Tuple*) GC_malloc(sizeof(Tuple));
+        t->subject = subject;
+        t->predicate = predicate;
+        t->object = object;
+
+        return t;
     }
 }

@@ -18,22 +18,22 @@ namespace foxtalk {
 
     class Db {
     private:
-//        TupleVec _all_tuples { };
-//        std::unordered_set<Tuple, std::hash<Tuple>, std::equal_to<Tuple>, traceable_allocator<Tuple>> _all_tuples { };
-        ReactorSet<Tuple>::type _all_tuples;
+        ReactorSet<const Tuple *>::type _all_tuples;
 
     public:
         Db() { }
 
-        void add_tuple(const Tuple& tuple);
-        [[nodiscard]] const ReactorSet<Tuple>::type& get_tuples() const;
+        void add_tuple(const Tuple* tuple);
+
+        // TODO: FOR TESTING ONLY!
+        [[nodiscard]] const ReactorSet<const Tuple *>::type& get_tuples() const;
 
         // TODO: FOR TESTING ONLY!
         size_t size() const {
             return _all_tuples.size();
         }
 
-        [[maybe_unused]] void remove_tuple(const Tuple& tuple);
+        [[maybe_unused]] void remove_tuple(const Tuple* tuple);
     };
 
 } // foxtalk

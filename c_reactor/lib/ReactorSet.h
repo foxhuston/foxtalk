@@ -8,13 +8,19 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <boost/functional/hash.hpp>
-#include <gc_allocator.h>
+
+#include "gc_allocator.h"
 
 namespace foxtalk {
 
     template<typename T>
     struct ReactorSet {
         typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>, traceable_allocator<T>> type;
+    };
+
+    template<typename T>
+    struct ReactorVec {
+        typedef std::vector<T, traceable_allocator<T>> type;
     };
 
     template<typename T, typename V>

@@ -29,15 +29,17 @@ namespace foxtalk {
         Db db {};
         ReactorSet<const Handler *>::type handlers { };
 
-        ReactorMap<ReactorSet<Tuple>::type, ReactorSet<const Handler*>::type>::type tuples_triggered_handler {};
-        ReactorMap<Tuple, ReactorSet<Tuple>::type>::type tuple_provenance {};
-        ReactorMap<const Handler*, ReactorSet<Tuple>::type>::type tuple_handler_provenance {};
+        ReactorMap<ReactorSet<const Tuple*>::type, ReactorSet<const Handler*>::type>::type tuples_triggered_handler {};
+        ReactorMap<const Tuple*, ReactorSet<const Tuple*>::type>::type tuple_provenance {};
+        ReactorMap<const Handler*, ReactorSet<const Tuple*>::type>::type tuple_handler_provenance {};
 
-        void tuples_triggered_handler_insert(ReactorSet<Tuple>::type from, const Handler *to);
-        bool did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to);
+        void tuples_triggered_handler_insert(ReactorSet<const Tuple*>::type from, const Handler *to);
+        bool did_tuples_trigger_handler(ReactorSet<const Tuple*>::type from, const Handler *to);
     public:
-        void claim(const Tuple& tuple);
-        void remove(const Tuple& tuple);
+        void claim(const Tuple* tuple);
+        void claim(const TupleNoun* subject, const TupleNoun* predicate, const TupleNoun* object);
+        void remove(const Tuple* tuple);
+
         void add_handler(const Handler* handler);
         void remove_handler(const Handler* handler);
         void tick();
@@ -47,11 +49,11 @@ namespace foxtalk {
             return db;
         }
 
-        ReactorSet<foxtalk::Tuple>::type query(Tuple *q);
+        ReactorSet<const Tuple*>::type query(const Tuple *q);
 
-        void remove(std::queue<Tuple> workQueue);
+        void remove(std::queue<const Tuple*> workQueue);
 
-        void remove(ReactorSet<foxtalk::Tuple>::type tuples);
+        void remove(ReactorSet<const Tuple*>::type tuples);
     };
 
 } // foxtalk

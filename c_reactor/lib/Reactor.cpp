@@ -2,34 +2,40 @@
 // Created by fox on 10/1/24.
 //
 
+#include <iostream>
 #include <queue>
-#include <ranges>
 
+#include "gc.h"
 #include "Reactor.h"
 
 namespace views = std::ranges::views;
 
 namespace foxtalk {
-    void Reactor::claim(const Tuple &tuple) {
+    void Reactor::claim(const Tuple* tuple) {
         db.add_tuple(tuple);
     }
 
-    void Reactor::remove(const Tuple &tuple) {
-        std::queue<Tuple> workQueue {};
+    void Reactor::claim(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) {
+        claim(Tuple::mk(subject, predicate, object));
+    }
+
+
+    void Reactor::remove(const Tuple* tuple) {
+        std::queue<const Tuple*> workQueue {};
         workQueue.push(tuple);
         remove(workQueue);
     }
 
-    void Reactor::remove(ReactorSet<Tuple>::type tuples) {
-        std::queue<Tuple> workQueue {};
+    void Reactor::remove(ReactorSet<const Tuple*>::type tuples) {
+        std::queue<const Tuple*> workQueue {};
         for(auto& t : tuples) {
             workQueue.push(t);
         }
         remove(workQueue);
     }
 
-    void Reactor::remove(std::queue<Tuple> workQueue) {
-        ReactorSet<Tuple>::type seen {};
+    void Reactor::remove(std::queue<const Tuple*> workQueue) {
+        ReactorSet<const Tuple*>::type seen {};
 
         while(!workQueue.empty()) {
             std::cout << "DEBUG REMOVE: WORK QUEUE IS " << workQueue.size() << std::endl;
@@ -54,7 +60,7 @@ namespace foxtalk {
 
                 // If this was part of a set that triggered a handler, we'll need to run the handler again
                 // TODO: And remove anything that handler had caused to exist.
-                std::vector<ReactorSet<Tuple>::type> keys_to_remove {};
+                std::vector<ReactorSet<const Tuple*>::type> keys_to_remove {};
                 for(auto& [k, v] : tuples_triggered_handler) {
                     if(k.contains(curr)) {
                         keys_to_remove.push_back(k);
@@ -91,22 +97,22 @@ namespace foxtalk {
         }
     }
 
-    ReactorSet<Tuple>::type Reactor::query(Tuple *q) {
-        ReactorSet<Tuple>::type result_tuples {};
+    ReactorSet<const Tuple*>::type Reactor::query(const Tuple *q) {
+        ReactorSet<const Tuple*>::type result_tuples {};
 
-        for (auto& t: db.get_tuples()) {
+        for (auto t: db.get_tuples()) {
             if (!q->getSubject()->is_query()
-                && *t.getSubject() != *q->getSubject()) {
+                && *t->getSubject() != *q->getSubject()) {
                 continue;
             }
 
             if (!q->getPredicate()->is_query()
-                && *t.getPredicate() != *q->getPredicate()) {
+                && *t->getPredicate() != *q->getPredicate()) {
                 continue;
             }
 
             if (!q->getObject()->is_query()
-                && *t.getObject() != *q->getObject()) {
+                && *t->getObject() != *q->getObject()) {
                 continue;
             }
 
@@ -118,12 +124,12 @@ namespace foxtalk {
 
     void Reactor::tick() {
         std::lock_guard<std::mutex> guard(handlerMutex);
-        for (auto& h: handlers) {
+        for (auto h: handlers) {
             auto result_tuples = query(h->get_query());
 
             if(result_tuples.size() > 0) {
                 if(!did_tuples_trigger_handler(result_tuples, h)) {
-                    TupleVec result_tuples_vec{};
+                    ReactorVec<const Tuple*>::type result_tuples_vec {};
 
                     tuples_triggered_handler_insert(result_tuples, h);
 
@@ -132,8 +138,8 @@ namespace foxtalk {
                     }
 
                     // If not, then run the handler with these results.
-                    h->handle_results(result_tuples_vec, [this, h, result_tuples](Tuple new_tuple) {
-                        for (auto& tr: result_tuples) {
+                    h->handle_results(result_tuples_vec, [this, h, result_tuples](const Tuple* new_tuple) {
+                        for (auto tr: result_tuples) {
                             rm_set_insert(tuple_handler_provenance, h, new_tuple);
                             rm_set_insert(tuple_provenance, tr, new_tuple);
                         }
@@ -144,7 +150,7 @@ namespace foxtalk {
         }
     }
 
-    void Reactor::tuples_triggered_handler_insert(ReactorSet<Tuple>::type from, const Handler *to) {
+    void Reactor::tuples_triggered_handler_insert(ReactorSet<const Tuple*>::type from, const Handler *to) {
         if(!tuples_triggered_handler.contains(from)) {
             tuples_triggered_handler.insert({ from, {} });
         }
@@ -152,7 +158,7 @@ namespace foxtalk {
         tuples_triggered_handler.at(from).insert(to);
     }
 
-    bool Reactor::did_tuples_trigger_handler(ReactorSet<Tuple>::type from, const Handler *to) {
+    bool Reactor::did_tuples_trigger_handler(ReactorSet<const Tuple*>::type from, const Handler *to) {
         return tuples_triggered_handler.contains(from)
                && tuples_triggered_handler.at(from).contains(to);
     }

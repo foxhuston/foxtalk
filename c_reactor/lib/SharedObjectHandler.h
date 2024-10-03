@@ -11,12 +11,14 @@
 #include <dlfcn.h>
 
 #include "Handler.h"
+#include "ReactorSet.h"
+#include "Tuple.h"
 
 namespace foxtalk {
     struct SharedObjectHandler : Handler {
     private:
         typedef Tuple* (*GetQuery)();
-        typedef void (*HandleResults)(TupleVec, std::function<void(Tuple)>);
+        typedef void (*HandleResults)(ReactorVec<const Tuple*>::type, std::function<void(const Tuple*)>);
 
         void *handle;
         GetQuery _get_query;
@@ -43,7 +45,7 @@ namespace foxtalk {
             return _get_query();
         }
 
-        void handle_results(TupleVec query_results, std::function<void(Tuple)> claim) const override {
+        void handle_results(ReactorVec<const Tuple*>::type query_results, std::function<void(const Tuple*)> claim) const override {
             return _handle_results(query_results, claim);
         }
 
