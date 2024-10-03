@@ -60,14 +60,18 @@ namespace foxtalk {
                 // If this was part of a set that triggered a handler, we'll need to run the handler again,
                 // and remove anything that handler had caused to exist.
                 std::vector<ReactorSet<const Tuple *>::type> keys_to_remove{};
-                for (auto &[k, v]: tuples_triggered_handler) {
-                    if (k.contains(curr)) {
-                        std::cout << "DEBUG REMOVE: HANDLER_PROVENANCE " << *curr << " / " << &k << std::endl;
-                        keys_to_remove.push_back(k);
+                for (auto &kv: tuples_triggered_handler) {
+                    if (kv.first.contains(curr)) {
+                        std::cout << "DEBUG REMOVE: HANDLER_PROVENANCE " << *curr << " / " << &(kv.first) << std::endl;
+                        keys_to_remove.push_back(kv.first);
 
-                        for(auto triggered_handler : v) {
-                            for(auto generated_tuple : tuple_handler_provenance.at(triggered_handler)) {
-                                workQueue.push(generated_tuple);
+                        for(auto triggered_handler : kv.second) {
+                            if(tuple_handler_provenance.contains(triggered_handler)) {
+                                for (auto generated_tuple: tuple_handler_provenance.at(triggered_handler)) {
+                                    workQueue.push(generated_tuple);
+                                }
+                            } else {
+                                std::cout << "WARNING! Trying to remove tuples from removed handler " << triggered_handler << std::endl;
                             }
                         }
                     }
@@ -95,6 +99,13 @@ namespace foxtalk {
     void Reactor::remove_handler(const Handler *handler) {
         std::lock_guard<std::mutex> guard(handlerMutex);
         std::cout << "Removing handler " << handler << std::endl;
+
+        std::queue<const Tuple *> workQueue {};
+        for(auto generated_tuple : tuple_handler_provenance.at(handler)) {
+            workQueue.push(generated_tuple);
+        }
+        remove(workQueue);
+
         handlers.erase(handler);
         if (tuple_handler_provenance.contains(handler)) {
             remove(tuple_handler_provenance.at(handler));
