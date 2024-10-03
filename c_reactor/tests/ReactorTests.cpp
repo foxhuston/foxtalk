@@ -31,7 +31,7 @@ struct TestHandler : Handler {
 BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
     BOOST_AUTO_TEST_CASE(TupleNounHashTest) {
-        auto hasher = boost::hash<const TupleNoun*>();
+        auto hasher = boost::hash<const TupleNoun *>();
         auto h1 = hasher(TupleNoun::mkSymbol("lexi"));
         auto h2 = hasher(TupleNoun::mkSymbol("lexi"));
 
@@ -109,7 +109,8 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
         BOOST_ASSERT(handler_result_count == 1);
 
-        reactor.remove(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+        reactor.remove(
+                Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
         reactor.claim(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky"));
 
         reactor.tick();
@@ -172,6 +173,7 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
         auto results = reactor.query(q);
 
+        std::cout << "Results contains \"ball d is the biggest?\"" << std::endl;
         BOOST_ASSERT(results.contains(Tuple::mk(
                 TupleNoun::mkSymbol("ball d"),
                 TupleNoun::mkSymbol("is"),
@@ -180,11 +182,18 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
 
         reactor.remove(
                 Tuple::mk(TupleNoun::mkSymbol("ball d"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(1000)));
+        auto inner_db_results = reactor.get_db().get_tuples().contains(
+                Tuple::mk(TupleNoun::mkSymbol("ball d"), TupleNoun::mkSymbol("has size"), TupleNoun::mkU64(1000))
+        );
+
+        std::cout << "Post remove db NOT contains \"ball d is the biggest?\"" << std::endl;
+        BOOST_ASSERT(!inner_db_results);
 
         reactor.tick();
 
         auto post_delete_results = reactor.query(q);
 
+        std::cout << "Post delete results NOT contains \"ball d is the biggest?\"" << std::endl;
         BOOST_ASSERT(!post_delete_results.contains(
                 Tuple::mk(
                         TupleNoun::mkSymbol("ball d"),
@@ -192,6 +201,7 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
                         TupleNoun::mkSymbol("the biggest!")
                 )));
 
+        std::cout << "Post delete results contains \"ball c is the biggest?\"" << std::endl;
         BOOST_ASSERT(post_delete_results.contains(
                 Tuple::mk(
                         TupleNoun::mkSymbol("ball c"),
@@ -259,7 +269,8 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         reactor.add_handler(&th);
 
         auto expectedA = Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool"));
-        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi"));
+        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"),
+                                   TupleNoun::mkSymbol("lexi"));
 
         reactor.tick();
 
@@ -281,13 +292,14 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         TestClaimingHandler th;
 
         auto originalClaim = Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"),
-                                   TupleNoun::mkSymbol("husky"));
+                                       TupleNoun::mkSymbol("husky"));
 
         reactor.claim(originalClaim);
         reactor.add_handler(&th);
 
         auto expectedA = Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool"));
-        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi"));
+        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"),
+                                   TupleNoun::mkSymbol("lexi"));
 
         reactor.tick();
 
@@ -309,13 +321,14 @@ BOOST_AUTO_TEST_SUITE(REACTOR_TESTS)
         TestClaimingHandler th;
 
         auto originalClaim = Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"),
-                                   TupleNoun::mkSymbol("husky"));
+                                       TupleNoun::mkSymbol("husky"));
 
         reactor.claim(originalClaim);
         reactor.add_handler(&th);
 
         auto expectedA = Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is"), TupleNoun::mkSymbol("cool"));
-        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"), TupleNoun::mkSymbol("lexi"));
+        auto expectedB = Tuple::mk(TupleNoun::mkSymbol("fox"), TupleNoun::mkSymbol("loves"),
+                                   TupleNoun::mkSymbol("lexi"));
 
         reactor.tick();
 

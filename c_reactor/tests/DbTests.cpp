@@ -17,9 +17,24 @@ using namespace foxtalk;
 
 BOOST_AUTO_TEST_SUITE(DB_TESTS)
 
-BOOST_AUTO_TEST_CASE(DbTest) {
-    Db db;
-    db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
-}
+    BOOST_AUTO_TEST_CASE(DbAddsTupleTest) {
+        Db db;
+        db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+        auto count = db.get_tuples().size();
+        BOOST_ASSERT(count == 1);
+    }
+
+    BOOST_AUTO_TEST_CASE(DbRemovesTupleTest) {
+        Db db;
+        db.add_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+
+        auto count = db.get_tuples().size();
+        BOOST_ASSERT(count == 1);
+
+        db.remove_tuple(Tuple::mk(TupleNoun::mkSymbol("lexi"), TupleNoun::mkSymbol("is a"), TupleNoun::mkSymbol("husky")));
+
+        auto post_delete_count = db.get_tuples().size();
+        BOOST_ASSERT(post_delete_count == 0);
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

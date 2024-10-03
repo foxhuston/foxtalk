@@ -52,8 +52,7 @@ namespace foxtalk {
         ~SharedObjectHandler() {
             auto res = dlclose(handle);
             if(res != 0) {
-                throw std::runtime_error(
-                        std::format("Error when closing SharedObjectHandler: {0}", dlerror()));
+                std::cerr << "Error when closing SharedObjectHandler: " << dlerror() << std::endl;
             }
         }
     };
