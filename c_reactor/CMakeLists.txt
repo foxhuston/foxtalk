@@ -3,12 +3,14 @@ project(reactor)
 
 set(CMAKE_CXX_STANDARD 26)
 
-option(enable_cplusplus "C++ support" ON)
+set(CMAKE_CXX_FLAGS "-fsanitize=address")
 
 include_directories(lib/)
-include_directories(vendor/gc-8.2.4/include)
 
-add_subdirectory(vendor/gc-8.2.4)
+#option(enable_cplusplus "C++ support" ON)
+#include_directories(vendor/gc-8.2.4/include)
+#add_subdirectory(vendor/gc-8.2.4)
+
 add_subdirectory(lib)
 add_subdirectory(tests)
 

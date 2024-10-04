@@ -6,8 +6,8 @@
 
 #include "boost/container_hash/hash.hpp"
 
-#include "gc.h"
-#include "gc_allocator.h"
+//#include "gc.h"
+//#include "gc_allocator.h"
 
 namespace foxtalk {
     std::size_t hash_value(const TupleNoun &t) {
@@ -31,11 +31,14 @@ namespace foxtalk {
     }
 
     Tuple *Tuple::mk(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) {
-        auto t = (Tuple*) GC_debug_malloc(sizeof(Tuple), "Tuple", 0);
-        t->subject = subject;
-        t->predicate = predicate;
-        t->object = object;
-
-        return t;
+        auto a = new Tuple{ subject, predicate, object };
+//        std::cout << "New Tuple " << *a << " @ " << a << std::endl;
+        return a;
+//        auto t = (Tuple*) GC_debug_malloc(sizeof(Tuple), "Tuple", 0);
+//        t->subject = subject;
+//        t->predicate = predicate;
+//        t->object = object;
+//
+//        return t;
     }
 }

@@ -5,6 +5,7 @@
 #ifndef REACTOR_SHAREDOBJECTHANDLER_H
 #define REACTOR_SHAREDOBJECTHANDLER_H
 
+#include <iostream>
 #include <optional>
 #include <cstring>
 #include <errno.h>

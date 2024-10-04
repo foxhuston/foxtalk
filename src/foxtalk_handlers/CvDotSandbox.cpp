@@ -40,7 +40,7 @@ extern "C" void handle_results(foxtalk::ReactorVec<const foxtalk::Tuple*>::type 
       cv::Mat *cameraMat = (cv::Mat *)r->getSubject()->data.cptr.data;
 
       auto outputMat = new cv::Mat(*cameraMat);
-      *outputMat *= 0.5;
+       *outputMat *= 0.5;
 
       claim(foxtalk::Tuple::mk(
           mkPtr(outputMat, r->getSubject()->data.cptr.free_fn),

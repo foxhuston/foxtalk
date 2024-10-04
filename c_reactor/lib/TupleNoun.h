@@ -6,6 +6,7 @@
 #define REACTOR_TUPLENOUN_H
 
 #include <cstdint>
+#include <sstream>
 #include <ostream>
 
 namespace foxtalk {
@@ -34,15 +35,15 @@ namespace foxtalk {
 
         union Data {
             TuplePair pair;
-            char *symbol;
+            std::string *symbol;
             CPtrWithFree cptr;
             uint64_t u64;
             int64_t i64;
         } data;
 
+//        TupleNoun() = delete;
 //        TupleNoun(Type type, Data data) : type{type}, data{data} {}
-        TupleNoun() = delete;
-        TupleNoun(Type type, Data data) = delete;
+//        TupleNoun(Type type, Data data) = delete;
 
         ~TupleNoun();
 
@@ -67,6 +68,19 @@ namespace foxtalk {
     };
 
 } // foxtalk
+
+template<>
+struct std::formatter<foxtalk::TupleNoun> {
+  constexpr auto parse(std::format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  auto format(const foxtalk::TupleNoun& obj, std::format_context& ctx) const {
+    stringstream ss {};
+    ss << obj;
+    return std::format_to(ctx.out(), "{}", ss.str());
+  }
+};
 
 extern "C" {
 foxtalk::TupleNoun *mkQuery();

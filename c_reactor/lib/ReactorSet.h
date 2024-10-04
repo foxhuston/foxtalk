@@ -11,13 +11,14 @@
 
 #include "Tuple.h"
 
-#include "gc_allocator.h"
+//#include "gc_allocator.h"
 
 namespace foxtalk {
 
     template<typename T>
     struct ReactorSet {
-        typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>, traceable_allocator<T>> type;
+//        typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>, traceable_allocator<T>> type;
+        typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>> type;
     };
 
     template<>
@@ -40,17 +41,20 @@ namespace foxtalk {
         // swap out the dereferencing equality template thing specifically when I'm dealing with tuples.
         // Also:
         // Omg, template specialization to the rescue. I can't believe this worked!
-        typedef std::unordered_set<const Tuple*, boost::hash<const Tuple*>, deref_equal_to<const Tuple*>, traceable_allocator<const Tuple*>> type;
+//        typedef std::unordered_set<const Tuple*, boost::hash<const Tuple*>, deref_equal_to<const Tuple*>, traceable_allocator<const Tuple*>> type;
+        typedef std::unordered_set<const Tuple*, boost::hash<const Tuple*>, deref_equal_to<const Tuple*>> type;
     };
 
     template<typename T>
     struct ReactorVec {
-        typedef std::vector<T, traceable_allocator<T>> type;
+//        typedef std::vector<T, traceable_allocator<T>> type;
+        typedef std::vector<T> type;
     };
 
     template<typename T, typename V>
     struct ReactorMap {
-        typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>, traceable_allocator<std::pair<const T, V>>> type;
+//        typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>, traceable_allocator<std::pair<const T, V>>> type;
+        typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>> type;
     };
 
     template<typename K, typename V>

@@ -6,6 +6,7 @@
 #define REACTOR_DB_H
 
 #include <vector>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "Tuple.h"
@@ -17,10 +18,20 @@ namespace foxtalk {
     private:
         ReactorSet<const Tuple *>::type _all_tuples;
 
+        // Memory Management Stuff
+        std::unordered_map<const TupleNoun*, int> _tuplenoun_refcount {};
+
     public:
         Db() { }
 
+        void inc_tuple_noun(const TupleNoun* tn);
+        void dec_tuple_noun(const TupleNoun* tn);
+
         void add_tuple(const Tuple* tuple);
+        void remove_tuple(const Tuple* tuple);
+
+        void add_tuple_nouns(const Tuple* tuple);
+        void remove_tuple_nouns(const Tuple* tuple);
 
         // TODO: FOR TESTING ONLY!
         [[nodiscard]] const ReactorSet<const Tuple *>::type& get_tuples() const;
@@ -30,7 +41,6 @@ namespace foxtalk {
             return _all_tuples.size();
         }
 
-        [[maybe_unused]] void remove_tuple(const Tuple* tuple);
     };
 
 } // foxtalk
