@@ -32,7 +32,7 @@ namespace foxtalk {
 
     Tuple *Tuple::mk(const TupleNoun *subject, const TupleNoun *predicate, const TupleNoun *object) {
         auto a = new Tuple{ subject, predicate, object };
-//        std::cout << "New Tuple " << *a << " @ " << a << std::endl;
+        std::cout << "DEBUG NEW TUPLE " << *a << " @ " << a << std::endl;
         return a;
 //        auto t = (Tuple*) GC_debug_malloc(sizeof(Tuple), "Tuple", 0);
 //        t->subject = subject;
@@ -41,4 +41,7 @@ namespace foxtalk {
 //
 //        return t;
     }
-}
+    Tuple::~Tuple() {
+      std::cout << "DEBUG FREE TUPLE " << this << std::endl;
+    }
+    }

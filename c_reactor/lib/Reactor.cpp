@@ -102,6 +102,7 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
                    tuple_handler_provenance.at(triggered_handler)) {
                 workQueue.push(generated_tuple);
               }
+              tuple_handler_provenance.at(triggered_handler).clear();
             }
           }
         }
@@ -111,7 +112,7 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
         assert(tuples_triggered_handler.erase(k) == 1);
       }
 
-      std::cout << "INSERTING FOR REMOVAL " << *tuple_to_remove << " @ " << tuple_to_remove << "into tuples_to_remove" << std::endl;
+      std::cout << "INSERTING FOR REMOVAL " << *tuple_to_remove << " @ " << tuple_to_remove << " into tuples_to_remove" << std::endl;
       tuples_to_remove.insert(tuple_to_remove);
     }
   }

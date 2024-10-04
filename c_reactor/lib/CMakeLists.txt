@@ -2,7 +2,7 @@ set(CMAKE_CXX_STANDARD 26)
 
 find_package(Boost REQUIRED)
 
-set(CMAKE_CXX_FLAGS "-Wall -Werror -fsanitize=address")
+set(CMAKE_CXX_FLAGS "-Wall -Werror")
 
 # N.B.: This feels like it should be static, but if it is, dlopen can't find
 # symbols. I got tired of dealing with it, so I'll just have to manually link

@@ -28,9 +28,7 @@ public:
   static Tuple *mk(const TupleNoun *subject, const TupleNoun *predicate,
                    const TupleNoun *object);
 
-  ~Tuple() {
-    std::cout << "DEBUG FREE TUPLE " << this << std::endl;
-  }
+  ~Tuple();
 
   bool operator==(const Tuple &other) const {
 //    std::cout << "Tuple Compare: "

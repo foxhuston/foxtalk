@@ -153,6 +153,8 @@ BOOST_AUTO_TEST_CASE(ReactorWillRemoveGeneratedTuplesTest) {
 
   reactor.add_handler(&h);
 
+  ///// FIRST TICK /////////////////////////////////////////////////////////////
+
   reactor.tick();
 
   auto results =
@@ -162,10 +164,12 @@ BOOST_AUTO_TEST_CASE(ReactorWillRemoveGeneratedTuplesTest) {
   BOOST_ASSERT(results.contains(
       Tuple::mk(mkSymbol("ball d"), mkSymbol("is"), mkSymbol("the biggest!"))));
 
+  ///// ERASE & SECOND TICK ////////////////////////////////////////////////////
   reactor.remove(mkSymbol("ball d"), mkSymbol("has size"), mkU64(1000));
 
   reactor.tick();
 
+  ///// POST-ERASE/TICK RESULTS ////////////////////////////////////////////////
   auto post_delete_results =
       reactor.query(mkQuery(), mkSymbol("is"), mkSymbol("the biggest!"));
 
