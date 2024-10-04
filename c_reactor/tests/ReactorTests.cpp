@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(ReactorWillRemoveGeneratedTuplesTest) {
 
   ///// ERASE & SECOND TICK ////////////////////////////////////////////////////
   reactor.remove(mkSymbol("ball d"), mkSymbol("has size"), mkU64(1000));
-
+  reactor.tick();
   reactor.tick();
 
   ///// POST-ERASE/TICK RESULTS ////////////////////////////////////////////////
@@ -259,6 +259,8 @@ BOOST_AUTO_TEST_CASE(ReactorGeneratedTuplesAreTransitivelyRemoved) {
   BOOST_ASSERT(tuples.contains(expectedB));
 
   reactor.remove(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky"));
+  reactor.tick();
+  reactor.tick();
 
   auto tuples2 = reactor.get_db().get_tuples();
   BOOST_ASSERT(!tuples2.contains(originalClaim));
@@ -290,6 +292,8 @@ BOOST_AUTO_TEST_CASE(
   BOOST_ASSERT(tuples.contains(expectedB));
 
   reactor.remove_handler(&th);
+  reactor.tick();
+  reactor.tick();
 
   auto tuples2 = reactor.get_db().get_tuples();
   BOOST_ASSERT(tuples2.contains(originalClaim));

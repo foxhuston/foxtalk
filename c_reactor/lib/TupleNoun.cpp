@@ -11,8 +11,10 @@
 namespace foxtalk {
 
 TupleNoun::~TupleNoun() {
+#ifdef REACTOR_TRACE
   std::cout << "DEBUG: Freeing Tuple Noun " << *this << " @ " << this
             << std::endl;
+#endif
   switch (type) {
   case Type::Pair:
     delete data.pair.fst;

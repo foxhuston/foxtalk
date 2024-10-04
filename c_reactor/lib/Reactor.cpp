@@ -37,7 +37,9 @@ void Reactor::remove(ReactorSet<const Tuple *>::type tuples) {
 }
 
 void Reactor::remove(std::queue<const Tuple *> workQueue) {
+#ifdef REACTOR_TRACE
   std::cout << "DEBUG Called Remove on workQueue with " << workQueue.size() << " item(s)." << std::endl;
+#endif
 
   std::lock_guard<std::mutex> guard(handlerMutex);
   std::unordered_set<const Tuple *> seen_ptrs{};
@@ -48,7 +50,9 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
     auto tuple_to_remove = workQueue.front();
     workQueue.pop();
 
+#ifdef REACTOR_TRACE
     std::cout << "  DEBUG: WILL REMOVE " << *tuple_to_remove << " @ " << tuple_to_remove << std::endl;
+#endif
 
     // If we've already removed this in this pass, or if it's in the current
     // removal list, skip it.
@@ -79,21 +83,27 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
       // If this was part of a set that triggered a handler, we'll need to run
       // the handler again, and remove anything that handler had caused to
       // exist.
+#ifdef REACTOR_TRACE
       std::cout << "Checking if " << *tuple_to_remove << " @ "
                 << tuple_to_remove << " triggered a handler..." << std::endl;
+#endif
       std::vector<ReactorSet<const Tuple *>::type> keys_to_remove{};
 
       for (auto &[triggering_tuples, triggered_handlers] :
            tuples_triggered_handler) {
+#ifdef REACTOR_TRACE
         std::cout << "  Checking Set:" << std::endl;
         for (auto t : triggering_tuples) {
           std::cout << "    " << *t << " @ " << t << std::endl;
         }
+#endif
 
         if (triggering_tuples.contains(tuple_to_remove)) {
+#ifdef REACTOR_TRACE
           std::cout << "  Found tuple triggered handler; enqueueing set for "
                        "removal!"
                     << std::endl;
+#endif
           keys_to_remove.push_back(triggering_tuples);
 
           for (auto triggered_handler : triggered_handlers) {
@@ -112,7 +122,9 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
         assert(tuples_triggered_handler.erase(k) == 1);
       }
 
+#ifdef REACTOR_TRACE
       std::cout << "INSERTING FOR REMOVAL " << *tuple_to_remove << " @ " << tuple_to_remove << " into tuples_to_remove" << std::endl;
+#endif
       tuples_to_remove.insert(tuple_to_remove);
     }
   }
@@ -125,8 +137,10 @@ void Reactor::add_handler(const Handler *handler) {
 }
 
 void Reactor::remove_handler(const Handler *handler) {
+#ifdef REACTOR_TRACE
   std::cout << "start tth size = " << tuples_triggered_handler.size()
             << std::endl;
+#endif
 
   std::lock_guard<std::mutex> guard(tupleMutex);
   //        std::cout << "Removing handler " << handler << std::endl;
@@ -150,8 +164,10 @@ void Reactor::remove_handler(const Handler *handler) {
   assert(handlers.erase(handler) == 1);
   remove(workQueue);
 
+#ifdef REACTOR_TRACE
   std::cout << "end tth size = " << tuples_triggered_handler.size()
             << std::endl;
+#endif
 }
 
 void Reactor::tick() {
@@ -177,9 +193,11 @@ void Reactor::tick() {
         // If not, then run the handler with these results.
         h->handle_results(result_tuples_vec, [this, h, result_tuples](
                                                  const Tuple *new_tuple) {
+#ifdef REACTOR_TRACE
           std::cout << "Wish <" << new_tuple->getSubject() << ", "
                     << new_tuple->getPredicate() << ", "
                     << new_tuple->getObject() << ">" << std::endl;
+#endif
 
           for (auto tr : result_tuples) {
             rm_set_insert(tuple_handler_provenance, h, new_tuple);
@@ -187,8 +205,10 @@ void Reactor::tick() {
           }
           this->claim(new_tuple);
         });
+#ifdef REACTOR_TRACE
       } else {
         std::cout << "Handler already triggered!" << std::endl;
+#endif
       }
     }
   }
@@ -196,7 +216,9 @@ void Reactor::tick() {
   // Clean up removed tuples.
   std::lock_guard<std::mutex> guardT(tupleMutex);
   for (auto tuple_to_delete : tuples_to_remove) {
+#ifdef REACTOR_TRACE
     std::cout << "FOUND IN TUPLES_TO_REMOVE: " << *tuple_to_delete << " @ " << tuple_to_delete << std::endl;
+#endif
 
 #if 1
     // TODO: DEBUGGING ONLY!
