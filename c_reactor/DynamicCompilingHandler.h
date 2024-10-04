@@ -47,6 +47,7 @@ namespace foxtalk {
 
             std::stringstream command;
             command << "clang++ -I lib/ -I vendor/gc-8.2.4/include "
+                    << "-std=c++20 "
                     << extra_flags
                     << " -shared -fPIC "
                     << fs::absolute(watch_dir / path)

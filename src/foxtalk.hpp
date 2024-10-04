@@ -349,11 +349,11 @@ public:
     // at the end of a tick, rather than eagerly.
     _reactor.tick(); // TODO: WOAH, CHEATING
 
-    auto output_layers = _reactor.query(foxtalk::Tuple::mk(
+    auto output_layers = _reactor.query(
         mkQuery(),
         mkSymbol("is a"),
         mkSymbol("output layer")
-    ));
+    );
 
     cv::Mat finalOutputMat;
     if(!output_layers.empty()) {

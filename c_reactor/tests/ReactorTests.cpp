@@ -340,4 +340,18 @@ BOOST_AUTO_TEST_CASE(ReactorHandlerDeleteAndReaddWorks) {
   BOOST_ASSERT(tuples3.contains(expectedB));
 }
 
+BOOST_AUTO_TEST_CASE(DeleteHandlerGeneratedItem) {
+  Reactor r{};
+  r.add_handler(new TestClaimingHandler{});
+
+  r.claim(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky"));
+  r.tick();
+  r.tick();
+
+  auto res = r.query(mkQuery(), mkSymbol("is a"), mkSymbol("husky"));
+  r.remove(res);
+  r.tick();
+  r.tick();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

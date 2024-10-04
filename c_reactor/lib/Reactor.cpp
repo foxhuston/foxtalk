@@ -8,6 +8,9 @@
 // #include "gc.h"
 #include "Reactor.h"
 
+#define REACTOR_TRACE
+#define REACTOR_MEM_DEBUG
+
 namespace views = std::ranges::views;
 
 namespace foxtalk {
@@ -30,7 +33,7 @@ void Reactor::remove(const Tuple *tuple) {
 
 void Reactor::remove(ReactorSet<const Tuple *>::type tuples) {
   std::queue<const Tuple *> workQueue{};
-  for (auto &t : tuples) {
+  for (auto t : tuples) {
     workQueue.push(t);
   }
   remove(workQueue);
@@ -118,8 +121,25 @@ void Reactor::remove(std::queue<const Tuple *> workQueue) {
         }
       }
 
-      for (auto &k : keys_to_remove) {
+      for (auto& k : keys_to_remove) {
+#ifdef REACTOR_TRACE
+        std::cout << "Clearing tuples_triggered_handler for keyset:" << std::endl;
+        for(auto t : k) {
+          std::cout << "    " << *t << " @ " << t << std::endl;
+        }
+#endif
         assert(tuples_triggered_handler.erase(k) == 1);
+#ifdef REACTOR_TRACE
+        std::cout << "Keyset post clear (should be blank):" << std::endl;
+        for(auto t : k) {
+          std::cout << "    " << *t << " @ " << t << std::endl;
+        }
+#endif
+      }
+
+      // Wishes end up in tuple_handler_provenance, so we need to also just manually check that.
+      for(auto &[h, generated_tuples] : tuple_handler_provenance) {
+        generated_tuples.erase(tuple_to_remove);
       }
 
 #ifdef REACTOR_TRACE
@@ -220,13 +240,16 @@ void Reactor::tick() {
     std::cout << "FOUND IN TUPLES_TO_REMOVE: " << *tuple_to_delete << " @ " << tuple_to_delete << std::endl;
 #endif
 
-#if 1
+#ifdef REACTOR_MEM_DEBUG
     // TODO: DEBUGGING ONLY!
     for (auto const &[triggering_tuples, _hs] : tuples_triggered_handler) {
       for (auto tup : triggering_tuples) {
         if (tuple_to_delete == tup) {
-          std::cerr << "DELETE ERROR WHEN HANDLERS SET IS " << _hs.size()
-                    << std::endl;
+          std::cerr << "DELETE ERROR WHEN HANDLERS SET IS " << _hs.size() << std::endl;
+          for(auto h : _hs) {
+            std::cerr << "   Handler @ " << h << std::endl;
+          }
+
           throw std::runtime_error(std::format(
               "DELETE ERRROR: Found {0} @ {1:x} in tuples_triggered_handler key-set!",
               *tup, (size_t)tup));

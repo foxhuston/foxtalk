@@ -43,11 +43,11 @@ endfunction()
 
 ##### DYNAMIC LIBS #############################################################
 
-add_library(image_proc SHARED src/CvProcessor.cpp)
-add_library(dot_sandbox SHARED src/foxtalk_handlers/CvDotSandbox.cpp
-        src/VImage.h
-        src/VulkUtils.h
-        src/VBuffer.h)
+#add_library(image_proc SHARED src/CvProcessor.cpp)
+#add_library(dot_sandbox SHARED src/foxtalk_handlers/CvDotSandbox.cpp
+#        src/VImage.h
+#        src/VulkUtils.h
+#        src/VBuffer.h)
 
 ##### UTILS ####################################################################
 
