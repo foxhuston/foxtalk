@@ -1,6 +1,6 @@
 set(CMAKE_CXX_STANDARD 26)
 
-set(CMAKE_CXX_FLAGS "-g -O0")
+set(CMAKE_CXX_FLAGS "-g -O0 -fsanitize=address")
 
 set(Boost_USE_STATIC_LIBS OFF)
 find_package(Boost REQUIRED COMPONENTS unit_test_framework)

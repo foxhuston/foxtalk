@@ -17,19 +17,18 @@ namespace foxtalk {
 
     template<typename T>
     struct ReactorSet {
-//        typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>, traceable_allocator<T>> type;
         typedef std::unordered_set<T, boost::hash<T>, std::equal_to<T>> type;
+    };
+
+    template<typename T>
+    struct deref_equal_to {
+        bool operator()(const T x, const T y) const {
+            return *x == *y;
+        }
     };
 
     template<>
     struct ReactorSet<const Tuple*> {
-        template<typename T>
-        struct deref_equal_to {
-            bool operator()(const T x, const T y) const {
-                return *x == *y;
-            }
-        };
-
         // I need to explain this. When I was using the gccpp library, it was taking over
         // `new` in all of C++, which I didn't really want, here. I wanted the GC to be relegated to
         // the database, and specifically just handle that. This wasn't a problem at first, until
@@ -55,6 +54,11 @@ namespace foxtalk {
     struct ReactorMap {
 //        typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>, traceable_allocator<std::pair<const T, V>>> type;
         typedef std::unordered_map<T, V, boost::hash<T>, std::equal_to<T>> type;
+    };
+
+    template<typename V>
+    struct ReactorMap<const Tuple*, V> {
+        typedef std::unordered_map<const Tuple*, V, boost::hash<const Tuple*>, deref_equal_to<const Tuple*>> type;
     };
 
     template<typename K, typename V>

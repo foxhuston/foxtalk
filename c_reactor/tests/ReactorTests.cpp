@@ -241,9 +241,7 @@ BOOST_AUTO_TEST_CASE(ReactorGeneratedTuplesAreTransitivelyRemoved) {
   Reactor reactor;
   TestClaimingHandler th;
 
-  auto originalClaim =
-      Tuple::mk(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky"));
-  reactor.claim(originalClaim);
+  reactor.claim(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky"));
   reactor.add_handler(&th);
 
   auto expectedA =
@@ -253,8 +251,9 @@ BOOST_AUTO_TEST_CASE(ReactorGeneratedTuplesAreTransitivelyRemoved) {
 
   reactor.tick();
 
+  auto testClaim = Tuple::mk(mkSymbol("lexi"), mkSymbol("is a"), mkSymbol("husky"));
   auto tuples = reactor.get_db().get_tuples();
-  BOOST_ASSERT(tuples.contains(originalClaim));
+  BOOST_ASSERT(tuples.contains(testClaim));
   BOOST_ASSERT(tuples.contains(expectedA));
   BOOST_ASSERT(tuples.contains(expectedB));
 
@@ -263,7 +262,7 @@ BOOST_AUTO_TEST_CASE(ReactorGeneratedTuplesAreTransitivelyRemoved) {
   reactor.tick();
 
   auto tuples2 = reactor.get_db().get_tuples();
-  BOOST_ASSERT(!tuples2.contains(originalClaim));
+  BOOST_ASSERT(!tuples2.contains(testClaim));
   BOOST_ASSERT(!tuples2.contains(expectedA));
   BOOST_ASSERT(!tuples2.contains(expectedB));
 }
