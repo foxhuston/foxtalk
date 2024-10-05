@@ -8,8 +8,8 @@
 // #include "gc.h"
 #include "Reactor.h"
 
-#define REACTOR_TRACE
-#define REACTOR_MEM_DEBUG
+//#define REACTOR_TRACE
+//#define REACTOR_MEM_DEBUG
 
 namespace views = std::ranges::views;
 
