@@ -25,6 +25,14 @@ void freeReactor(Reactor *r) {
     free(r);
 }
 
+
+// TODO: Here's how we handle transitive removal:
+// Tuple t triggered handler h as a part of query-result-set q_h
+// because h was triggered with q_h, t_1 was created.
+//
+// If we remove h, then we must remove q_h and all tuples create from it.
+// If we remove t, then any set q_h it was part of must be removed, and all tuples with it...
+
 Tuple *reactor_addTuple(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
     return db_addTuple(reactor->db, subject, predicate, object);
 }
