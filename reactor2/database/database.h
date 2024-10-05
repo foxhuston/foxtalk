@@ -83,4 +83,10 @@ void free_tuple_results(TupleResult *to);
 }
 #endif
 
+#ifndef __cplusplus
+static TupleNoun queryNoun = { .type = Query };
+#else
+static TupleNoun queryNoun = { .type = TupleNoun::Type::Query };
+#endif
+
 #endif // __FOXTALK_DATABASE_H__
