@@ -4,7 +4,12 @@
 #include <stdint.h>
 #include "symbol.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (*FreeFn)(void *);
+
 typedef size_t TupleRef;
 
 typedef struct CPtrWithFree_t {
@@ -57,18 +62,25 @@ typedef struct Database_t {
 } Database;
 
 typedef struct TupleResult_t {
-    Tuple* tuple;
-    struct TupleResult_t* next;
+    Tuple *tuple;
+    struct TupleResult_t *next;
 } TupleResult;
 
 
-Database* mkNewDatabase();
+Database *mkNewDatabase();
+
 void freeDatabase(Database *);
 
-Tuple* addTuple(Database*, TupleNoun subject, TupleNoun predicate, TupleNoun object);
-void removeTuple(Database*, Tuple*);
+Tuple *addTuple(Database *, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 
-TupleResult* query(Database*, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t* results_count);
+void removeTuple(Database *, Tuple *);
+
+TupleResult *query(Database *, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count);
+
 void free_tuple_results(TupleResult *to);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __FOXTALK_DATABASE_H__
