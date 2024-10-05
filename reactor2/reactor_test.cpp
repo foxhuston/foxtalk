@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "reactor.h"
+#include "TestTupleNouns.h"
 
 class ReactorTests : public ::testing::Test { };
 
@@ -11,12 +12,6 @@ TEST_F(ReactorTests, MkReactor) {
     auto r = mkReactor();
     freeReactor(r);
 }
-
-TupleNoun lexi = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("lexi") } };
-TupleNoun is = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("is") } };
-TupleNoun isA = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("is a") } };
-TupleNoun husky  = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("husky") } };
-TupleNoun cool  = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("cool") } };
 
 TEST_F(ReactorTests, ReactorInsertTuple) {
     auto r = mkReactor();

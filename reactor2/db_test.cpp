@@ -2,10 +2,70 @@
 #include "gtest/gtest.h"
 
 #include "database.h"
+#include "TestTupleNouns.h"
 
 class DbTests : public ::testing::Test {
-
 };
+
+TEST_F(DbTests, DbTupleNounsEq) {
+    TupleNoun subj = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("hello!") } };
+    TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
+    TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
+
+    EXPECT_TRUE(tuple_noun_eq(subj, { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("hello!") } }));
+    EXPECT_TRUE(tuple_noun_eq(pred, { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } }));
+    EXPECT_TRUE(tuple_noun_eq(obj, { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } }));
+}
+
+TEST_F(DbTests, DbTupleNounsNotEq) {
+    TupleNoun subj = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("hello!") } };
+    TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
+    TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
+
+    EXPECT_FALSE(tuple_noun_eq(pred, { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("hello!") } }));
+    EXPECT_FALSE(tuple_noun_eq(subj, { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } }));
+    EXPECT_FALSE(tuple_noun_eq(obj, { .type = TupleNoun::Type::U64, .data = { .u64 = 9999 } }));
+}
+
+
+TEST_F(DbTests, DbTupleResultsEq) {
+    auto db = mkNewDatabase();
+    db_addTuple(db, lexi, isA, husky);
+
+    size_t query_len = 0;
+
+    auto resA = db_query(db, queryNoun, isA, husky, &query_len);
+    auto resB = db_query(db, queryNoun, isA, husky, &query_len);
+
+    EXPECT_NE(resA, resB);
+    EXPECT_TRUE(tuple_results_eq(resA, resB));
+
+    free_db_query_results(resA);
+    free_db_query_results(resB);
+    freeDatabase(db);
+}
+
+TEST_F(DbTests, DbTupleReultsNotEq) {
+    TupleNoun otherHusky = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("Fluke") } };
+
+    auto db = mkNewDatabase();
+    db_addTuple(db, lexi, isA, husky);
+
+    size_t query_len = 0;
+
+    auto resA = db_query(db, queryNoun, isA, husky, &query_len);
+
+    db_addTuple(db, otherHusky, isA, husky);
+
+    auto resB = db_query(db, queryNoun, isA, husky, &query_len);
+
+    EXPECT_NE(resA, resB);
+    EXPECT_FALSE(tuple_results_eq(resA, resB));
+
+    free_db_query_results(resA);
+    free_db_query_results(resB);
+    freeDatabase(db);
+}
 
 TEST_F(DbTests, TestDbAdd) {
     auto db = mkNewDatabase();
@@ -195,11 +255,7 @@ TEST_F(DbTests, ShouldFindTuples) {
 TEST_F(DbTests, TestDbWithSymbols) {
     auto db = mkNewDatabase();
 
-    TupleNoun subj = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("lexi") } };
-    TupleNoun pred = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("is a") } };
-    TupleNoun obj  = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("husky") } };
-
-    auto new_tuple = db_addTuple(db, subj, pred, obj);
+    auto new_tuple = db_addTuple(db, lexi, isA, husky);
 
     EXPECT_EQ(new_tuple->subject.type, TupleNoun::Type::Sym);
     EXPECT_EQ(new_tuple->subject.data.symbol, intern("lexi"));

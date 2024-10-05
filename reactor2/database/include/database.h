@@ -80,6 +80,12 @@ TupleResult *db_query(Database *db, TupleNoun subject, TupleNoun predicate, Tupl
 
 void free_db_query_results(TupleResult *to);
 
+
+bool tuple_noun_eq(TupleNoun a, TupleNoun b);
+bool tuple_results_eq(TupleResult* a, TupleResult* b);
+
+
+
 #ifdef __cplusplus
 }
 #endif

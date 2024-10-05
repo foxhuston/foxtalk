@@ -50,6 +50,15 @@ bool tuple_noun_eq(TupleNoun a, TupleNoun b) {
     }
 }
 
+bool tuple_results_eq(TupleResult* a, TupleResult* b) {
+    if(a == nullptr && b == nullptr) return true;
+    if(a == nullptr) return false;
+    if(b == nullptr) return false;
+
+    return a->tuple == b->tuple
+        && tuple_results_eq(a->next, b->next);
+}
+
 void maybe_add_counted_cptr(Database *db, TupleNoun noun) {
     if(noun.type == CPtr) {
         // Is this already in the db?

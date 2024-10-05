@@ -23,6 +23,7 @@ FetchContent_MakeAvailable(googletest)
 include_directories(database)
 add_executable(db_test db_test.cpp symbol_test.cpp
         reactor_test.cpp
+        TestTupleNouns.h
 )
 target_link_libraries(db_test reactor2 gtest_main)
 #add_test(NAME example_test COMMAND example)
