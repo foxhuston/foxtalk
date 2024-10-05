@@ -79,6 +79,7 @@ void maybe_dec_or_remove_counted_cptr(Database *db, TupleNoun noun) {
                     memset(db->cptrs + i, 0xAE, sizeof(RefCountedCPtrWithFree));
                 }
 
+                assert(db->cptrs[i].ref_count >= 0);
                 return;
             }
         }

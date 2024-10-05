@@ -10,7 +10,8 @@ extern "C" {
 
 typedef void (*FreeFn)(void *);
 
-typedef size_t TupleRef;
+// TODO: don't use tuple pointers directly
+// typedef size_t TupleRef;
 
 typedef struct CPtrWithFree_t {
     void *data;

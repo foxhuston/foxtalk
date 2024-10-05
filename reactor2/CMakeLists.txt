@@ -21,7 +21,9 @@ FetchContent_MakeAvailable(googletest)
 
 # Now simply link against gtest or gtest_main as needed. Eg
 include_directories(database)
-add_executable(db_test db_test.cpp symbol_test.cpp)
+add_executable(db_test db_test.cpp symbol_test.cpp
+        reactor_test.cpp
+)
 target_link_libraries(db_test reactor2 gtest_main)
 #add_test(NAME example_test COMMAND example)
 
