@@ -107,7 +107,7 @@ TEST_F(DbTests, RemoveShouldMarkRemoved) {
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
     auto new_tuple = db_addTuple(db, subj, pred, obj);
-    db_removeTuple(db, new_tuple);
+    db_removeTuple(db, new_tuple->subject, new_tuple->predicate, new_tuple->object);
 
     EXPECT_TRUE(new_tuple->is_deleted == 1);
 }
@@ -124,8 +124,8 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto the_tuple = db_addTuple(db, subj, pred, obj);
-    db_removeTuple(db, the_tuple);
+    auto new_tuple = db_addTuple(db, subj, pred, obj);
+    db_removeTuple(db, new_tuple->subject, new_tuple->predicate, new_tuple->object);
 
     EXPECT_TRUE(has_freed_str == 1);
 }
@@ -145,7 +145,7 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded2) {
     auto the_tuple = db_addTuple(db, subj, pred, obj);
 
     db_addTuple(db, pred, obj, the_tuple->subject);
-    db_removeTuple(db, the_tuple);
+    db_removeTuple(db, subj, pred, obj);
 
     EXPECT_TRUE(has_freed_str == 0);
 }
@@ -165,10 +165,10 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded3) {
     auto the_tuple = db_addTuple(db, subj, pred, obj);
 
     auto new_tuple = db_addTuple(db, pred, obj, the_tuple->subject);
-    db_removeTuple(db, the_tuple);
+    db_removeTuple(db, subj, pred, obj);
     EXPECT_TRUE(has_freed_str == 0);
 
-    db_removeTuple(db, new_tuple);
+    db_removeTuple(db, new_tuple->subject, new_tuple->predicate, new_tuple->object);
     EXPECT_TRUE(has_freed_str == 1);
 }
 

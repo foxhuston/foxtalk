@@ -74,7 +74,7 @@ void freeDatabase(Database *);
 
 Tuple *db_addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 
-void db_removeTuple(Database *db, Tuple *t);
+void db_removeTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 
 TupleResult *db_query(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count);
 

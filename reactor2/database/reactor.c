@@ -29,8 +29,8 @@ Tuple *reactor_addTuple(Reactor *reactor, TupleNoun subject, TupleNoun predicate
     return db_addTuple(reactor->db, subject, predicate, object);
 }
 
-void reactor_removeTuple(Reactor *reactor, Tuple *tuple) {
-    db_removeTuple(reactor->db, tuple);
+void reactor_removeTuple(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
+    db_removeTuple(reactor->db, subject, predicate, object);
 }
 
 ReactorHandle reactor_addHandler(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object, ReactorHandlerFn handlerFn) {

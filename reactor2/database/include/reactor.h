@@ -6,8 +6,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+    struct Reactor_t;
     typedef size_t ReactorHandle;
-    typedef void (*ReactorHandlerFn)(TupleResult *query_results);
+    typedef void (*ReactorHandlerFn)(struct Reactor_t *r, TupleResult *query_results);
 
     typedef struct ReactorHandler_t {
         bool is_deleted;
@@ -35,7 +36,7 @@ extern "C" {
     void freeReactor(Reactor *);
 
     Tuple *reactor_addTuple(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object);
-    void reactor_removeTuple(Reactor *reactor, Tuple *tuple);
+    void reactor_removeTuple(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 
     ReactorHandle reactor_addHandler(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object, ReactorHandlerFn handlerFn);
     void reactor_removeHandler(Reactor *reactor, ReactorHandle reactor_handle);

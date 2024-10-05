@@ -135,12 +135,18 @@ Tuple* db_addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNo
     return db->tuples + new_tuple_idx;
 }
 
-void db_removeTuple(Database* db, Tuple* t) {
-    maybe_dec_or_remove_counted_cptr(db, t->subject);
-    maybe_dec_or_remove_counted_cptr(db, t->predicate);
-    maybe_dec_or_remove_counted_cptr(db, t->object);
+void db_removeTuple(Database* db, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
+    size_t results_count = 0;
+    auto results = db_query(db, subject, predicate, object, &results_count);
+    if(results_count > 0) {
+        assert(results_count == 1);
 
-    t->is_deleted = 1;
+        maybe_dec_or_remove_counted_cptr(db, subject);
+        maybe_dec_or_remove_counted_cptr(db, predicate);
+        maybe_dec_or_remove_counted_cptr(db, object);
+
+        results->tuple->is_deleted = 1;
+    }
 }
 
 TupleResult *add_tuple_result(TupleResult* to, Tuple* tuple) {
@@ -157,6 +163,8 @@ TupleResult *add_tuple_result(TupleResult* to, Tuple* tuple) {
 }
 
 void free_db_query_results(TupleResult *to) {
+    if(to == nullptr) return;
+
     TupleResult *next;
 
     do {
