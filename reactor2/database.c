@@ -29,6 +29,26 @@ void freeDatabase(Database * db) {
     free(db);
 }
 
+bool tuple_noun_eq(TupleNoun a, TupleNoun b) {
+    if(a.type != b.type) return false;
+
+    switch (a.type) {
+        case Query:
+            return true;
+        case Pair:
+            exit(100);
+        case Sym:
+            exit(101);
+        case CPtr:
+            return a.data.cptr.data == b.data.cptr.data
+                && a.data.cptr.free_fn == b.data.cptr.free_fn;
+        case U64:
+            return a.data.u64 == b.data.u64;
+        case I64:
+            return a.data.i64 == b.data.i64;
+    }
+}
+
 void maybe_add_counted_cptr(Database *db, TupleNoun noun) {
     if(noun.type == CPtr) {
         // Is this already in the db?
@@ -109,6 +129,49 @@ void removeTuple(Database* db, Tuple* t) {
     t->is_deleted = 1;
 }
 
-Tuple** query(Database* db, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
+TupleResult *add_tuple_result(TupleResult* to, Tuple* tuple) {
+    auto new_res = (TupleResult*)malloc(sizeof(TupleResult));
+    new_res->tuple = tuple;
+    new_res->next = nullptr;
 
+    if(to == nullptr) {
+        return new_res;
+    }
+
+    to->next = new_res;
+    return new_res;
+}
+
+void free_tuple_results(TupleResult *to) {
+    TupleResult *next;
+
+    do {
+        next = to->next;
+        free(to);
+        to = next;
+    } while(to != nullptr);
+}
+
+TupleResult* query(Database* db, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count) {
+    TupleResult *out = nullptr;
+    TupleResult *current = nullptr;
+    size_t count = 0;
+
+    for(size_t i = 0; i < db->tuple_count; i++) {
+        auto db_tup = db->tuples + i;
+        if(db_tup->is_deleted) { continue; }
+
+        if(subject.type   != Query && !tuple_noun_eq(db_tup->subject, subject)) { continue; }
+        if(predicate.type != Query && !tuple_noun_eq(db_tup->predicate, predicate)) { continue; }
+        if(object.type    != Query && !tuple_noun_eq(db_tup->object, object)) { continue; }
+
+        count++;
+        current = add_tuple_result(out, db_tup);
+        if(out == nullptr) {
+            out = current;
+        }
+    }
+
+    *results_count = count;
+    return out;
 }

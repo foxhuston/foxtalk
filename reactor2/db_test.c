@@ -138,6 +138,27 @@ void should_free_cptrs_when_no_longer_needed_3() {
     assert(has_freed_str == 1);
 }
 
+void it_should_find_tuples() {
+    auto db = mkNewDatabase();
+
+    TupleNoun subj = { .type = U64, .data.u64 = 4242 };
+    TupleNoun pred = { .type = U64, .data.u64 = 5353 };
+    TupleNoun obj  = { .type = U64, .data.u64 = 6464 };
+
+    auto new_tuple = addTuple(db, subj, pred, obj);
+
+    size_t results_count;
+
+    TupleNoun queryNoun = { .type = Query };
+    auto results = query(db, queryNoun, pred, obj, &results_count);
+
+    assert(results_count == 1);
+    assert(results[0].tuple == new_tuple);
+    assert(results[0].tuple->subject.data.u64 == 4242);
+
+    free_tuple_results(results);
+}
+
 
 int main() {
     test_db_add();
@@ -146,6 +167,7 @@ int main() {
     should_free_cptrs_when_no_longer_needed();
     should_free_cptrs_when_no_longer_needed_2();
     should_free_cptrs_when_no_longer_needed_3();
+    it_should_find_tuples();
 
     // TODO:
 //    test_db_add_multiple_tuples();

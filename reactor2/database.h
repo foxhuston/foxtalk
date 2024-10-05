@@ -56,6 +56,11 @@ typedef struct Database_t {
     Tuple *tuples;
 } Database;
 
+typedef struct TupleResult_t {
+    Tuple* tuple;
+    struct TupleResult_t* next;
+} TupleResult;
+
 
 Database* mkNewDatabase();
 void freeDatabase(Database *);
@@ -63,6 +68,7 @@ void freeDatabase(Database *);
 Tuple* addTuple(Database*, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 void removeTuple(Database*, Tuple*);
 
-//Tuple** query(Database*, TupleNoun subject, TupleNoun predicate, TupleNoun object);
+TupleResult* query(Database*, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t* results_count);
+void free_tuple_results(TupleResult *to);
 
 #endif // __FOXTALK_DATABASE_H__
