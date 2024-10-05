@@ -12,6 +12,11 @@ extern "C" {
 
     typedef struct ReactorHandler_t {
         bool is_deleted;
+
+        size_t called_with_results_count;
+        size_t called_with_results_alloc_count;
+        TupleResult **called_with_results;
+
         // You can't dynamically change your query; you've got to
         // unregister, make a new thing, and re-register. But I think
         // that for the way this is intended to be used, that's perfectly

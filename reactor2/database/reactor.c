@@ -38,6 +38,11 @@ ReactorHandle reactor_addHandler(Reactor *reactor, TupleNoun subject, TupleNoun 
 
     reactor->handlers[reactor->handler_count].is_deleted = false;
 
+    reactor->handlers[reactor->handler_count].called_with_results_count = 0;
+    reactor->handlers[reactor->handler_count].called_with_results_alloc_count = initial_handler_size;
+    reactor->handlers[reactor->handler_count].called_with_results = (TupleResult **)malloc(sizeof (TupleResult*) * initial_handler_size);
+    memset(reactor->handlers[reactor->handler_count].called_with_results, 0, sizeof (TupleResult*) * initial_handler_size);
+
     reactor->handlers[reactor->handler_count].query_subject = subject;
     reactor->handlers[reactor->handler_count].query_predicate = predicate;
     reactor->handlers[reactor->handler_count].query_object = object;
@@ -49,19 +54,44 @@ ReactorHandle reactor_addHandler(Reactor *reactor, TupleNoun subject, TupleNoun 
 
 void reactor_removeHandler(Reactor *reactor, ReactorHandle reactor_handle) {
     assert(reactor_handle < reactor->handler_count);
+    auto h = reactor->handlers[reactor_handle];
+    assert(!h.is_deleted);
+
+    for(size_t i = 0; i < h.called_with_results_count; i++) {
+        free_db_query_results(h.called_with_results[i]);
+    }
+
     reactor->handlers[reactor_handle].is_deleted = true;
+}
+
+void reactor_handler_tick(Reactor *reactor, ReactorHandler *current_handler) {
+    size_t query_result_count = 0;
+    auto query_results = db_query(reactor->db, current_handler->query_subject, current_handler->query_predicate, current_handler->query_object, &query_result_count);
+    if(query_result_count <= 0) return;
+
+    // Have we seen this result set before?
+    for(size_t res_idx = 0; res_idx < current_handler->called_with_results_count; res_idx++) {
+        if(tuple_results_eq(current_handler->called_with_results[res_idx], query_results)) {
+            free_db_query_results(query_results);
+            return; // Already called for this particular result set.
+        }
+    }
+
+    // We haven't seen it. Record it...
+    current_handler->called_with_results[current_handler->called_with_results_count] = query_results;
+    current_handler->called_with_results_count++;
+    assert(current_handler->called_with_results_count < current_handler->called_with_results_alloc_count);
+
+    // Then actually run the handler
+    current_handler->handle_query_results(reactor, query_results);
 }
 
 void reactor_tick(Reactor *reactor) {
     for(size_t i = 0; i < reactor->handler_count; i++) {
-        auto current_handler = reactor->handlers[i];
-        if(current_handler.is_deleted) { continue; }
+        auto current_handler = reactor->handlers + i;
+        if(current_handler->is_deleted) { continue; }
 
-        size_t query_result_count = 0;
-        auto query_results = db_query(reactor->db, current_handler.query_subject, current_handler.query_predicate, current_handler.query_object, &query_result_count);
-        if(query_result_count > 0) {
-            current_handler.handle_query_results(reactor, query_results);
-            free_db_query_results(query_results);
-        }
+        // Run the query
+        reactor_handler_tick(reactor, current_handler);
     }
 }

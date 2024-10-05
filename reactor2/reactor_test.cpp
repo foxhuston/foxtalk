@@ -153,12 +153,12 @@ TEST_F(ReactorTests, ReactorHandlerRemovesGeneratesTuplesWhenOriginatingTupleIsR
         EXPECT_EQ(res->tuple->subject.type, TupleNoun::Type::Sym);
         EXPECT_EQ(res->tuple->subject.data.symbol, intern("lexi"));
 
-        reactor_removeTuple(r, res->tuple->subject, res->tuple->predicate, res->tuple->object);
+        reactor_removeTuple(r, lexi, isA, husky);
         reactor_tick(r);
-        size_t remove_results_count;
-        auto remove_res = db_query(r->db, queryNoun, is, cool, &remove_results_count);
 
-        EXPECT_EQ(remove_results_count, 0);
+        auto remove_res = db_query(r->db, queryNoun, is, cool, &results_count);
+
+        EXPECT_EQ(results_count, 0);
         free_db_query_results(remove_res);
     }
 
