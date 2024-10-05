@@ -1,6 +1,7 @@
 
+#include <assert.h>
 #include <string.h>
-#include "database.h"
+#include "include/database.h"
 
 //constexpr size_t initial_db_size = 1;
 constexpr size_t initial_db_size = 20000000; // 20 MTuples
@@ -38,7 +39,7 @@ bool tuple_noun_eq(TupleNoun a, TupleNoun b) {
         case Pair:
             exit(100);
         case Sym:
-            exit(101);
+            return a.data.symbol == b.data.symbol;
         case CPtr:
             return a.data.cptr.data == b.data.cptr.data
                 && a.data.cptr.free_fn == b.data.cptr.free_fn;
@@ -85,6 +86,18 @@ void maybe_dec_or_remove_counted_cptr(Database *db, TupleNoun noun) {
 }
 
 Tuple* addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
+    // Do we already have this tuple?
+    size_t count = 0;
+    auto res = query(db, subject, predicate, object, &count);
+    if(count == 1) {
+        auto out = res->tuple;
+        free_tuple_results(res);
+        return out;
+    }
+
+    assert(count < 1);
+
+    // It's new!
     maybe_add_counted_cptr(db, subject);
     maybe_add_counted_cptr(db, predicate);
     maybe_add_counted_cptr(db, object);

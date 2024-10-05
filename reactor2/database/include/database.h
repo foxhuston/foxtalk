@@ -38,7 +38,7 @@ typedef struct TupleNoun_t {
         CPtrWithFree cptr;
 
         // Never need cleanup.
-        Symbol *symbol;
+        const Symbol *symbol;
         uint64_t u64;
         int64_t i64;
     } data;

@@ -1,7 +1,7 @@
 #include <cstring>
 #include "gtest/gtest.h"
 
-#include "database/database.h"
+#include "database.h"
 
 class DbTests : public ::testing::Test {
 
@@ -45,6 +45,27 @@ TEST_F(DbTests, TestDbAddFromFnCall) {
     EXPECT_EQ(new_tuple->predicate.data.u64, 5353);
     EXPECT_EQ(new_tuple->object.type, TupleNoun::Type::U64);
     EXPECT_EQ(new_tuple->object.data.u64, 6464);
+
+    freeDatabase(db);
+}
+
+TEST_F(DbTests, InsertionIsIdempotent) {
+    auto db = mkNewDatabase();
+
+    TupleNoun subj = { .type = TupleNoun::Type::U64, .data = { .u64 = 4242 } };
+    TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
+    TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
+
+    auto t1 = addTuple(db, subj, pred, obj);
+    auto t2 = addTuple(db, subj, pred, obj);
+
+    EXPECT_EQ(t1, t2);
+    EXPECT_EQ(db->tuple_count, 1);
+
+    TupleNoun newObj = { .type = TupleNoun::Type::I64, .data = { .i64 = 0 } };
+    addTuple(db, subj, pred, newObj);
+
+    EXPECT_EQ(db->tuple_count, 2);
 
     freeDatabase(db);
 }
@@ -169,4 +190,25 @@ TEST_F(DbTests, ShouldFindTuples) {
     EXPECT_EQ(results[0].tuple->subject.data.u64, 4242);
 
     free_tuple_results(results);
+}
+
+TEST_F(DbTests, TestDbWithSymbols) {
+    auto db = mkNewDatabase();
+
+    TupleNoun subj = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("lexi") } };
+    TupleNoun pred = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("is a") } };
+    TupleNoun obj  = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("husky") } };
+
+    auto new_tuple = addTuple(db, subj, pred, obj);
+
+    EXPECT_EQ(new_tuple->subject.type, TupleNoun::Type::Sym);
+    EXPECT_EQ(new_tuple->subject.data.symbol, intern("lexi"));
+    EXPECT_EQ(new_tuple->predicate.type, TupleNoun::Type::Sym);
+    EXPECT_EQ(new_tuple->predicate.data.symbol, intern("is a"));
+    EXPECT_EQ(new_tuple->object.type, TupleNoun::Type::Sym);
+    EXPECT_EQ(new_tuple->object.data.symbol, intern("husky"));
+
+    EXPECT_STREQ(new_tuple->object.data.symbol->str, "husky");
+
+    freeDatabase(db);
 }

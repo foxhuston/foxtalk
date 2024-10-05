@@ -12,13 +12,11 @@ extern "C" {
 #include <stdlib.h>
 
 typedef struct Symbol_t {
-    char *mySymbol;
+    char *str;
     struct Symbol_t *nextSymbols[];
 } Symbol;
 
-Symbol *intern_loop(char *orig, const char *current);
-
-Symbol *intern(const char *str);
+const Symbol *intern(const char *str);
 
 #ifdef __cplusplus
 }
