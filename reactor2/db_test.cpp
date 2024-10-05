@@ -14,7 +14,7 @@ TEST_F(DbTests, TestDbAdd) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto new_tuple = addTuple(db, subj, pred, obj);
+    auto new_tuple = db_addTuple(db, subj, pred, obj);
 
     EXPECT_EQ(new_tuple->subject.type, TupleNoun::Type::U64);
     EXPECT_EQ(new_tuple->subject.data.u64, 4242);
@@ -32,7 +32,7 @@ Tuple* test_db_fn_add(Database *db) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    return addTuple(db, subj, pred, obj);
+    return db_addTuple(db, subj, pred, obj);
 }
 
 TEST_F(DbTests, TestDbAddFromFnCall) {
@@ -56,14 +56,14 @@ TEST_F(DbTests, InsertionIsIdempotent) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto t1 = addTuple(db, subj, pred, obj);
-    auto t2 = addTuple(db, subj, pred, obj);
+    auto t1 = db_addTuple(db, subj, pred, obj);
+    auto t2 = db_addTuple(db, subj, pred, obj);
 
     EXPECT_EQ(t1, t2);
     EXPECT_EQ(db->tuple_count, 1);
 
     TupleNoun newObj = { .type = TupleNoun::Type::I64, .data = { .i64 = 0 } };
-    addTuple(db, subj, pred, newObj);
+    db_addTuple(db, subj, pred, newObj);
 
     EXPECT_EQ(db->tuple_count, 2);
 
@@ -76,11 +76,11 @@ TEST_F(DbTests, DISABLED_TestDbGrowsWithMultipleInserts) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto first_tuple = addTuple(db, subj, pred, obj);
+    auto first_tuple = db_addTuple(db, subj, pred, obj);
     EXPECT_EQ(db->alloc_size, 2);
-    addTuple(db, subj, pred, obj); // Should resize
+    db_addTuple(db, subj, pred, obj); // Should resize
     EXPECT_EQ(db->alloc_size, 4);
-    addTuple(db, subj, pred, obj); // Should resize again
+    db_addTuple(db, subj, pred, obj); // Should resize again
     EXPECT_EQ(db->alloc_size, 4);
 
     EXPECT_EQ(first_tuple->subject.type, TupleNoun::Type::U64);
@@ -106,8 +106,8 @@ TEST_F(DbTests, RemoveShouldMarkRemoved) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto new_tuple = addTuple(db, subj, pred, obj);
-    removeTuple(db, new_tuple);
+    auto new_tuple = db_addTuple(db, subj, pred, obj);
+    db_removeTuple(db, new_tuple);
 
     EXPECT_TRUE(new_tuple->is_deleted == 1);
 }
@@ -124,8 +124,8 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto the_tuple = addTuple(db, subj, pred, obj);
-    removeTuple(db, the_tuple);
+    auto the_tuple = db_addTuple(db, subj, pred, obj);
+    db_removeTuple(db, the_tuple);
 
     EXPECT_TRUE(has_freed_str == 1);
 }
@@ -142,10 +142,10 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded2) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto the_tuple = addTuple(db, subj, pred, obj);
+    auto the_tuple = db_addTuple(db, subj, pred, obj);
 
-    addTuple(db, pred, obj, the_tuple->subject);
-    removeTuple(db, the_tuple);
+    db_addTuple(db, pred, obj, the_tuple->subject);
+    db_removeTuple(db, the_tuple);
 
     EXPECT_TRUE(has_freed_str == 0);
 }
@@ -162,13 +162,13 @@ TEST_F(DbTests, ShouldFreeCptrsWhenNoLongerNeeded3) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto the_tuple = addTuple(db, subj, pred, obj);
+    auto the_tuple = db_addTuple(db, subj, pred, obj);
 
-    auto new_tuple = addTuple(db, pred, obj, the_tuple->subject);
-    removeTuple(db, the_tuple);
+    auto new_tuple = db_addTuple(db, pred, obj, the_tuple->subject);
+    db_removeTuple(db, the_tuple);
     EXPECT_TRUE(has_freed_str == 0);
 
-    removeTuple(db, new_tuple);
+    db_removeTuple(db, new_tuple);
     EXPECT_TRUE(has_freed_str == 1);
 }
 
@@ -179,17 +179,17 @@ TEST_F(DbTests, ShouldFindTuples) {
     TupleNoun pred = { .type = TupleNoun::Type::U64, .data = { .u64 = 5353 } };
     TupleNoun obj  = { .type = TupleNoun::Type::U64, .data = { .u64 = 6464 } };
 
-    auto new_tuple = addTuple(db, subj, pred, obj);
+    auto new_tuple = db_addTuple(db, subj, pred, obj);
 
     size_t results_count;
 
-    auto results = query(db, queryNoun, pred, obj, &results_count);
+    auto results = db_query(db, queryNoun, pred, obj, &results_count);
 
     EXPECT_TRUE(results_count == 1);
     EXPECT_EQ(results[0].tuple, new_tuple);
     EXPECT_EQ(results[0].tuple->subject.data.u64, 4242);
 
-    free_tuple_results(results);
+    free_db_query_results(results);
 }
 
 TEST_F(DbTests, TestDbWithSymbols) {
@@ -199,7 +199,7 @@ TEST_F(DbTests, TestDbWithSymbols) {
     TupleNoun pred = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("is a") } };
     TupleNoun obj  = { .type = TupleNoun::Type::Sym, .data = { .symbol = intern("husky") } };
 
-    auto new_tuple = addTuple(db, subj, pred, obj);
+    auto new_tuple = db_addTuple(db, subj, pred, obj);
 
     EXPECT_EQ(new_tuple->subject.type, TupleNoun::Type::Sym);
     EXPECT_EQ(new_tuple->subject.data.symbol, intern("lexi"));

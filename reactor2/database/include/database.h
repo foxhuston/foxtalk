@@ -72,13 +72,13 @@ Database *mkNewDatabase();
 
 void freeDatabase(Database *);
 
-Tuple *addTuple(Database *, TupleNoun subject, TupleNoun predicate, TupleNoun object);
+Tuple *db_addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object);
 
-void removeTuple(Database *, Tuple *);
+void db_removeTuple(Database *db, Tuple *t);
 
-TupleResult *query(Database *, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count);
+TupleResult *db_query(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count);
 
-void free_tuple_results(TupleResult *to);
+void free_db_query_results(TupleResult *to);
 
 #ifdef __cplusplus
 }

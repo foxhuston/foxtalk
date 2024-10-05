@@ -86,13 +86,13 @@ void maybe_dec_or_remove_counted_cptr(Database *db, TupleNoun noun) {
     }
 }
 
-Tuple* addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
+Tuple* db_addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun object) {
     // Do we already have this tuple?
     size_t count = 0;
-    auto res = query(db, subject, predicate, object, &count);
+    auto res = db_query(db, subject, predicate, object, &count);
     if(count == 1) {
         auto out = res->tuple;
-        free_tuple_results(res);
+        free_db_query_results(res);
         return out;
     }
 
@@ -135,7 +135,7 @@ Tuple* addTuple(Database *db, TupleNoun subject, TupleNoun predicate, TupleNoun 
     return db->tuples + new_tuple_idx;
 }
 
-void removeTuple(Database* db, Tuple* t) {
+void db_removeTuple(Database* db, Tuple* t) {
     maybe_dec_or_remove_counted_cptr(db, t->subject);
     maybe_dec_or_remove_counted_cptr(db, t->predicate);
     maybe_dec_or_remove_counted_cptr(db, t->object);
@@ -156,7 +156,7 @@ TupleResult *add_tuple_result(TupleResult* to, Tuple* tuple) {
     return new_res;
 }
 
-void free_tuple_results(TupleResult *to) {
+void free_db_query_results(TupleResult *to) {
     TupleResult *next;
 
     do {
@@ -166,7 +166,7 @@ void free_tuple_results(TupleResult *to) {
     } while(to != nullptr);
 }
 
-TupleResult* query(Database* db, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count) {
+TupleResult* db_query(Database* db, TupleNoun subject, TupleNoun predicate, TupleNoun object, size_t *results_count) {
     TupleResult *out = nullptr;
     TupleResult *current = nullptr;
     size_t count = 0;
