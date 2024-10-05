@@ -71,10 +71,10 @@ TEST_F(ReactorTests, ReactorCallsHandlerOnExistingTuples) {
     auto r = mkReactor();
 
     reactor_addTuple(r, lexi, isA, husky);
-    tick(r);
+    reactor_tick(r);
 
     reactor_addHandler(r, queryNoun, isA, husky, counting_handle_fn);
-    tick(r);
+    reactor_tick(r);
 
     EXPECT_EQ(counting_handle_fn_called_times, 1);
 
@@ -86,10 +86,30 @@ TEST_F(ReactorTests, ReactorCallsHandlerOnNewTuples) {
     auto r = mkReactor();
 
     reactor_addHandler(r, queryNoun, isA, husky, counting_handle_fn);
-    tick(r);
+    reactor_tick(r);
 
     reactor_addTuple(r, lexi, isA, husky);
-    tick(r);
+    reactor_tick(r);
+
+    EXPECT_EQ(counting_handle_fn_called_times, 1);
+
+    freeReactor(r);
+}
+
+TEST_F(ReactorTests, ReactorCallsHandlerOnlyOnceOnSameTuples) {
+    counting_handle_fn_called_times = 0;
+    auto r = mkReactor();
+
+    reactor_addHandler(r, queryNoun, isA, husky, counting_handle_fn);
+    reactor_tick(r);
+
+    reactor_addTuple(r, lexi, isA, husky);
+    reactor_tick(r);
+
+    EXPECT_EQ(counting_handle_fn_called_times, 1);
+
+    reactor_addTuple(r, lexi, isA, husky);
+    reactor_tick(r);
 
     EXPECT_EQ(counting_handle_fn_called_times, 1);
 
@@ -106,10 +126,10 @@ TEST_F(ReactorTests, ReactorHandlerGeneratesTuples) {
     auto r = mkReactor();
 
     reactor_addHandler(r, queryNoun, isA, husky, tuple_generating_handler_fn);
-    tick(r);
+    reactor_tick(r);
 
     reactor_addTuple(r, lexi, isA, husky);
-    tick(r);
+    reactor_tick(r);
 
     size_t results_count;
     auto res = db_query(r->db, queryNoun, is, cool, &results_count);
@@ -126,10 +146,10 @@ TEST_F(ReactorTests, ReactorHandlerRemovesGeneratesTuplesWhenOriginatingTupleIsR
     auto r = mkReactor();
 
     reactor_addHandler(r, queryNoun, isA, husky, tuple_generating_handler_fn);
-    tick(r);
+    reactor_tick(r);
 
     reactor_addTuple(r, lexi, isA, husky);
-    tick(r);
+    reactor_tick(r);
 
     size_t results_count;
     auto res = db_query(r->db, queryNoun, is, cool, &results_count);
@@ -139,7 +159,7 @@ TEST_F(ReactorTests, ReactorHandlerRemovesGeneratesTuplesWhenOriginatingTupleIsR
         EXPECT_EQ(res->tuple->subject.data.symbol, intern("lexi"));
 
         reactor_removeTuple(r, res->tuple->subject, res->tuple->predicate, res->tuple->object);
-        tick(r);
+        reactor_tick(r);
         size_t remove_results_count;
         auto remove_res = db_query(r->db, queryNoun, is, cool, &remove_results_count);
 
@@ -156,10 +176,10 @@ TEST_F(ReactorTests, ReactorHandlerRemovesGeneratesTuplesWhenOriginatingHandlerI
     auto r = mkReactor();
 
     auto hid = reactor_addHandler(r, queryNoun, isA, husky, tuple_generating_handler_fn);
-    tick(r);
+    reactor_tick(r);
 
     reactor_addTuple(r, lexi, isA, husky);
-    tick(r);
+    reactor_tick(r);
 
     size_t results_count;
     auto res = db_query(r->db, queryNoun, is, cool, &results_count);
@@ -169,7 +189,7 @@ TEST_F(ReactorTests, ReactorHandlerRemovesGeneratesTuplesWhenOriginatingHandlerI
         EXPECT_EQ(res->tuple->subject.data.symbol, intern("lexi"));
 
         reactor_removeHandler(r, hid);
-        tick(r);
+        reactor_tick(r);
         size_t remove_results_count;
         auto remove_res = db_query(r->db, queryNoun, is, cool, &remove_results_count);
 

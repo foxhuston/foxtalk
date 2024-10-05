@@ -41,7 +41,7 @@ extern "C" {
     ReactorHandle reactor_addHandler(Reactor *reactor, TupleNoun subject, TupleNoun predicate, TupleNoun object, ReactorHandlerFn handlerFn);
     void reactor_removeHandler(Reactor *reactor, ReactorHandle reactor_handle);
 
-    void tick(Reactor *reactor);
+    void reactor_tick(Reactor *reactor);
 
 #ifdef __cplusplus
 }

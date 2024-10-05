@@ -52,6 +52,16 @@ void reactor_removeHandler(Reactor *reactor, ReactorHandle reactor_handle) {
     reactor->handlers[reactor_handle].is_deleted = true;
 }
 
-void tick(Reactor *reactor) {
+void reactor_tick(Reactor *reactor) {
+    for(size_t i = 0; i < reactor->handler_count; i++) {
+        auto current_handler = reactor->handlers[i];
+        if(current_handler.is_deleted) { continue; }
 
+        size_t query_result_count = 0;
+        auto query_results = db_query(reactor->db, current_handler.query_subject, current_handler.query_predicate, current_handler.query_object, &query_result_count);
+        if(query_result_count > 0) {
+            current_handler.handle_query_results(reactor, query_results);
+            free_db_query_results(query_results);
+        }
+    }
 }
