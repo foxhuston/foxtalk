@@ -16,6 +16,7 @@
 #include <cmath>
 
 constexpr size_t __foxtalk_ipc_buffer_size = 4096;
+
 ///// DEBUGGING HELPER FUNCTIONS ///////////////////////////////////////////////
 void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
     std::cout << "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F        0 1 2 3 4 5 6 7 8 9 A B C D E F";
@@ -196,7 +197,7 @@ struct TripleNoun {
 
             case NounType::Symbol: {
                 auto sym = std::get<std::string>(data);
-                current_position += write_t_to_buffer(buffer, current_position, (size_t)sym.length());
+                current_position += write_t_to_buffer(buffer, current_position, (size_t) sym.length());
                 sym.copy((char *) (buffer + current_position), sym.length());
                 current_position += sym.length();
                 break;
@@ -227,6 +228,16 @@ struct Triple {
     TripleNoun predicate_;
     TripleNoun object_;
 
+    Triple(const Triple &&other)
+            : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
+              object_(std::move(other.object_)) {}
+
+    void operator=(const Triple &&other) {
+        subject_ = std::move(other.subject_);
+        predicate_ = std::move(other.predicate_);
+        object_ = std::move(other.object_);
+    }
+
     Triple(TripleNoun &&subject, TripleNoun &&predicate, TripleNoun &&object)
             : subject_(std::move(subject)),
               predicate_(std::move(predicate)),
@@ -234,8 +245,8 @@ struct Triple {
 
     bool operator==(const Triple &other) const {
         return subject_ == other.subject_
-            && predicate_ == other.predicate_
-            && object_ == other.object_;
+               && predicate_ == other.predicate_
+               && object_ == other.object_;
     }
 
     void write_to_buffer(uint8_t *buffer, size_t start_position) {
@@ -254,7 +265,7 @@ struct Triple {
         auto [triple_size, read_bytes] = read_t_from_buffer<size_t>(buffer, current_position);
 
         std::cout << std::format("Reading triple with size: {0:d} ({0:#x})", triple_size) << std::endl;
-        dbg_dump_buffer_region(buffer, start_position, triple_size+1);
+        dbg_dump_buffer_region(buffer, start_position, triple_size + 1);
 
         current_position += read_bytes;
 
@@ -274,13 +285,8 @@ struct Triple {
         std::cout << std::format("Read {:d} bytes for object.", o_read_bytes) << std::endl;
 
         assert(current_position == triple_size);
-        Triple t{
-                std::move(subj),
-                std::move(pred),
-                std::move(obj)
-        };
 
-        return std::pair<Triple, size_t>(t, 0ul);
+        return std::pair<Triple, size_t>(Triple {std::move(subj), std::move(pred), std::move(obj)}, 0ul);
     }
 
     void write_to_ipc_buffer() {
