@@ -1,5 +1,0 @@
-target/
-.idea/
-.vscode/
-reactor/tests/test_libs/out/
-*.so
