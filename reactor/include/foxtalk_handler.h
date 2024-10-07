@@ -147,15 +147,10 @@ struct TripleNoun {
             case NounType::Symbol: {
                 auto [str_length, read_bytes] = read_t_from_buffer<size_t>(buffer, buffer_position);
                 buffer_position += read_bytes;
-//                std::cout << "Going to read " << str_length << " bytes for string..." << std::endl;
-
                 auto str = std::string((char *) (buffer + buffer_position), str_length);
-
-//                std::cout << "Got string: " << str << std::endl;
-
                 return {
                         TripleNoun{str},
-                        read_bytes + str_length
+                        (buffer_position - start_position) + str_length
                 };
             }
             case NounType::CPtr: {
@@ -251,32 +246,32 @@ struct Triple {
         current_position += predicate_.write_to_buffer(buffer, current_position);
         current_position += object_.write_to_buffer(buffer, current_position);
 
-        write_t_to_buffer(buffer, start_position, current_position - start_position + size_bytes);
+        write_t_to_buffer(buffer, start_position, current_position - start_position);
     }
 
     static std::pair<Triple, size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
         size_t current_position = start_position;
         auto [triple_size, read_bytes] = read_t_from_buffer<size_t>(buffer, current_position);
 
-        std::cout << "Reading triple with size: " << triple_size << std::endl;
+        std::cout << std::format("Reading triple with size: {0:d} ({0:#x})", triple_size) << std::endl;
         dbg_dump_buffer_region(buffer, start_position, triple_size+1);
 
         current_position += read_bytes;
 
-        std::cout << "Reading subject @ " << current_position << std::endl;
+        std::cout << "Reading subject @ " << std::hex << current_position << std::endl;
         auto [subj, s_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+        std::cout << std::format("Read {:d} bytes for subject.", s_read_bytes) << std::endl;
         current_position += s_read_bytes;
-        dbg_dump_buffer_region(buffer, current_position - s_read_bytes, s_read_bytes);
 
-        std::cout << "Reading predicate @ " << current_position << std::endl;
+        std::cout << "Reading predicate @ " << std::hex << current_position << std::endl;
         auto [pred, p_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
         current_position += p_read_bytes;
-        dbg_dump_buffer_region(buffer, current_position - p_read_bytes, p_read_bytes);
+        std::cout << std::format("Read {:d} bytes for predicate.", p_read_bytes) << std::endl;
 
-        std::cout << "Reading object @ " << current_position << std::endl;
+        std::cout << "Reading object @ " << std::hex << current_position << std::endl;
         auto [obj, o_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
         current_position += o_read_bytes;
-        dbg_dump_buffer_region(buffer, current_position - o_read_bytes, o_read_bytes);
+        std::cout << std::format("Read {:d} bytes for object.", o_read_bytes) << std::endl;
 
         assert(current_position == triple_size);
         Triple t{
@@ -285,8 +280,7 @@ struct Triple {
                 std::move(obj)
         };
 
-        throw std::runtime_error("WHAT.");
-//        return std::pair<Triple, size_t>(, 0ul);
+        return std::pair<Triple, size_t>(t, 0ul);
     }
 
     void write_to_ipc_buffer() {

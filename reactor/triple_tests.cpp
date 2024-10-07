@@ -25,20 +25,21 @@ TEST_F(TripleTests, TripleNounQueryRoundTrip) {
 
 TEST_F(TripleTests, TripleNounSymbolRoundTrip) {
     uint8_t buffer[64] {};
+    constexpr size_t start_position = 0x5;
     dbg_dump_buffer_region(buffer, 0, 64);
     std::cout << "===== ORIG =====================================================================" << std::endl;
 
     auto s = "Hello, World!"s;
     auto nWrite = TripleNoun(s);
 
-    size_t bytes_written = nWrite.write_to_buffer(buffer, 0);
+    size_t bytes_written = nWrite.write_to_buffer(buffer, start_position);
     //                       type byte       + string length marker               + actual string length
     EXPECT_EQ(bytes_written, sizeof(uint8_t) + (sizeof(size_t) / sizeof(uint8_t)) + s.length());
 
     dbg_dump_buffer_region(buffer, 0, 64);
     std::cout << "===== POST WRITE ===============================================================" << std::endl;
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, start_position);
 
     EXPECT_EQ(nRead, nWrite);
 }
