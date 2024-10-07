@@ -5,34 +5,58 @@
 #ifndef REACTOR_FOXTALK_HANDLER_H
 #define REACTOR_FOXTALK_HANDLER_H
 
-#include <cassert>
+#include <variant>
 #include <cstring>
 #include <string>
 #include <unistd.h>
 #include <cstdint>
 
-constexpr size_t buffer_size = 4096;
-constexpr size_t size_offset = sizeof(size_t) / sizeof(uint8_t);
+constexpr size_t __foxtalk_ipc_buffer_size = 4096;
+
+///// C FFI ////////////////////////////////////////////////////////////////////
 
 extern "C" {
+///// MY HANDLER ID /////
 size_t handler_id;
-uint8_t ipc_triple_buffer[buffer_size];
+
+///// RUNTIME COMMUNICATION BUFFER /////
+uint8_t __foxtalk_ipc_triple_buffer[__foxtalk_ipc_buffer_size];
+
+///// FROM THE RUNTIME /////
+void register_query(size_t handler_id);
+void next_query_result(size_t handler_id);
+
+///// USER MUST IMPLEMENT /////
+void free_tuple();
+void handle();
+void teardown();
 }
 
+///// C++ API //////////////////////////////////////////////////////////////////
+
 template<typename T>
-inline size_t write_t_to_buffer(size_t index, T what) {
-    *((T*)(ipc_triple_buffer + index)) = what;
+inline size_t write_t_to_buffer(uint8_t *buffer, size_t index, T what) {
+    *((T *) (buffer + index)) = what;
     return sizeof(T) / sizeof(uint8_t);
 }
 
-extern "C" {
-
-void register_query(size_t handler_id);
-void free_tuple();
-
-};
+template<typename T>
+inline std::pair<T, size_t> read_t_from_buffer(uint8_t *buffer, size_t index) {
+    return {
+            *((T *) (buffer + index)),
+            sizeof(T) / sizeof(uint8_t)
+    };
+}
 
 struct TripleNoun {
+    typedef std::variant<
+            std::monostate, // Query
+            std::string, // Symbol
+            void *, // Cptr
+            uint64_t, // U64
+            int64_t  // I64
+    > NounData;
+
     TripleNoun(const TripleNoun &) = delete;
 
     void operator=(const TripleNoun &) = delete;
@@ -45,6 +69,19 @@ struct TripleNoun {
         data = other.data;
     }
 
+    TripleNoun() : type(NounType::Query), data(std::monostate()) {}
+
+    TripleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data) {
+//        std::cout << std::boolalpha
+//                  << "ND string? " << std::holds_alternative<std::string>(data)
+//                  << " With index " << data.index()
+//                  << std::endl;
+    }
+
+    bool operator==(const TripleNoun &other) const {
+        return type == other.type && data == other.data;
+    }
+
     enum class NounType : uint8_t {
         Query = 0,
         Symbol = 1,
@@ -54,55 +91,96 @@ struct TripleNoun {
         MAX
     } type;
 
-    union NounData {
-        char *symbol;
-        void *cptr;
-        uint64_t u64;
-        int64_t i64;
-    } data;
+    NounData data;
 
-    TripleNoun(NounType type, const NounData &data) : type(type), data(data) {}
+    static std::pair<TripleNoun, size_t> read_from_buffer(uint8_t *buffer, size_t buffer_position) {
+        auto start_position = buffer_position;
+        auto [type, offset] = read_t_from_buffer<uint8_t>(buffer, buffer_position);
+        buffer_position += offset;
 
-    size_t write_to_buffer(size_t buffer_position) {
-        // size to the 0 position
+//        std::cout << "Reading TripleNoun of type " << (uint32_t)type << std::endl;
+
+        switch ((NounType)type) {
+            case NounType::Query:
+                return {
+                        TripleNoun{std::monostate()},
+                        buffer_position - start_position
+                };
+            case NounType::Symbol: {
+                auto [str_length, read_bytes] = read_t_from_buffer<size_t>(buffer, buffer_position);
+                buffer_position += read_bytes;
+//                std::cout << "Going to read " << str_length << " bytes for string..." << std::endl;
+
+                auto str = std::string((char *) (buffer + buffer_position), str_length);
+
+//                std::cout << "Got string: " << str << std::endl;
+
+                return {
+                        TripleNoun{str},
+                        read_bytes + str_length
+                };
+            }
+            case NounType::CPtr: {
+                auto [dat, read_bytes] = read_t_from_buffer<void *>(buffer, buffer_position);
+                buffer_position += read_bytes;
+
+                return {
+                        TripleNoun{dat},
+                        buffer_position - start_position
+                };
+            }
+            case NounType::U64: {
+                auto [dat, read_bytes] = read_t_from_buffer<uint64_t>(buffer, buffer_position);
+                buffer_position += read_bytes;
+
+                return {
+                        TripleNoun{dat},
+                        buffer_position - start_position
+                };
+            }
+            case NounType::I64: {
+                auto [dat, read_bytes] = read_t_from_buffer<int64_t>(buffer, buffer_position);
+                buffer_position += read_bytes;
+
+                return {
+                        TripleNoun{dat},
+                        buffer_position - start_position
+                };
+            }
+            default:
+                throw std::runtime_error("Unknown NounType!");
+        }
+    }
+
+    size_t write_to_buffer(uint8_t *buffer, size_t buffer_position) {
         size_t current_position = buffer_position;
 
-        ipc_triple_buffer[current_position] = static_cast<uint8_t>(type);
-        current_position++;
+        current_position += write_t_to_buffer(buffer, current_position, type);
 
-        switch(type) {
+        switch (type) {
             case NounType::Query:
                 break;
+
             case NounType::Symbol: {
-                auto starting_position = current_position;
-                current_position += size_offset;
-
-                char *ptr = data.symbol;
-                while(*ptr != 0) {
-                    ipc_triple_buffer[current_position] = *ptr;
-                    ptr++;
-                    current_position++;
-                }
-
-                write_t_to_buffer(starting_position, current_position - starting_position + size_offset);
+                auto sym = std::get<std::string>(data);
+                current_position += write_t_to_buffer(buffer, current_position, sym.length());
+                sym.copy((char *) (buffer + current_position), sym.length());
+                current_position += sym.length();
                 break;
             }
             case NounType::CPtr:
-                current_position += write_t_to_buffer(current_position, (size_t)data.cptr);
+                current_position += write_t_to_buffer(buffer, current_position, (size_t) std::get<void *>(data));
                 break;
             case NounType::U64:
-                std::cout << "Writing U64 " << data.u64 << " at pos " << current_position << std::endl;
-                current_position += write_t_to_buffer(current_position, data.u64);
+                current_position += write_t_to_buffer(buffer, current_position, std::get<uint64_t>(data));
                 break;
             case NounType::I64:
-                ((int64_t *)ipc_triple_buffer)[current_position] = data.i64;
-                current_position += sizeof(int64_t) / sizeof(uint8_t);
+                current_position += write_t_to_buffer(buffer, current_position, std::get<int64_t>(data));
                 break;
             default:
                 throw std::runtime_error("Unknown NounType!");
         }
 
-        assert(current_position < buffer_size);
         return current_position - buffer_position;
     }
 };
@@ -121,16 +199,20 @@ struct Triple {
               predicate_(std::move(predicate)),
               object_(std::move(object)) {}
 
-    void write_to_buffer() {
+    void write_to_buffer(uint8_t *buffer) {
+        size_t buffer_position = sizeof(size_t) / sizeof(uint8_t);
+
+        buffer_position += subject_.write_to_buffer(buffer, buffer_position);
+        buffer_position += predicate_.write_to_buffer(buffer, buffer_position);
+        buffer_position += object_.write_to_buffer(buffer, buffer_position);
+
+        write_t_to_buffer(buffer, 0, buffer_position);
+    }
+
+    void write_to_ipc_buffer() {
         // size to the 0 position
-        memset(ipc_triple_buffer, 0, buffer_size);
-
-        size_t buffer_position = sizeof (size_t) / sizeof (uint8_t);
-        buffer_position += subject_.write_to_buffer(buffer_position);
-        buffer_position += predicate_.write_to_buffer(buffer_position);
-        buffer_position += object_.write_to_buffer(buffer_position);
-
-        write_t_to_buffer(0, buffer_position);
+        memset(__foxtalk_ipc_triple_buffer, 0, __foxtalk_ipc_buffer_size);
+        write_to_buffer(__foxtalk_ipc_triple_buffer);
     }
 };
 
