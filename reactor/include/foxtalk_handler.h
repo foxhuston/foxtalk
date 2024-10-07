@@ -5,13 +5,51 @@
 #ifndef REACTOR_FOXTALK_HANDLER_H
 #define REACTOR_FOXTALK_HANDLER_H
 
+#include <iostream>
+#include <format>
+#include <cassert>
 #include <variant>
 #include <cstring>
 #include <string>
 #include <unistd.h>
 #include <cstdint>
+#include <cmath>
 
 constexpr size_t __foxtalk_ipc_buffer_size = 4096;
+///// DEBUGGING HELPER FUNCTIONS ///////////////////////////////////////////////
+void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
+    std::cout << "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F        0 1 2 3 4 5 6 7 8 9 A B C D E F";
+    auto n_rows = static_cast<size_t>(std::ceil(length / 16.0));
+
+    for (auto row = 0; row < n_rows; row++) {
+        std::cout << std::endl << std::format("0x{:02x} ", row * 16);
+        for (auto column = 0; column < 16; column++) {
+            auto offset = row * 16 + column;
+            if (offset > length) {
+                std::cout << " - ";
+            } else {
+                std::cout << std::format("{:02x} ", buffer[start + offset]);
+            }
+        }
+
+        std::cout << "      ";
+
+        for (auto column = 0; column < 16; column++) {
+            auto offset = row * 16 + column;
+            if (offset > length) {
+                std::cout << " -";
+            } else {
+                if (buffer[start + offset] >= 0x20 && buffer[start + offset] <= 0x7E) {
+                    std::cout << std::format("{: >2c}", buffer[start + offset]);
+                } else {
+                    std::cout << " .";
+                }
+            }
+        }
+    }
+
+    std::cout << std::endl;
+}
 
 ///// C FFI ////////////////////////////////////////////////////////////////////
 
@@ -100,7 +138,7 @@ struct TripleNoun {
 
 //        std::cout << "Reading TripleNoun of type " << (uint32_t)type << std::endl;
 
-        switch ((NounType)type) {
+        switch ((NounType) type) {
             case NounType::Query:
                 return {
                         TripleNoun{std::monostate()},
@@ -163,7 +201,7 @@ struct TripleNoun {
 
             case NounType::Symbol: {
                 auto sym = std::get<std::string>(data);
-                current_position += write_t_to_buffer(buffer, current_position, sym.length());
+                current_position += write_t_to_buffer(buffer, current_position, (size_t)sym.length());
                 sym.copy((char *) (buffer + current_position), sym.length());
                 current_position += sym.length();
                 break;
@@ -194,25 +232,67 @@ struct Triple {
     TripleNoun predicate_;
     TripleNoun object_;
 
-    Triple(const TripleNoun &&subject, const TripleNoun &&predicate, const TripleNoun &&object)
+    Triple(TripleNoun &&subject, TripleNoun &&predicate, TripleNoun &&object)
             : subject_(std::move(subject)),
               predicate_(std::move(predicate)),
               object_(std::move(object)) {}
 
-    void write_to_buffer(uint8_t *buffer) {
-        size_t buffer_position = sizeof(size_t) / sizeof(uint8_t);
+    bool operator==(const Triple &other) const {
+        return subject_ == other.subject_
+            && predicate_ == other.predicate_
+            && object_ == other.object_;
+    }
 
-        buffer_position += subject_.write_to_buffer(buffer, buffer_position);
-        buffer_position += predicate_.write_to_buffer(buffer, buffer_position);
-        buffer_position += object_.write_to_buffer(buffer, buffer_position);
+    void write_to_buffer(uint8_t *buffer, size_t start_position) {
+        auto size_bytes = write_t_to_buffer(buffer, start_position, (size_t) 0);
+        auto current_position = size_bytes;
 
-        write_t_to_buffer(buffer, 0, buffer_position);
+        current_position += subject_.write_to_buffer(buffer, current_position);
+        current_position += predicate_.write_to_buffer(buffer, current_position);
+        current_position += object_.write_to_buffer(buffer, current_position);
+
+        write_t_to_buffer(buffer, start_position, current_position - start_position + size_bytes);
+    }
+
+    static std::pair<Triple, size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
+        size_t current_position = start_position;
+        auto [triple_size, read_bytes] = read_t_from_buffer<size_t>(buffer, current_position);
+
+        std::cout << "Reading triple with size: " << triple_size << std::endl;
+        dbg_dump_buffer_region(buffer, start_position, triple_size+1);
+
+        current_position += read_bytes;
+
+        std::cout << "Reading subject @ " << current_position << std::endl;
+        auto [subj, s_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+        current_position += s_read_bytes;
+        dbg_dump_buffer_region(buffer, current_position - s_read_bytes, s_read_bytes);
+
+        std::cout << "Reading predicate @ " << current_position << std::endl;
+        auto [pred, p_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+        current_position += p_read_bytes;
+        dbg_dump_buffer_region(buffer, current_position - p_read_bytes, p_read_bytes);
+
+        std::cout << "Reading object @ " << current_position << std::endl;
+        auto [obj, o_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+        current_position += o_read_bytes;
+        dbg_dump_buffer_region(buffer, current_position - o_read_bytes, o_read_bytes);
+
+        assert(current_position == triple_size);
+        Triple t{
+                std::move(subj),
+                std::move(pred),
+                std::move(obj)
+        };
+
+        throw std::runtime_error("WHAT.");
+//        return std::pair<Triple, size_t>(, 0ul);
     }
 
     void write_to_ipc_buffer() {
         // size to the 0 position
         memset(__foxtalk_ipc_triple_buffer, 0, __foxtalk_ipc_buffer_size);
-        write_to_buffer(__foxtalk_ipc_triple_buffer);
+        write_to_buffer(__foxtalk_ipc_triple_buffer, 0);
     }
 };
 
