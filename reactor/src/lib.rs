@@ -1,3 +1,5 @@
+mod serde;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
