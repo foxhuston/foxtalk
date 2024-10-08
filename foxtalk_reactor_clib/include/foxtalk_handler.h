@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <cmath>
 
-constexpr size_t __foxtalk_ipc_buffer_size = 4096;
+constexpr size_t _foxtalk_ipc_buffer_size = 4096;
 
 ///// DEBUGGING HELPER FUNCTIONS ///////////////////////////////////////////////
 void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
@@ -56,14 +56,16 @@ void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
 
 extern "C" {
 ///// MY HANDLER ID /////
-size_t handler_id;
+size_t _foxtalk_handler_id;
 
 ///// RUNTIME COMMUNICATION BUFFER /////
-uint8_t __foxtalk_ipc_triple_buffer[__foxtalk_ipc_buffer_size];
+uint8_t _foxtalk_ipc_triple_buffer[_foxtalk_ipc_buffer_size];
 
 ///// FROM THE RUNTIME /////
-void register_query(size_t handler_id);
-void next_query_result(size_t handler_id);
+void _foxtalk_register_query(size_t handler_id);
+void _foxtalk_next_query_result(size_t handler_id);
+void _foxtalk_claim(size_t handler_id);
+void _foxtalk_remove(size_t handler_id);
 
 ///// USER MUST IMPLEMENT /////
 void free_tuple();
@@ -291,8 +293,8 @@ struct Triple {
 
     void write_to_ipc_buffer() {
         // size to the 0 position
-        memset(__foxtalk_ipc_triple_buffer, 0, __foxtalk_ipc_buffer_size);
-        write_to_buffer(__foxtalk_ipc_triple_buffer, 0);
+        memset(_foxtalk_ipc_triple_buffer, 0, _foxtalk_ipc_buffer_size);
+        write_to_buffer(_foxtalk_ipc_triple_buffer, 0);
     }
 };
 
