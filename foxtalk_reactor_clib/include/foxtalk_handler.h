@@ -55,17 +55,20 @@ void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
 ///// C FFI ////////////////////////////////////////////////////////////////////
 
 extern "C" {
+typedef uint32_t foxtalk_size_t;
+typedef foxtalk_size_t foxtalk_handler_id_t;
+
 ///// MY HANDLER ID /////
-size_t _foxtalk_handler_id;
+foxtalk_handler_id_t _foxtalk_handler_id;
 
 ///// RUNTIME COMMUNICATION BUFFER /////
 uint8_t _foxtalk_ipc_triple_buffer[_foxtalk_ipc_buffer_size];
 
 ///// FROM THE RUNTIME /////
-void _foxtalk_register_query(size_t handler_id);
-void _foxtalk_next_query_result(size_t handler_id);
-void _foxtalk_claim(size_t handler_id);
-void _foxtalk_remove(size_t handler_id);
+void _foxtalk_register_query(foxtalk_handler_id_t handler_id);
+void _foxtalk_next_query_result(foxtalk_handler_id_t handler_id);
+void _foxtalk_claim(foxtalk_handler_id_t handler_id);
+void _foxtalk_remove(foxtalk_handler_id_t handler_id);
 
 ///// USER MUST IMPLEMENT /////
 void free_tuple();
@@ -102,7 +105,7 @@ struct TripleNoun {
 
     void operator=(const TripleNoun &) = delete;
 
-    TripleNoun(const TripleNoun &&other)
+    TripleNoun(const TripleNoun &&other) noexcept
             : type{other.type}, data{other.data} {}
 
     void operator=(const TripleNoun &&other) {
@@ -148,7 +151,7 @@ struct TripleNoun {
                         buffer_position - start_position
                 };
             case NounType::Symbol: {
-                auto [str_length, read_bytes] = read_t_from_buffer<size_t>(buffer, buffer_position);
+                auto [str_length, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, buffer_position);
                 buffer_position += read_bytes;
                 auto str = std::string((char *) (buffer + buffer_position), str_length);
                 return {
@@ -199,7 +202,7 @@ struct TripleNoun {
 
             case NounType::Symbol: {
                 auto sym = std::get<std::string>(data);
-                current_position += write_t_to_buffer(buffer, current_position, (size_t) sym.length());
+                current_position += write_t_to_buffer(buffer, current_position, (foxtalk_size_t) sym.length());
                 sym.copy((char *) (buffer + current_position), sym.length());
                 current_position += sym.length();
                 break;
@@ -252,19 +255,19 @@ struct Triple {
     }
 
     void write_to_buffer(uint8_t *buffer, size_t start_position) {
-        auto size_bytes = write_t_to_buffer(buffer, start_position, (size_t) 0);
+        auto size_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) 0);
         auto current_position = size_bytes;
 
         current_position += subject_.write_to_buffer(buffer, current_position);
         current_position += predicate_.write_to_buffer(buffer, current_position);
         current_position += object_.write_to_buffer(buffer, current_position);
 
-        write_t_to_buffer(buffer, start_position, current_position - start_position);
+        write_t_to_buffer(buffer, start_position, (foxtalk_size_t)(current_position - start_position));
     }
 
-    static std::pair<Triple, size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
+    static std::pair<Triple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
         size_t current_position = start_position;
-        auto [triple_size, read_bytes] = read_t_from_buffer<size_t>(buffer, current_position);
+        auto [triple_size, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
 
         std::cout << std::format("Reading triple with size: {0:d} ({0:#x})", triple_size) << std::endl;
         dbg_dump_buffer_region(buffer, start_position, triple_size + 1);
@@ -288,7 +291,7 @@ struct Triple {
 
         assert(current_position == triple_size);
 
-        return std::pair<Triple, size_t>(Triple {std::move(subj), std::move(pred), std::move(obj)}, 0ul);
+        return std::pair<Triple, size_t>(Triple{std::move(subj), std::move(pred), std::move(obj)}, 0ul);
     }
 
     void write_to_ipc_buffer() {

@@ -34,7 +34,7 @@ TEST_F(TripleTests, TripleNounSymbolRoundTrip) {
 
     size_t bytes_written = nWrite.write_to_buffer(buffer, start_position);
     //                       type byte       + string length marker               + actual string length
-    EXPECT_EQ(bytes_written, sizeof(uint8_t) + (sizeof(size_t) / sizeof(uint8_t)) + s.length());
+    EXPECT_EQ(bytes_written, sizeof(uint8_t) + (sizeof(foxtalk_size_t) / sizeof(uint8_t)) + s.length());
 
     dbg_dump_buffer_region(buffer, 0, 64);
     std::cout << "===== POST WRITE ===============================================================" << std::endl;
