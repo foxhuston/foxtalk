@@ -37,24 +37,34 @@ void handle() {
     auto res = getNextQueryResult();
 
     if(res.has_value()) {
-        // dload magic...
-        if(const auto& handler_path = res.value().get_subject<std::string>()) {
+        if(auto handler_path = res.value().get_subject<std::string>()) {
+            auto handle = dlopen(handler_path->c_str(), RTLD_LOCAL | RTLD_NOW);
 
+            auto init_fn = dlsym(handle, "init");
+            auto free_tuple_fn = dlsym(handle, "free_tuple");
+            auto handle_fn = dlsym(handle, "handle");
+            auto teardown_fn = dlsym(handle, "teardown");
+
+            claim({ {*handler_path}, {"has dl handle"}, {handle} });
+            claim({ {handle}, {"has init fn"}, {init_fn} });
+            claim({ {handle}, {"has free_tuple fn"}, {free_tuple_fn} });
+            claim({ {handle}, {"has handle fn"}, {handle_fn} });
+            claim({ {handle}, {"has teardown fn"}, {teardown_fn} });
         }
-
-        /*
-         * <so path, "has foxtalk_id", foxtalk_id>
-         * <foxtalk_id, "has dl handle", U64(dlopen handle)>
-         * <foxtalk_id, "has init fn", CPtr(init ptr)>
-         * <foxtalk_id, "has free_tuple fn", CPtr(free_tuple ptr)>
-         * <foxtalk_id, "has handle fn", CPtr(handle ptr)>
-         * <foxtalk_id, "has teardown fn", CPtr(teardown ptr)>
-         */
-
-
     } else {
         std::cout << "WARNING: dload_handler `handle()` called with zero results..." << std::endl;
     }
 }
 
-void teardown() { }
+void teardown() {
+    auto t = read_from_ipc_buffer();
+    if(auto pred = t.get_predicate<std::string>()) {
+        if(pred == "has dl handle") {
+            if(auto obj = t.get_object<void*>()) {
+                dlclose(*obj);
+            } else {
+                std::cerr << "ERROR: Tried to clean up the tuple " << t << ", but its object is not a `void*`!" << std::endl;
+            }
+        }
+    }
+}

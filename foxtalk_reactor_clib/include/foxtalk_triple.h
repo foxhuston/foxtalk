@@ -81,6 +81,32 @@ struct TripleNoun {
 
     NounData data;
 
+    //// TO STRING /////
+    friend std::ostream &operator<<(std::ostream &os, const TripleNoun &noun) {
+        switch (noun.type) {
+            case NounType::Query:
+                os << "Query";
+                break;
+            case NounType::Symbol:
+                os << std::get<std::string>(noun.data);
+                break;
+            case NounType::CPtr:
+                os << std::get<void*>(noun.data);
+                break;
+            case NounType::U64:
+                os << std::get<uint64_t>(noun.data);
+                break;
+            case NounType::I64:
+                os << std::get<int64_t>(noun.data);
+                break;
+            case NounType::MAX:
+                os << "ERROR! TUPLE_NOUN TYPE WAS `MAX`!";
+                break;
+        }
+
+        return os;
+    }
+
     static std::pair<TripleNoun, size_t> read_from_buffer(uint8_t *buffer, size_t buffer_position) {
         auto start_position = buffer_position;
         auto [type, offset] = read_t_from_buffer<uint8_t>(buffer, buffer_position);
@@ -194,6 +220,12 @@ public:
         return subject_ == other.subject_
                && predicate_ == other.predicate_
                && object_ == other.object_;
+    }
+
+    //// TO STRING /////
+    friend std::ostream &operator<<(std::ostream &os, const Triple &triple) {
+        os << "<" << triple.subject_ << ", " << triple.predicate_ << ", " << triple.object_ << ">";
+        return os;
     }
 
     //// ACCESSORS /////
