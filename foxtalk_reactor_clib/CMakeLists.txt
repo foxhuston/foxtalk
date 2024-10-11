@@ -31,20 +31,29 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(kuzulib)
 
-
-
 # Step 2: Specify the path to the .so file
 set(KUZULIB_SO_PATH "${kuzulib_SOURCE_DIR}/libkuzu.so")  # Adjust the path accordingly
 
-
 add_executable(db_test
         foxtalk_db.cpp
-        foxtalk_db.h)
-
+        foxtalk_db.h
+        fs_watch_handler.cpp
+        reactor.cpp
+        include/reactor.h
+        include/foxtalk_triple.h
+        include/debug_utils.h
+        include/foxtalk_handler_api_fns.h
+        foxtalk_triple.cpp)
 
 # Step 4: Link the .so file
 target_link_libraries(db_test gtest_main ${KUZULIB_SO_PATH})  # Add pthread if needed
 
+## Foxtalk dload handler
+add_library(foxtalk_dload_handler dload_handler.cpp)
+
+## Going to use this for testing handlers.
+add_executable(handler_test handler_tests.cpp)
+target_link_libraries(handler_test gtest_main foxtalk_dload_handler)
 
 #target_link_libraries(db_test gtest_main)
 
