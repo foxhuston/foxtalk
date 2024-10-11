@@ -97,7 +97,7 @@ struct TripleNoun {
             std::monostate, // Query
             std::string, // Symbol
             void *, // Cptr
-            uint64_t, // U64
+                uint64_t, // U64
             int64_t  // I64
     > NounData;
 
