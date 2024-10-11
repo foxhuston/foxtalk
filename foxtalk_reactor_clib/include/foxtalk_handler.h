@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <cstdint>
 #include <cmath>
+#include <optional>
 
 #include "foxtalk_triple.h"
 #include "foxtalk_handler_api_fns.h"
@@ -58,6 +59,20 @@ void claim(const Triple& t) {
     write_to_ipc_buffer(std::move(t));
     if(handler_fns.claim != nullptr) {
         handler_fns.claim();
+    } else {
+        throw std::runtime_error(
+                std::format("Handler {} tried calling `claim` before it was set!", my_handler_id));
+    }
+}
+
+std::optional<Triple> getNextQueryResult() {
+    if(handler_fns.getNextQueryResult != nullptr) {
+        if(handler_fns.getNextQueryResult()) {
+            auto [t, bytes_read] = Triple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
+            return std::move(t);
+        } else {
+            return std::nullopt;
+        }
     } else {
         throw std::runtime_error(
                 std::format("Handler {} tried calling `claim` before it was set!", my_handler_id));

@@ -4,6 +4,7 @@
 
 #include "foxtalk_handler.h"
 
+#include <iostream>
 #include <string>
 #include <dlfcn.h>
 
@@ -32,13 +33,14 @@ void init() {
 void free_tuple() { }
 
 void handle() {
-    // while(get_next_result_tuple()) {
+    // /x/ is a handler
+    auto res = getNextQueryResult();
 
-        // /x/ is a handler
-//        auto result_triple = Triple::read_from_ipc_buffer();
-
+    if(res.has_value()) {
         // dload magic...
+        if(const auto& handler_path = res.value().get_subject<std::string>()) {
 
+        }
 
         /*
          * <so path, "has foxtalk_id", foxtalk_id>
@@ -49,7 +51,10 @@ void handle() {
          * <foxtalk_id, "has teardown fn", CPtr(teardown ptr)>
          */
 
-    // }
+
+    } else {
+        std::cout << "WARNING: dload_handler `handle()` called with zero results..." << std::endl;
+    }
 }
 
 void teardown() { }

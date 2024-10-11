@@ -169,13 +169,17 @@ struct TripleNoun {
 };
 
 struct Triple {
-    Triple(const Triple &) = delete;
-
-    void operator=(const Triple &) = delete;
-
+private:
     const TripleNoun subject_;
     const TripleNoun predicate_;
     const TripleNoun object_;
+
+public:
+
+    //// CONSTRUCTORS /////
+    Triple(const Triple &) = delete;
+
+    void operator=(const Triple &) = delete;
 
     Triple(const Triple &&other)
             : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
@@ -192,6 +196,47 @@ struct Triple {
                && object_ == other.object_;
     }
 
+    //// ACCESSORS /////
+    template<typename T>
+    std::optional<const T> get_subject() {
+        if(std::holds_alternative<T>(subject_.data)) {
+            return { std::get<T>(subject_.data) };
+        } else {
+            std::cout << "WARNING: subject was not a " << typeid(T).name()
+                      << " (It had the foxtalk type id " << (size_t)subject_.type << ")"
+                      << std::endl;
+
+            return std::nullopt;
+        }
+    }
+
+    template<typename T>
+    std::optional<const T> get_predicate() {
+        if(std::holds_alternative<T>(predicate_.data)) {
+            return std::get<T>(predicate_.data);
+        } else {
+            std::cout << "WARNING: predicate was not a " << typeid(T).name()
+                      << " (It had the foxtalk type id " << (size_t)predicate_.type << ")"
+                      << std::endl;
+
+            return std::nullopt;
+        }
+    }
+
+    template<typename T>
+    std::optional<const T> get_object() {
+        if(std::holds_alternative<T>(object_.data)) {
+            return std::get<T>(object_.data);
+        } else {
+            std::cout << "WARNING: object was not a " << typeid(T).name()
+                      << " (It had the foxtalk type id " << (size_t)object_.type << ")"
+                      << std::endl;
+
+            return std::nullopt;
+        }
+    }
+
+    //// SERIALIZATION / DESERIALIZATION /////
     void write_to_buffer(uint8_t *buffer, size_t start_position) const {
         auto size_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) 0);
         auto current_position = size_bytes;
