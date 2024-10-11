@@ -4,7 +4,7 @@
 
 #ifndef FOXTALK_DB_H
 #define FOXTALK_DB_H
-#include <foxtalk_handler.h>
+#include <foxtalk_triple.h>
 #include <sstream>
 #include <format>
 

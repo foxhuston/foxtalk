@@ -6,38 +6,60 @@
 
 using namespace kuzu::main;
 
+
+#include "foxtalk_db.h"
+
 #include "gtest/gtest.h"
 
 using namespace std::literals;
 
-class DbTests : public ::testing::Test
-{
+class DbTests : public ::testing::Test {
 };
 
 std::string test_string = "testing!";
 
-TEST_F(DbTests, YellowBrickRoad)
-{
-    // Connect to the database.
-    auto connection = std::make_unique<Connection>(database.get());
+TEST_F(DbTests, YellowBrickRoad) {
 
-    // Create the schema.
-    connection->query("CREATE NODE TABLE User(name STRING, age INT64, PRIMARY KEY (name))");
-    connection->query("CREATE NODE TABLE City(name STRING, population INT64, PRIMARY KEY (name))");
-    connection->query("CREATE REL TABLE Follows(FROM User TO User, since INT64)");
-    connection->query("CREATE REL TABLE LivesIn(FROM User TO City)");
 
-    // Execute a simple query.
-    auto result =
-        connection->query("MATCH (a:User)-[f:Follows]->(b:User) RETURN a.name, f.since, b.name;");
+    SystemConfig config;
+    auto db = foxtalk_db(config);
 
-    // Output query result.
-    while (result->hasNext())
-    {
-        auto row = result->getNext();
-        std::cout << row->getValue(0)->getValue<std::string>() << " "
-                  << row->getValue(1)->getValue<int64_t>() << " "
-                  << row->getValue(2)->getValue<std::string>() << std::endl;
-    }
-    EXPECT_EQ(0, 0);
+    uint64_t u64 = 123894;
+    int64_t i64 = 123894;
+    auto str_n = TripleNoun { std::string("lexi ")};
+    auto u64_n = TripleNoun { u64 };
+    auto i64_n = TripleNoun { i64 };
+
+    void* hello_world_addr = &test_string;
+
+    auto cptr_n = TripleNoun { hello_world_addr };
+
+    auto str_n_actual_1 = db.cypher_node_binding_and_type(&str_n, "test1");
+    auto u64_n_actual_1 = db.cypher_node_binding_and_type(&u64_n, "test2");
+    auto cptr_n_actual_1 = db.cypher_node_binding_and_type(&cptr_n, "test3");
+    auto i64_n_actual_1 = db.cypher_node_binding_and_type(&i64_n, "test4");
+
+
+    auto str_n_actual_2 = db.cypher_node_data(&str_n);
+    auto u64_n_actual_2 = db.cypher_node_data(&u64_n);
+    auto cptr_n_actual_2 = db.cypher_node_data(&cptr_n);
+    auto i64_n_actual_2 = db.cypher_node_data(&i64_n);
+
+    auto trip = Triple {
+        TripleNoun { std::string("lexi") },
+        TripleNoun { std::string("is a") },
+        TripleNoun { std::string("husky") }
+    };
+
+    db.store_triple(&trip);
+
+    auto query = Triple {
+        TripleNoun {  },
+        TripleNoun { std::string("is a") },
+        TripleNoun { std::string("husky") },
+    };
+
+    auto results = db.get_triples(&query);
+
+    EXPECT_EQ(results[0].get_subject<std::string>(), "lexi");
 }
