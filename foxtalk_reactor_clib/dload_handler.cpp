@@ -27,7 +27,7 @@ void init() {
         TripleNoun { "so handler"s },
     };
 
-    write_to_ipc_buffer(std::move(q));
+    write_to_ipc_buffer(q);
 }
 
 void free_tuple() { }
