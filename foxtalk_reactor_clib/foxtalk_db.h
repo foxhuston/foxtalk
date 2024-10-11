@@ -4,12 +4,14 @@
 
 #ifndef FOXTALK_DB_H
 #define FOXTALK_DB_H
-#include <foxtalk_handler.h>
+
+#include "foxtalk_triple.h"
 
 
 class foxtalk_db {
 private:
-    std::__detail::__unique_ptr_t<Database> database;
+    std::unique_ptr<Database> database;
+
 public:
     foxtalk_db(SystemConfig config)
     {
@@ -17,7 +19,7 @@ public:
 
         auto connection = std::make_unique<Connection>(database.get());
         connection->query("CREATE NODE TABLE Symbol (data STRING) PRIMARY KEY (data))");
-        connection->query("CREATE NODE TABLE Symbol (data STRING) PRIMARY KEY (data))");
+//        connection->query("CREATE NODE TABLE Symbol (data STRING) PRIMARY KEY (data))");
         connection->query("CREATE NODE TABLE CPtr (data INT64) PRIMARY KEY (data))");
         connection->query("CREATE NODE TABLE U64 (data INT64) PRIMARY KEY (data))");
         connection->query("CREATE NODE TABLE I64 (data INT64) PRIMARY KEY (data))");
@@ -48,7 +50,6 @@ public:
     {
         switch (noun->type)
         {
-
         }
     }
 

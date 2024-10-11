@@ -5,6 +5,7 @@
 #include <string>
 
 #include "gtest/gtest.h"
+
 #include "foxtalk_handler.h"
 
 using namespace std::literals;
