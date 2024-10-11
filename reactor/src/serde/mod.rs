@@ -1,25 +1,5 @@
 use std::io::Write;
-use std::ptr::write;
-use std::thread::current;
 use byteorder::{ByteOrder, NativeEndian};
-use crate::serde::FoxTalkType::Query;
-
-#[repr(transparent)]
-struct ReturnPosition { pos: usize }
-
-type FoxtalkSize = u32;
-
-trait FoxTalkSerializable {
-
-    const QUERY_TYPE: u8 = 0;
-    const SYMBOL_TYPE: u8 = 1;
-    const CPTR_TYPE: u8 = 2;
-    const U64_TYPE: u8 = 3;
-    const I64_TYPE: u8 = 4;
-
-    fn write_foxtalk_type(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
-    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
-}
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,9 +12,9 @@ pub enum FoxTalkType {
 }
 
 impl FoxTalkSerializable for FoxTalkType {
-    fn write_foxtalk_type(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+    fn write_type_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
-            Query => {
+            FoxTalkType::Query => {
                 write_to[start_position] = Self::QUERY_TYPE;
             }
             FoxTalkType::Symbol(_) => {
@@ -54,14 +34,14 @@ impl FoxTalkSerializable for FoxTalkType {
     }
 
 
-    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+    fn write_data_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
-            Query => {
-                self.write_foxtalk_type(write_to, start_position)
+            FoxTalkType::Query => {
+                self.write_type_to_buffer(write_to, start_position)
             },
             FoxTalkType::Symbol(value) => {
 
-                let current_position = self.write_foxtalk_type(write_to, start_position);
+                let current_position = self.write_type_to_buffer(write_to, start_position);
                 // If string len is > u32, this will probably overflow?
                 let string_length = value.len() as FoxtalkSize;
 
@@ -77,17 +57,17 @@ impl FoxTalkSerializable for FoxTalkType {
                 ReturnPosition{pos: utf8_end_idx}
             }
             FoxTalkType::CPtr(value) => {
-                let current_position = self.write_foxtalk_type(write_to, start_position);
+                let current_position = self.write_type_to_buffer(write_to, start_position);
                 let u64_bytes: [u8;size_of::<u64>()] = value.to_ne_bytes();
                 let e = (current_position.pos) + size_of::<u64>();
-                write_to[(current_position.pos)..e].copy_from_slice(&u64_bytes);
+                write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
                 ReturnPosition{pos: e}
             }
             FoxTalkType::U64(value) => {
-                let current_position = self.write_foxtalk_type(write_to, start_position);
+                let current_position = self.write_type_to_buffer(write_to, start_position);
                 let u64_bytes: [u8;size_of::<u64>()] = value.to_ne_bytes();
                 let e = (current_position.pos) + size_of::<u64>();
-                write_to[(current_position.pos)..e].copy_from_slice(&u64_bytes);
+                write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
                 ReturnPosition{pos: e}
             }
             FoxTalkType::I64(value) => {
@@ -102,6 +82,23 @@ impl FoxTalkSerializable for FoxTalkType {
         }
     }
 }
+#[repr(transparent)]
+pub(crate) struct ReturnPosition { pub pos: usize }
+
+pub(crate) type FoxtalkSize = u32;
+
+pub(crate) trait FoxTalkSerializable {
+
+    const QUERY_TYPE: u8 = 0;
+    const SYMBOL_TYPE: u8 = 1;
+    const CPTR_TYPE: u8 = 2;
+    const U64_TYPE: u8 = 3;
+    const I64_TYPE: u8 = 4;
+
+    fn write_type_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
+    fn write_data_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
+}
+
 
 #[inline]
 fn read_foxtalk_size(input: &[u8], start_position: usize) -> (FoxtalkSize, ReturnPosition) {
@@ -110,30 +107,30 @@ fn read_foxtalk_size(input: &[u8], start_position: usize) -> (FoxtalkSize, Retur
 }
 
 
-pub fn parse_type(input: &[u8], start_position: usize) -> (FoxTalkType, ReturnPosition) {
+pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (FoxTalkType, ReturnPosition) {
     let type_input = &input[start_position];
     let current_position = ReturnPosition{ pos: start_position + size_of::<u8>() };
 
     match type_input {
         0 => {
-            (Query, current_position)
+            (FoxTalkType::Query, current_position)
         }
         1 => {
             let (symbol_length, current_position) = read_foxtalk_size(input, current_position.pos);
-            let symbol_bytes = &input[(current_position.pos)..(current_position.pos + symbol_length as usize)];
+            let symbol_bytes = &input[current_position.pos..(current_position.pos + symbol_length as usize)];
             let symbol = String::from_utf8(symbol_bytes.to_vec()).unwrap();
             (FoxTalkType::Symbol(symbol), ReturnPosition{ pos: current_position.pos + symbol_length as usize })
         }
         2 => {
-            let bytes = &input[(current_position.pos)..(current_position.pos + size_of::<u64>())];
+            let bytes = &input[current_position.pos..(current_position.pos + size_of::<u64>())];
            (FoxTalkType::CPtr(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
         }
         3 => {
-            let bytes = &input[(current_position.pos)..(current_position.pos + size_of::<u64>())];
+            let bytes = &input[current_position.pos..(current_position.pos + size_of::<u64>())];
             (FoxTalkType::U64(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
         }
         4 => {
-            let bytes = &input[(current_position.pos)..(current_position.pos + size_of::<i64>())];
+            let bytes = &input[current_position.pos..(current_position.pos + size_of::<i64>())];
             (FoxTalkType::I64(NativeEndian::read_i64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<i64>() })
         }
         _ => {
@@ -159,31 +156,6 @@ pub fn parse_row(input: &[u8]) -> (FoxTalkType, FoxTalkType, FoxTalkType) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    pub fn parsing_should_work() {
-        // let [insert] = 0u8.to_ne_bytes();
-        //
-        // fn string_bytes(string: String) -> Vec<u8> {
-        //     let [string_type] = 3u8.to_ne_bytes();
-        //     let len = string.len() as u32;
-        //     let len_bytes: [u8; 4] = len.to_ne_bytes();
-        //     let string_bytes = string.as_bytes();
-        //     vec!(vec!(string_type), len_bytes.to_vec(), string_bytes.to_vec()).concat()
-        // }
-        //
-        // let bytes = [
-        //     vec!(insert),
-        //     string_bytes("Lexi".to_string()),
-        //     string_bytes("is a".to_string()),
-        //     string_bytes("husky".to_string()),
-        // ].concat();
-        //
-        // let (parsed_op, parsed_subj, parsed_pred, parsed_obj) = parse_row(&bytes);
-        // assert_eq!(parsed_op, FoxTalkOperation::Upsert);
-        // assert_eq!(parsed_subj, FoxTalkType::Sy("Lexi".to_string()));
-        // assert_eq!(parsed_pred, FoxTalkType::String("is a".to_string()));
-        // assert_eq!(parsed_obj, FoxTalkType::String("husky".to_string()));
-    }
 
     #[test]
     pub fn bytes_from_cpp_work() {
@@ -211,6 +183,26 @@ mod tests {
 
     #[test]
     pub fn round_trip_works() {
-        assert!(false)
+        let subj = FoxTalkType::Symbol("/dev/cam1".to_string());
+        let pred = FoxTalkType::Symbol("is at".to_string());
+        let obj = FoxTalkType::CPtr(0x12345678);
+        let buffer = &mut [0u8; 1024];
+
+
+        let subj_pos = subj.write_data_to_buffer(buffer, size_of::<FoxtalkSize>());
+        let pred_pos = pred.write_data_to_buffer(buffer, subj_pos.pos);
+        let obj_pos = obj.write_data_to_buffer(buffer, pred_pos.pos);
+
+        let size = obj_pos.pos as FoxtalkSize;
+        let size_bytes = size.to_ne_bytes();
+
+        buffer[0..size_of::<FoxtalkSize>()]
+            .copy_from_slice(size_bytes.as_ref());
+
+        let (parsed_subj, parsed_pred, parsed_obj) = parse_row(buffer);
+
+        assert_eq!(subj, parsed_subj);
+        assert_eq!(pred, parsed_pred);
+        assert_eq!(obj, parsed_obj);
     }
 }

@@ -19,6 +19,35 @@ include_directories(include/)
 add_executable(tuple_test triple_tests.cpp)
 target_link_libraries(tuple_test gtest_main)
 
+
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+
+FetchContent_Declare(
+        kuzulib
+        URL https://github.com/kuzudb/kuzu/releases/download/v0.6.0/libkuzu-linux-x86_64.tar.gz
+)
+
+FetchContent_MakeAvailable(kuzulib)
+
+
+
+# Step 2: Specify the path to the .so file
+set(KUZULIB_SO_PATH "${kuzulib_SOURCE_DIR}/libkuzu.so")  # Adjust the path accordingly
+
+
+add_executable(db_test
+        foxtalk_db.cpp
+        foxtalk_db.h)
+
+
+# Step 4: Link the .so file
+target_link_libraries(db_test gtest_main ${KUZULIB_SO_PATH})  # Add pthread if needed
+
+
+#target_link_libraries(db_test gtest_main)
+
 #add_library(reactor include/foxtalk_handler.h)
 #add_executable(reactor include/foxtalk_handler.h
 #        tuple_tests.cpp)

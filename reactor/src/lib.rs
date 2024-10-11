@@ -1,16 +1,8 @@
 mod serde;
+mod ffi;
+mod types;
+mod bootstrap;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+struct FoxTalk {
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }
