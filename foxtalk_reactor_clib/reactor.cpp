@@ -113,7 +113,7 @@ std::vector<Handler> Reactor::getHandlers() {
     std::unordered_map<std::string, Handler> out { };
 
     auto query = R"CYPHER(
-         MATCH (handler:Noun)-[pred: Predicate { type: "Symbol" }]->(obj: Noun)
+         MATCH (handler:Noun)-[pred: Predicate]->(obj: Noun)
          WHERE EXISTS { MATCH (handler)-[u: Predicate{string_data: "is a"}]->(c: Noun{string_data: "handler"} ) }
          RETURN handler, pred, obj;
          )CYPHER";
