@@ -196,11 +196,11 @@ struct TripleNoun {
 
 struct Triple {
 private:
+
+public:
     const TripleNoun subject_;
     const TripleNoun predicate_;
     const TripleNoun object_;
-
-public:
 
     //// CONSTRUCTORS /////
     Triple(const Triple &) = delete;

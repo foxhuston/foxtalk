@@ -2,7 +2,7 @@
 // Created by lexi on 10/10/24.
 //
 
-#include "include/kuzu.hpp"
+#include "vendor/kuzu.hpp"
 
 using namespace kuzu::main;
 
@@ -26,24 +26,13 @@ TEST_F(DbTests, YellowBrickRoad) {
 
     uint64_t u64 = 123894;
     int64_t i64 = 123894;
-    auto str_n = TripleNoun { std::string("lexi ")};
+    auto str_n = TripleNoun { std::string("lexi")};
     auto u64_n = TripleNoun { u64 };
     auto i64_n = TripleNoun { i64 };
 
     void* hello_world_addr = &test_string;
 
     auto cptr_n = TripleNoun { hello_world_addr };
-
-    auto str_n_actual_1 = db.cypher_node_binding_and_type(&str_n, "test1");
-    auto u64_n_actual_1 = db.cypher_node_binding_and_type(&u64_n, "test2");
-    auto cptr_n_actual_1 = db.cypher_node_binding_and_type(&cptr_n, "test3");
-    auto i64_n_actual_1 = db.cypher_node_binding_and_type(&i64_n, "test4");
-
-
-    auto str_n_actual_2 = db.cypher_node_data(&str_n);
-    auto u64_n_actual_2 = db.cypher_node_data(&u64_n);
-    auto cptr_n_actual_2 = db.cypher_node_data(&cptr_n);
-    auto i64_n_actual_2 = db.cypher_node_data(&i64_n);
 
     auto trip = Triple {
         TripleNoun { std::string("lexi") },
