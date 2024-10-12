@@ -43,13 +43,20 @@ namespace foxtalk::reactor::cypher_gen {
     std::string store_triple_cypher(const Triple& triple) {
         std::stringstream builder{};
 
-        builder << "MERGE(:Noun";
+        /*
+        MERGE (subj:Noun{type: "Symbol", string_data: "lexi"})
+        MERGE (obj:Noun{type: "Symbol", string_data: "husky"})
+        MERGE (subj)-[pred:Predicate{type: "Symbol", string_data: "is a"}]->(obj)
+        RETURN subj, pred, obj
+        */
+
+        builder << "MERGE(subj:Noun";
         builder << cypher_node_data(triple.subject_);
-        builder << ")-[:Predicate";
-        builder << cypher_node_data(triple.predicate_);
-        builder << "]->(:Noun";
+        builder << ") MERGE(obj:Noun";
         builder << cypher_node_data(triple.object_);
-        builder << ");";
+        builder << ") MERGE (subj)-[pred:Predicate";
+        builder << cypher_node_data(triple.predicate_);
+        builder << "]->(obj)";
 
         return builder.str();
     }

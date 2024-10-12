@@ -17,7 +17,7 @@ using namespace std::literals;
 using namespace kuzu::main;
 using namespace foxtalk::reactor::cypher_gen;
 
-inline Triple from_flat_tuple(std::shared_ptr<kuzu::processor::FlatTuple> next) {
+inline Triple from_flat_tuple(const std::shared_ptr<kuzu::processor::FlatTuple>& next) {
     auto const subj = kuzu::common::NodeVal::getProperties(next->getValue(0));
     auto const pred = kuzu::common::RelVal::getProperties(next->getValue(1));
     auto const obj = kuzu::common::NodeVal::getProperties(next->getValue(2));
@@ -72,7 +72,10 @@ void Reactor::tick() {
                 nullptr, &h, this
         };
 
+        // TODO: This needs to set `cypher_query`-- we explicitly don't have that pre-initialization
         h.init(&hfe);
+        // Or... maybe we will just handle the un-initialized handlers on the second tick? We'll have it once it's initialized
+
     }
 
     for (auto current_handler: handlers) {
@@ -105,8 +108,8 @@ Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)} {
 }
 
 // Filters a list of handlers for those that are uninitialized
-std::vector<Handler> Reactor::getUninitializedHandlers(const std::vector<Handler> &) {
-    throw std::runtime_error("unimplemented!");
+std::vector<Handler> Reactor::getUninitializedHandlers(const std::vector<Handler> &handlers) {
+    return handlers; // TODO: Filter on init'd
 }
 
 std::vector<Handler> Reactor::getHandlers() {
