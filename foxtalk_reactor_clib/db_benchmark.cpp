@@ -19,12 +19,14 @@ int main(int argc, char* argv[]) {
 
     int cnt = 0;
     int qry = 0;
+    int num_results = 0;
 
     SystemConfig config;
     auto db = foxtalk_db(config);
 
     for (int i = 0; i < num_records/5; i++)
     {
+        CTRACK;
         auto i_str = std::to_string(i);
         auto a = Triple {
             TripleNoun { i_str },
@@ -64,6 +66,8 @@ int main(int argc, char* argv[]) {
 
         for (auto j = 0; j < query_multiplicity; j++)
         {
+
+            CTRACK;
             if (j%2 == 0)
             {
                 auto query = Triple {
@@ -73,6 +77,7 @@ int main(int argc, char* argv[]) {
                 };
                 auto results = db.get_triples(&query);
                 qry++;
+                num_results += results.size();
                 continue;
             }
             if (j%3 == 0)
@@ -83,6 +88,7 @@ int main(int argc, char* argv[]) {
                     TripleNoun { static_cast<void*>(&i_str)  }
                 };
                 auto results = db.get_triples(&query);
+                num_results += results.size();
                 qry++;
                 continue;
             }
@@ -94,6 +100,7 @@ int main(int argc, char* argv[]) {
                     TripleNoun { }
                 };
                 auto results = db.get_triples(&query);
+                num_results += results.size();
                 qry++;
                 continue;
             }
@@ -103,6 +110,7 @@ int main(int argc, char* argv[]) {
                 TripleNoun { }
             };
             auto results = db.get_triples(&query);
+            num_results += results.size();
             qry++;
 
         }
@@ -110,7 +118,67 @@ int main(int argc, char* argv[]) {
 
     std::cout << "total number of records added: " << cnt << std::endl;
     std::cout << "total number of queries run: " << qry << std::endl;
+    std::cout << "total number of results returned: " << num_results << std::endl;
 
+    // now query a ton of times
+
+    std::cout << "Second stage..." << std::endl;
+    qry = 0;
+    num_results = 0;
+    for (auto j = 0; j < num_records; j++)
+    {
+        auto i_str = std::to_string(j);
+        CTRACK;
+        if (j%2 == 0)
+        {
+            auto query = Triple {
+                TripleNoun { j },
+                TripleNoun { },
+                TripleNoun { }
+            };
+            auto results = db.get_triples(&query);
+            qry++;
+            num_results += results.size();
+            continue;
+        }
+        if (j%3 == 0)
+        {
+            auto query = Triple {
+                TripleNoun { j },
+                TripleNoun { },
+                TripleNoun { static_cast<void*>(&i_str)  }
+            };
+            auto results = db.get_triples(&query);
+            num_results += results.size();
+            qry++;
+            continue;
+        }
+        if (j%5 == 0)
+        {
+            auto query = Triple {
+                TripleNoun { },
+                TripleNoun { i_str },
+                TripleNoun { }
+            };
+            auto results = db.get_triples(&query);
+            num_results += results.size();
+            qry++;
+            continue;
+        }
+        auto query = Triple {
+            TripleNoun { },
+            TripleNoun { },
+            TripleNoun { }
+        };
+        auto results = db.get_triples(&query);
+        num_results += results.size();
+        qry++;
+
+    }
+
+    std::cout << "total number of queries run: " << qry << std::endl;
+    std::cout << "total number of results returned: " << num_results << std::endl;
 
     ctrack::result_print();
+
 }
