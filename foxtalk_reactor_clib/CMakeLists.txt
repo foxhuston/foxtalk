@@ -64,6 +64,7 @@ add_executable(
         benchmark
         db_benchmark.cpp
         foxtalk_db.h
-        include/foxtalk_triple.h)
+        include/foxtalk_triple.h
+        vendor/ctrack.hpp)
 
 target_link_libraries(benchmark ${KUZULIB_SO_PATH})

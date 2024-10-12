@@ -11,7 +11,7 @@
 #include "vendor/kuzu.hpp"
 
 using namespace kuzu::main;
-// #include <format>
+#include "vendor/ctrack.hpp"
 
 class foxtalk_db
 {
@@ -63,6 +63,10 @@ public:
 
     void store_triple(Triple *triple)
     {
+#ifdef FOXTALK_BENCHMARK
+        CTRACK_DEV;
+#endif
+
         auto connection = std::make_unique<Connection>(database.get());
 
         std::stringstream builder{};
@@ -146,6 +150,9 @@ public:
 
     std::vector<Triple> get_triples(const Triple *triple)
     {
+#ifdef FOXTALK_BENCHMARK
+        CTRACK_DEV;
+#endif
         auto connection = std::make_unique<Connection>(database.get());
 
         std::stringstream builder{};

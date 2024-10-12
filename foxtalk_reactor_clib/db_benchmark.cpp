@@ -1,10 +1,9 @@
 #include <iostream>
 
+#define CTRACK_DISABLE_EXECUTION_POLICY
 #include "foxtalk_db.h"
 
-//
-// Created by lexi on 10/11/24.
-//
+#define FOXTALK_BENCHMARK
 int main(int argc, char* argv[]) {
 
     int num_records = 100;
@@ -17,6 +16,9 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Query multiplicity: " << query_multiplicity << std::endl;
     std::cout << "Create num records: " << num_records << std::endl;
+
+    int cnt = 0;
+    int qry = 0;
 
     SystemConfig config;
     auto db = foxtalk_db(config);
@@ -50,11 +52,15 @@ int main(int argc, char* argv[]) {
             TripleNoun { i_str } };
 
         db.store_triple(&a);
+        cnt++;
         db.store_triple(&b);
+        cnt++;
         db.store_triple(&c);
+        cnt++;
         db.store_triple(&d);
+        cnt++;
         db.store_triple(&e);
-
+        cnt++;
 
         for (auto j = 0; j < query_multiplicity; j++)
         {
@@ -66,6 +72,7 @@ int main(int argc, char* argv[]) {
                     TripleNoun { }
                 };
                 auto results = db.get_triples(&query);
+                qry++;
                 continue;
             }
             if (j%3 == 0)
@@ -76,6 +83,7 @@ int main(int argc, char* argv[]) {
                     TripleNoun { static_cast<void*>(&i_str)  }
                 };
                 auto results = db.get_triples(&query);
+                qry++;
                 continue;
             }
             if (j%5 == 0)
@@ -86,6 +94,7 @@ int main(int argc, char* argv[]) {
                     TripleNoun { }
                 };
                 auto results = db.get_triples(&query);
+                qry++;
                 continue;
             }
             auto query = Triple {
@@ -94,10 +103,14 @@ int main(int argc, char* argv[]) {
                 TripleNoun { }
             };
             auto results = db.get_triples(&query);
-
+            qry++;
 
         }
-
-
     }
+
+    std::cout << "total number of records added: " << cnt << std::endl;
+    std::cout << "total number of queries run: " << qry << std::endl;
+
+
+    ctrack::result_print();
 }
