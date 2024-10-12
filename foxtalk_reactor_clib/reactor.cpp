@@ -32,7 +32,8 @@ void Reactor::claim(Triple t) {
     auto create_triple_cypher = foxtalk::reactor::cypher_gen::store_triple_cypher(t);
     auto res = connection->query(create_triple_cypher);
     if (!res->isSuccess()) {
-        // fail sorry
+        // TODO: Add real logger and log this instead of throw
+        throw std::runtime_error(res->getErrorMessage());
     }
 }
 
@@ -45,28 +46,49 @@ void Reactor::remove(Triple t) {
 //    auto delete_query = builder.str()
 }
 
-extern "C" {
-// Should only be called through `tick()`
-void foxtalk_claim(HandlerFunctionEnvironment *env) {
-    assert(env->handler != nullptr);
-    assert(env->reactor != nullptr);
-
-    auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
+inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple& t)
+{
     // Record the actual claim
     env->reactor->claim(std::move(t));
-    // Record a handler-provenance triple
+    // TODO Record a handler-provenance triple
 
     if (env->current_result != nullptr) {
-        // Record a tuple-provenance triple
+        // TODO Record a tuple-provenance triple
     }
 }
 
-void foxtalk_remove(HandlerFunctionEnvironment *) {}
-bool foxtalk_getNextQueryResult(HandlerFunctionEnvironment *env) { return env->current_result != nullptr; }
+extern "C" {
+    // Should only be called through `tick()`
+    void foxtalk_claim(HandlerFunctionEnvironment *env) {
+        assert(env->handler != nullptr);
+        assert(env->reactor != nullptr);
 
+        auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
+        foxtalk_claim_internal(env, t);
+    }
+
+    void foxtalk_remove(HandlerFunctionEnvironment *) { /* TODO */ }
+    bool foxtalk_getNextQueryResult(HandlerFunctionEnvironment *env) { return env->current_result != nullptr; }
+    void foxtalk_registerHandleQuery(HandlerFunctionEnvironment *env)
+    {
+        assert(env->handler != nullptr);
+        assert(env->reactor != nullptr);
+
+        auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
+        auto query = query_for_triples_cypher(t);
+
+        Triple query_triple = {{env->handler->name}, {"has query"s}, {query}};
+        foxtalk_claim_internal(env, query_triple);
+
+        // lexi: Should we do this, or just let the second tick do the work here?
+        env->handler->cypher_query = query;
+        // update: I don't think this actually changes the underlying handler in the map... we must be copying somewhere
+    }
 }
 
+
 void Reactor::tick() {
+
     auto [initialized_handlers, uninitialized_handlers] = split_handlers_by_initialization_state(getHandlers());
     for (auto h: uninitialized_handlers) {
         HandlerFunctionEnvironment hfe{
@@ -98,13 +120,20 @@ void Reactor::tick() {
 Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)} {
     connection = std::make_unique<Connection>(database.get());
     auto res = connection->query(
-            "CREATE NODE TABLE Noun (type STRING, string_data STRING, int_data INT64, id SERIAL, PRIMARY KEY (id))");
-    // assert(res->isSuccess());
+            "CREATE NODE TABLE IF NOT EXISTS Noun (type STRING, string_data STRING, int_data INT64, id SERIAL, PRIMARY KEY (id))");
+    if (!res->isSuccess())
+    {
+        throw std::runtime_error(res->getErrorMessage());
+    }
     res = connection->query(
-            "CREATE REL TABLE Predicate(FROM Noun TO Noun, type STRING, string_data STRING, int_data INT64)");
-    // assert(res->isSuccess());
+            "CREATE REL TABLE IF NOT EXISTS Predicate(FROM Noun TO Noun, type STRING, string_data STRING, int_data INT64)");
+    if (!res->isSuccess())
+    {
+        throw std::runtime_error(res->getErrorMessage());
+    }
 }
 
+// lexi: Should we do this, or should we just return unitialized?
 std::pair<std::vector<Handler>, std::vector<Handler>> Reactor::split_handlers_by_initialization_state(const std::vector<Handler> &handlers)
 {
     std::vector<Handler> init;
@@ -135,17 +164,6 @@ std::vector<Handler> Reactor::getHandlers() {
 
     auto handler_query_res = connection->query(query);
 
-//    Handler h {
-//            .cypher_query = ""s,
-//            .isAggregating = false,
-//
-//            .handler_ipc_buffer = nullptr,
-//            .init = nullptr,
-//            .handle = nullptr,
-//            .freeTuple = nullptr,
-//            .teardown = nullptr
-//    };
-
     while (handler_query_res->hasNext()) {
         auto result = from_flat_tuple(handler_query_res->getNext());
         std::optional<std::string> subject = result.get_subject<std::string>();
@@ -155,7 +173,7 @@ std::vector<Handler> Reactor::getHandlers() {
         assert(pred.has_value());
 
         if(!out.contains(subject.value())) {
-            out.insert({ subject.value(), Handler {} });
+            out.insert({ subject.value(), Handler { .name = subject.value() } });
         }
 
         if (pred.value() == "has init") {

@@ -31,6 +31,7 @@ uint8_t _foxtalk_ipc_triple_buffer[_foxtalk_ipc_buffer_size];
 
 ///// FROM THE RUNTIME /////
 void foxtalk_claim(void *handlerEnvironment);
+void foxtalk_registerHandleQuery(void *handlerEnvironment);
 void foxtalk_remove(void *handlerEnvironment);
 bool foxtalk_getNextQueryResult(void *handlerEnvironment);
 
@@ -48,6 +49,7 @@ void teardown();
 #define FOXTALK_CLAIM(...) claim(__VA_ARGS__, handlerEnvironment)
 #define FOXTALK_GET_NEXT_QUERY_RESULT() getNextQueryResult(handlerEnvironment)
 #define FOXTALK_REMOVE() remove(handlerEnvironment)
+#define FOXTALK_REGISTER_HANDLE_QUERY(...) registerHandleQuery(__VA_ARGS__, handlerEnvironment)
 
 
 ///// C++ API //////////////////////////////////////////////////////////////////
@@ -66,6 +68,11 @@ static Triple read_from_ipc_buffer() {
 void claim(const Triple& t, void* handlerEnvironment) {
     write_to_ipc_buffer(std::move(t));
     foxtalk_claim(handlerEnvironment);
+}
+
+void registerHandleQuery(const Triple& t, void* handlerEnvironment) {
+    write_to_ipc_buffer(std::move(t));
+    foxtalk_registerHandleQuery(handlerEnvironment);
 }
 
 std::optional<Triple> getNextQueryResult(void *handlerEnvironment) {

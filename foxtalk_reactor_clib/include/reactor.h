@@ -24,6 +24,8 @@ struct Handler {
     typedef void (*FreeTuple)();
     typedef void (*Teardown)();
 
+    std::string name;
+
     std::optional<std::string> cypher_query;
     bool isAggregating;
     uint8_t *handler_ipc_buffer;
@@ -42,7 +44,7 @@ private:
 
     Triple query_single(const char* cypher);
 
-    std::pair<std::vector<Handler>, std::vector<Handler>> split_handlers_by_initialization_state(const std::vector<Handler> &handlers);
+    static std::pair<std::vector<Handler>, std::vector<Handler>> split_handlers_by_initialization_state(const std::vector<Handler> &handlers);
     std::vector<Handler> getHandlers();
 
 public:

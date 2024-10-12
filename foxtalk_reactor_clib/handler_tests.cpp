@@ -16,14 +16,7 @@ using namespace std::literals;
 class HandlerTests : public ::testing::Test {};
 
 FOXTALK_INIT {
-    Triple query_triple {{}, {"is a"s}, {"husky"s}};
-    auto query = foxtalk::reactor::cypher_gen::query_for_triples_cypher(query_triple);
-
-    FOXTALK_CLAIM({
-        {"test"s},
-        {"has query"s},
-        {query}
-    });
+    FOXTALK_REGISTER_HANDLE_QUERY({{}, {"is a"s}, {"husky"s}});
 }
 
 FOXTALK_HANDLE {
@@ -55,8 +48,8 @@ TEST_F(HandlerTests, WhoIsCool) {
     r.claim({ {"lexi"s}, {"is a"s}, {"husky"s} });
 
     // Tick
-    r.tick();
-    r.tick();
+    r.tick(); // initialize
+    r.tick(); // handle
 
     // Assert <lexi, is, cool>
     // d.query(...)
