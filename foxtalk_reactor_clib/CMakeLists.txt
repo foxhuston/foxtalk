@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(googletest)
 # Now simply link against gtest or gtest_main as needed. Eg
 include_directories(include/)
 
-add_executable(tuple_test triple_tests.cpp)
+add_executable(tuple_test triple_tests.cpp debug_utils.cpp)
 target_link_libraries(tuple_test gtest_main)
 
 
