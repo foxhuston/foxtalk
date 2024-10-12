@@ -26,7 +26,7 @@ FOXTALK_INIT {
     });
 }
 
-void handle(void* handlerEnvironment) {
+FOXTALK_HANDLE {
     if(auto maybe_t = FOXTALK_GET_NEXT_QUERY_RESULT(); maybe_t.has_value()) {
         auto who = maybe_t->get_subject<std::string>();
         claim({ { who.value() }, { "is"s }, { "cool"s } }, handlerEnvironment);
@@ -55,6 +55,7 @@ TEST_F(HandlerTests, WhoIsCool) {
     r.claim({ {"lexi"s}, {"is a"s}, {"husky"s} });
 
     // Tick
+    r.tick();
     r.tick();
 
     // Assert <lexi, is, cool>

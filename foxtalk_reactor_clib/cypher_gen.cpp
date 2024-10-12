@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <sstream>
-
+#include <iomanip>
 #include "vendor/kuzu.hpp"
 #include "foxtalk_triple.h"
 
@@ -19,8 +19,11 @@ namespace foxtalk::reactor::cypher_gen {
             case TripleNoun::NounType::Query:
                 break;
             case TripleNoun::NounType::Symbol:
-                builder << R"({type: "Symbol", string_data: ")" << std::get<std::string>(noun.data) << "\"}";
-                break;
+                {
+                    auto quoted = std::quoted(std::get<std::string>(noun.data));
+                    builder << R"({type: "Symbol", string_data: )" << quoted << "}";
+                    break;
+                }
             case TripleNoun::NounType::CPtr: {
                 void *ptr = std::get<void *>(noun.data);
                 auto ptr_location = reinterpret_cast<uint64_t>(ptr);
@@ -56,7 +59,7 @@ namespace foxtalk::reactor::cypher_gen {
         builder << cypher_node_data(triple.object_);
         builder << ") MERGE (subj)-[pred:Predicate";
         builder << cypher_node_data(triple.predicate_);
-        builder << "]->(obj)";
+        builder << "]->(obj) ";
 
         return builder.str();
     }
@@ -65,7 +68,7 @@ namespace foxtalk::reactor::cypher_gen {
             const std::vector<std::pair<std::string, std::unique_ptr<kuzu::common::Value>>> &props) {
         std::string noun_type{};
         std::optional<std::string> string_data{};
-        std::optional<int> int_data{};
+        std::optional<int64_t> int_data{};
 
         for (auto const &[key, val]: props) {
             if (key == "string_data" && !val->isNull()) {

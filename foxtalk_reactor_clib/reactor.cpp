@@ -5,12 +5,13 @@
 #include <cassert>
 #include <string>
 #include <unordered_map>
-
 #include "vendor/kuzu.hpp"
 #include "foxtalk_triple.h"
 
 #include "cypher_gen.h"
 #include "reactor.h"
+
+#include <ranges>
 
 
 using namespace std::literals;
@@ -61,25 +62,22 @@ void foxtalk_claim(HandlerFunctionEnvironment *env) {
 }
 
 void foxtalk_remove(HandlerFunctionEnvironment *) {}
-bool foxtalk_getNextQueryResult(HandlerFunctionEnvironment *) { return false; }
+bool foxtalk_getNextQueryResult(HandlerFunctionEnvironment *env) { return env->current_result != nullptr; }
 
 }
 
 void Reactor::tick() {
-    auto handlers = getHandlers();
-    for (auto h: getUninitializedHandlers(handlers)) {
+    auto [initialized_handlers, uninitialized_handlers] = split_handlers_by_initialization_state(getHandlers());
+    for (auto h: uninitialized_handlers) {
         HandlerFunctionEnvironment hfe{
                 nullptr, &h, this
         };
 
-        // TODO: This needs to set `cypher_query`-- we explicitly don't have that pre-initialization
         h.init(&hfe);
-        // Or... maybe we will just handle the un-initialized handlers on the second tick? We'll have it once it's initialized
-
     }
 
-    for (auto current_handler: handlers) {
-        auto res = connection->query(current_handler.cypher_query);
+    for (auto current_handler: initialized_handlers) {
+        auto res = connection->query(current_handler.cypher_query.value());
         if (current_handler.isAggregating) {
             throw std::runtime_error("Unimplemented!");
         } else {
@@ -107,10 +105,24 @@ Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)} {
     // assert(res->isSuccess());
 }
 
-// Filters a list of handlers for those that are uninitialized
-std::vector<Handler> Reactor::getUninitializedHandlers(const std::vector<Handler> &handlers) {
-    return handlers; // TODO: Filter on init'd
+std::pair<std::vector<Handler>, std::vector<Handler>> Reactor::split_handlers_by_initialization_state(const std::vector<Handler> &handlers)
+{
+    std::vector<Handler> init;
+    std::vector<Handler> not_init;
+    for (const auto& h: handlers)
+    {
+        if (h.cypher_query.has_value())
+        {
+            init.push_back(h);
+        }
+        else
+        {
+            not_init.push_back(h);
+        }
+    }
+    return {init, not_init};
 }
+
 
 std::vector<Handler> Reactor::getHandlers() {
     std::unordered_map<std::string, Handler> out { };
@@ -168,7 +180,7 @@ std::vector<Handler> Reactor::getHandlers() {
             out[subject.value()].handler_ipc_buffer = reinterpret_cast<uint8_t *>(*obj);
         } else if (pred.value() == "has query") {
             if(auto obj = result.get_object<std::string>(); obj.has_value()) {
-                out[subject.value()].cypher_query = *obj;
+                out[subject.value()].cypher_query = obj;
             }
         }
         // TODO: handle isAggregating
