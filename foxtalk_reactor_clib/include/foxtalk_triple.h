@@ -18,6 +18,7 @@
 
 extern "C" {
     typedef uint32_t foxtalk_size_t;
+    typedef foxtalk_size_t foxtalk_id_t;
 };
 
 template<typename T>

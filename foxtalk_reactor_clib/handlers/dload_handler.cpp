@@ -44,8 +44,16 @@ void handle() {
             auto free_tuple_fn = dlsym(handle, "free_tuple");
             auto handle_fn = dlsym(handle, "handle");
             auto teardown_fn = dlsym(handle, "teardown");
+            auto handler_id_ptr = dlsym(handle, "my_handler_id");
+            auto handler_fns_ptr = dlsym(handle, "handler_fns");
 
-            claim({ {*handler_path}, {"has dl handle"}, {handle} });
+//            claim({ {my_handler_id}, {"has dl handle"}, {handle} });
+            claim({ {handle}, {"has so path"}, {*handler_path} });
+
+            // All of these might need to be in a separate handler for deletion-ordering reasons??
+            claim({ {handle}, {"has handler_id ptr"}, {handler_id_ptr} });
+            claim({ {handle}, {"has handler_fns ptr"}, {handler_fns_ptr} });
+
             claim({ {handle}, {"has init fn"}, {init_fn} });
             claim({ {handle}, {"has free_tuple fn"}, {free_tuple_fn} });
             claim({ {handle}, {"has handle fn"}, {handle_fn} });
