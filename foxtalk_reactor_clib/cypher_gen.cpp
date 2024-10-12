@@ -54,7 +54,7 @@ namespace foxtalk::reactor::cypher_gen {
         return builder.str();
     }
 
-    static TripleNoun triple_noun_from_kuzu_values(
+    TripleNoun triple_noun_from_kuzu_values(
             const std::vector<std::pair<std::string, std::unique_ptr<kuzu::common::Value>>> &props) {
         std::string noun_type{};
         std::optional<std::string> string_data{};

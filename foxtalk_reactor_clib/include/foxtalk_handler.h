@@ -17,7 +17,6 @@
 #include <optional>
 
 #include "foxtalk_triple.h"
-#include "foxtalk_handler_api_fns.h"
 
 constexpr size_t _foxtalk_ipc_buffer_size = 4096;
 
@@ -31,14 +30,25 @@ foxtalk_id_t my_handler_id;
 uint8_t _foxtalk_ipc_triple_buffer[_foxtalk_ipc_buffer_size];
 
 ///// FROM THE RUNTIME /////
-HandlerFunctions handler_fns;
+void foxtalk_claim(void *handlerEnvironment);
+void foxtalk_remove(void *handlerEnvironment);
+bool foxtalk_getNextQueryResult(void *handlerEnvironment);
 
 ///// USER MUST IMPLEMENT /////
-void init();
+void init(void *handlerEnvironment);
 void free_tuple();
-void handle();
+void handle(void* handlerEnvironment);
 void teardown();
 }
+
+#define FOXTALK_INIT void init(void* handlerEnvironment)
+#define FOXTALK_FREE_TUPLE void free_tuple()
+#define FOXTALK_HANDLE void handle(void* handlerEnvironment)
+#define FOXTALK_TEARDOWN void teardown()
+#define FOXTALK_CLAIM(...) claim(__VA_ARGS__, handlerEnvironment)
+#define FOXTALK_GET_NEXT_QUERY_RESULT() getNextQueryResult(handlerEnvironment)
+#define FOXTALK_REMOVE() remove(handlerEnvironment)
+
 
 ///// C++ API //////////////////////////////////////////////////////////////////
 
@@ -53,27 +63,17 @@ static Triple read_from_ipc_buffer() {
     return std::move(t);
 }
 
-void claim(const Triple& t) {
+void claim(const Triple& t, void* handlerEnvironment) {
     write_to_ipc_buffer(std::move(t));
-    if(handler_fns.claim != nullptr) {
-        handler_fns.claim();
-    } else {
-        throw std::runtime_error(
-                std::format("Handler {} tried calling `claim` before it was set!", my_handler_id));
-    }
+    foxtalk_claim(handlerEnvironment);
 }
 
-std::optional<Triple> getNextQueryResult() {
-    if(handler_fns.getNextQueryResult != nullptr) {
-        if(handler_fns.getNextQueryResult()) {
-            auto [t, bytes_read] = Triple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
-            return std::move(t);
-        } else {
-            return std::nullopt;
-        }
+std::optional<Triple> getNextQueryResult(void *handlerEnvironment) {
+    if(foxtalk_getNextQueryResult(handlerEnvironment)) {
+        auto [t, bytes_read] = Triple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
+        return std::move(t);
     } else {
-        throw std::runtime_error(
-                std::format("Handler {} tried calling `claim` before it was set!", my_handler_id));
+        return std::nullopt;
     }
 }
 

@@ -9,41 +9,32 @@
 #include "foxtalk_triple.h"
 #include "foxtalk_handler.h"
 #include "reactor.h"
+#include "cypher_gen.h"
 
 using namespace std::literals;
 
-class HandlerTests : public ::testing::Test {
-    friend class Reactor;
-};
+class HandlerTests : public ::testing::Test {};
 
+FOXTALK_INIT {
+    Triple query_triple {{}, {"is a"s}, {"husky"s}};
+    auto query = foxtalk::reactor::cypher_gen::query_for_triples_cypher(query_triple);
 
-
-
-void non_aggregating_init() {
-    Triple q {
-            TripleNoun::query(),
-            TripleNoun { "is a"s },
-            TripleNoun { "husky"s },
-    };
-
-    write_to_ipc_buffer(q);
+    FOXTALK_CLAIM({
+        {"test"s},
+        {"has query"s},
+        {query}
+    });
 }
 
-void non_aggregating_handle() {
-    if(auto maybe_t = getNextQueryResult(); maybe_t.has_value()) {
+void handle(void* handlerEnvironment) {
+    if(auto maybe_t = FOXTALK_GET_NEXT_QUERY_RESULT(); maybe_t.has_value()) {
         auto who = maybe_t->get_subject<std::string>();
-        claim({
-           { who.value() },
-           { "is"s },
-           { "cool"s }
-        });
+        claim({ { who.value() }, { "is"s }, { "cool"s } }, handlerEnvironment);
     }
 }
 
-void non_aggregating_free_tuple() { }
-void non_aggregating_teardown() { }
-
-
+FOXTALK_FREE_TUPLE { }
+FOXTALK_TEARDOWN { }
 
 TEST_F(HandlerTests, WhoIsCool) {
     kuzu::main::SystemConfig db_config { };
@@ -54,10 +45,11 @@ TEST_F(HandlerTests, WhoIsCool) {
     // Create Handler
     r.claim({ {"test"s}, {"is a"s}, {"handler"s} });
 
-    r.claim({ {"test"s}, {"has init"s}, { reinterpret_cast<void *>(non_aggregating_init) }});
-    r.claim({ {"test"s}, {"has handle"s}, { reinterpret_cast<void *>(non_aggregating_handle) }});
-    r.claim({ {"test"s}, {"has free tuple"s}, { reinterpret_cast<void *>(non_aggregating_free_tuple) }});
-    r.claim({ {"test"s}, {"has teardown"s}, { reinterpret_cast<void *>(non_aggregating_teardown) }});
+    r.claim({ {"test"s}, {"has init"s}, { reinterpret_cast<void *>(init) }});
+    r.claim({ {"test"s}, {"has handle"s}, { reinterpret_cast<void *>(handle) }});
+    r.claim({ {"test"s}, {"has free tuple"s}, { reinterpret_cast<void *>(free_tuple) }});
+    r.claim({ {"test"s}, {"has teardown"s}, { reinterpret_cast<void *>(teardown) }});
+    r.claim({ {"test"s}, {"has ipc_buffer"s}, { static_cast<void *>(_foxtalk_ipc_triple_buffer) }});
 
     // Add <lexi, is a, husky>
     r.claim({ {"lexi"s}, {"is a"s}, {"husky"s} });
