@@ -50,9 +50,10 @@ struct TripleNoun {
     TripleNoun(const TripleNoun &&other) noexcept
             : type{other.type}, data{other.data} {}
 
-    void operator=(TripleNoun &&other) noexcept {
+    TripleNoun& operator=(TripleNoun &&other) noexcept {
         type = other.type;
         data = other.data;
+        return *this;
     }
 
     TripleNoun() : type(NounType::Query), data(std::monostate()) {}

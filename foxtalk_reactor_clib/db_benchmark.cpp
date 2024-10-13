@@ -201,5 +201,8 @@ int main(int argc, char* argv[]) {
 }
 
 // BEGIN HANDLERS FOR BENCHMARKS
+class UpdatesNTuplesEveryTick
+{
 
+};
 // END HANDLERS FOR BENCHMARKS

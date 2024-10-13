@@ -10,7 +10,7 @@
 
 void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length) {
     std::cout << "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F        0 1 2 3 4 5 6 7 8 9 A B C D E F";
-    auto n_rows = static_cast<size_t>(std::ceil(length / 16.0));
+    auto n_rows = static_cast<size_t>(std::ceil(static_cast<double>(length) / 16.0));
 
     for (auto row = 0; row < n_rows; row++) {
         std::cout << std::endl << std::format("0x{:02x} ", row * 16);

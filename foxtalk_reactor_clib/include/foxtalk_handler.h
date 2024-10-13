@@ -1,4 +1,4 @@
-//
+    //
 // Created by fox on 10/7/24.
 //
 
@@ -15,7 +15,7 @@
 
 #include "foxtalk_triple.h"
 
-constexpr size_t _foxtalk_ipc_buffer_size = 4096;
+constexpr size_t FOXTALK_IPC_BUFFER_SIZE = 4096;
 
 ///// C FFI ////////////////////////////////////////////////////////////////////
 
@@ -24,7 +24,7 @@ extern "C" {
 inline foxtalk_id_t my_handler_id;
 
 ///// RUNTIME COMMUNICATION BUFFER /////
-inline uint8_t _foxtalk_ipc_triple_buffer[_foxtalk_ipc_buffer_size];
+inline uint8_t _foxtalk_ipc_triple_buffer[FOXTALK_IPC_BUFFER_SIZE];
 
 ///// FROM THE RUNTIME /////
 void foxtalk_claim(void *handlerEnvironment);
@@ -53,7 +53,7 @@ void teardown();
 
 inline void write_to_ipc_buffer(const Triple& t) {
     // size to the 0 position
-    memset(_foxtalk_ipc_triple_buffer, 0, _foxtalk_ipc_buffer_size);
+    memset(_foxtalk_ipc_triple_buffer, 0, FOXTALK_IPC_BUFFER_SIZE);
     t.write_to_buffer(_foxtalk_ipc_triple_buffer, 0);
 }
 

@@ -143,3 +143,78 @@ TEST_F(HandlerTests, HandlerTupleRemovalTest) {
 
     }
 }
+
+TEST_F(HandlerTests, HandlerRemovalTest) {
+    kuzu::main::SystemConfig db_config { };
+    auto db = std::make_shared<kuzu::main::Database>(":memory:", db_config);
+
+    Reactor r { db };
+
+    // Create Handler
+    r.claim({ {"test"s}, {"is a"s}, {"handler"s} });
+
+    r.claim({ {"test"s}, {"has init"s}, { reinterpret_cast<void *>(init) }});
+    r.claim({ {"test"s}, {"has handle"s}, { reinterpret_cast<void *>(handle) }});
+    r.claim({ {"test"s}, {"has free tuple"s}, { reinterpret_cast<void *>(free_tuple) }});
+    r.claim({ {"test"s}, {"has teardown"s}, { reinterpret_cast<void *>(teardown) }});
+    r.claim({ {"test"s}, {"has ipc_buffer"s}, { static_cast<void *>(_foxtalk_ipc_triple_buffer) }});
+
+    // Add <lexi, is a, husky>
+    r.claim({ {"lexi"s}, {"is a"s}, {"husky"s} });
+
+    // Tick
+    r.tick(); // initialize
+    r.tick(); // handle
+
+    // Assert <lexi, is, cool>
+    // d.query(...)
+    auto query = R"(MATCH(a:Noun)-[b:Predicate{string_data: "is"}]->(c:Noun{string_data:"cool"}) RETURN a.type, a.string_data;)";
+    kuzu::main::Connection conn (db.get());
+
+    auto q = conn.query(query);
+    auto results = q.get();
+    if(!results->isSuccess()) {
+        std::cerr << "Query failed with: " << results->getErrorMessage() << std::endl;
+        FAIL();
+    }
+
+    ASSERT_EQ(results->getNumTuples(), 1);
+    auto result = results->getNext();
+    ASSERT_EQ(result->getValue(0)->strVal, "Symbol");
+    ASSERT_EQ(result->getValue(1)->strVal, "lexi");
+
+    ///// THE REMOVAL ZONE /////
+
+    // TODO: Is there a special thing we should do here??
+    r.remove({{ "test"s }, { "is a"s }, { "handler"s }});
+    r.tick();
+    r.tick();
+
+    // <lexi, is a, husky> has NOT been removed
+    {
+        query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is a"}]->(c:Noun{string_data:"husky"}) RETURN a.type, a.string_data;)";
+
+        q = conn.query(query);
+        results = q.get();
+        if(!results->isSuccess()) {
+            std::cerr << "Query failed with: " << results->getErrorMessage() << std::endl;
+            FAIL();
+        }
+
+        ASSERT_EQ(results->getNumTuples(), 1);
+    }
+
+    // <lexi, is, cool> has been removed
+    {
+        query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is"}]->(c:Noun{string_data:"cool"}) RETURN a.type, a.string_data;)";
+
+        q = conn.query(query);
+        results = q.get();
+        if(!results->isSuccess()) {
+            std::cerr << "Query failed with: " << results->getErrorMessage() << std::endl;
+            FAIL();
+        }
+        ASSERT_EQ(results->getNumTuples(), 0);
+
+    }
+}

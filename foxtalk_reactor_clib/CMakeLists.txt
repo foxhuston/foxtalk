@@ -56,6 +56,8 @@ add_executable(
         benchmark
         db_benchmark.cpp
         vendor/ctrack.hpp
+        benchmark/handlers/update_n_tuples_per_tick.cpp
+        benchmark/handlers/update_n_tuples_per_tick.h
 )
 
 target_link_libraries(benchmark reactor ${KUZULIB_SO_PATH})
