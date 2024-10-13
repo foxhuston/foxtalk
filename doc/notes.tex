@@ -1,0 +1,58 @@
+\documentclass{article}
+
+\usepackage{xparse}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tabularray}
+
+%%%%% DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\NewDocumentCommand\Handlers{}{\textsf{H}}
+\NewDocumentCommand\HandlerIO{}{\ensuremath{\mathcal{H}}}
+\NewDocumentCommand\Tuples{}{\ensuremath{T}}
+\NewDocumentCommand\Database{}{\textsf{D}}
+\NewDocumentCommand\Handler{}{\ensuremath{\langle q, f \rangle}}
+
+\NewDocumentCommand\In{}{\textsf{In}}
+\NewDocumentCommand\Out{}{\textsf{Out}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+\section{Algorithm}
+
+\begin{tblr}{Q[r,$]l}
+  (\Handler{} = h) \in \Handlers & is the set of handlers. \\
+  t \in \Tuples                  & is a set of Tuples.     \\
+  \Tuples \subseteq \Database    & is the database.        \\
+  \langle \Tuples, \Tuples \rangle \in \HandlerIO_{h}
+      & are the I/O pairs of tuples for a handler $h$.     \\
+  \Tuples = \Database(q)         & is the set of tuples returned by
+      querying the database with $q$.
+\end{tblr}
+
+\vspace{1cm}
+
+\begin{algorithm}
+\caption{Reactor Tick}
+
+\begin{algorithmic}
+  \FORALL{$h \in \Handlers$}
+  \STATE $\langle \In', \Out' \rangle = \HandlerIO_{h}$
+  \STATE $\In = \Database(h.q)$
+  \IF{$\In = \In'$} \STATE skip to next $h$ \ENDIF
+  \STATE $\Database' = \Database \setminus \Out'$
+  \STATE $\Out = f(\In)$
+  \STATE $\Handlers_{h} := \langle \In, \Out \rangle$
+  \STATE $\Database := \Database' \cup \Out$
+  \ENDFOR
+\end{algorithmic}
+
+\end{algorithm}
+
+\end{document}
+
