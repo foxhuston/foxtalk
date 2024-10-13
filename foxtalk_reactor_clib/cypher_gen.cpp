@@ -18,6 +18,7 @@ namespace foxtalk::reactor::cypher_gen {
         switch (noun.type) {
             case TripleNoun::NounType::Query:
                 break;
+
             case TripleNoun::NounType::Symbol:
                 {
                     auto quoted = std::quoted(std::get<std::string>(noun.data));

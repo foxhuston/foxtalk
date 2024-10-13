@@ -11,9 +11,6 @@
 #include "cypher_gen.h"
 #include "reactor.h"
 
-#include <ranges>
-
-
 using namespace std::literals;
 using namespace kuzu::main;
 using namespace foxtalk::reactor::cypher_gen;
@@ -28,10 +25,10 @@ inline Triple from_flat_tuple(const std::shared_ptr<kuzu::processor::FlatTuple>&
                   triple_noun_from_kuzu_values(obj)};
 }
 
-void Reactor::claim(Triple t) {
-    auto create_triple_cypher = foxtalk::reactor::cypher_gen::store_triple_cypher(t);
-    auto res = connection->query(create_triple_cypher);
-    if (!res->isSuccess()) {
+void Reactor::claim(const Triple& t) const
+{
+    const auto create_triple_cypher = store_triple_cypher(t);
+    if (auto res = connection->query(create_triple_cypher); !res->isSuccess()) {
         // TODO: Add real logger and log this instead of throw
         throw std::runtime_error(res->getErrorMessage());
     }
@@ -49,7 +46,7 @@ void Reactor::remove(Triple t) {
 inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple& t)
 {
     // Record the actual claim
-    env->reactor->claim(std::move(t));
+    env->reactor->claim(t);
     // TODO Record a handler-provenance triple
 
     if (env->current_result != nullptr) {
@@ -59,12 +56,15 @@ inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple& t)
 
 extern "C" {
     // Should only be called through `tick()`
-    void foxtalk_claim(HandlerFunctionEnvironment *env) {
+    void foxtalk_claim(HandlerFunctionEnvironment *env)
+    {
         assert(env->handler != nullptr);
         assert(env->reactor != nullptr);
 
         auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
         foxtalk_claim_internal(env, t);
+        env->reactor->claim(t);
+
     }
 
     void foxtalk_remove(HandlerFunctionEnvironment *) { /* TODO */ }
@@ -195,7 +195,7 @@ std::vector<Handler> Reactor::getHandlers() {
         } else if (pred.value() == "has ipc_buffer") {
             auto obj = result.get_object<void *>();
             assert(obj != nullptr);
-            out[subject.value()].handler_ipc_buffer = reinterpret_cast<uint8_t *>(*obj);
+            out[subject.value()].handler_ipc_buffer = static_cast<uint8_t *>(*obj);
         } else if (pred.value() == "has query") {
             if(auto obj = result.get_object<std::string>(); obj.has_value()) {
                 out[subject.value()].cypher_query = obj;

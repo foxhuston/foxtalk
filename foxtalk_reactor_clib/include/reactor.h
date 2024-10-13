@@ -10,7 +10,7 @@
 #include "foxtalk_triple.h"
 
 struct Handler;
-struct Reactor;
+class Reactor;
 
 struct HandlerFunctionEnvironment {
     Triple *current_result;
@@ -54,7 +54,7 @@ public:
 
     Reactor(std::shared_ptr<kuzu::main::Database> db);
 
-    void claim(Triple t);
+    void claim(const Triple& t) const;
     void remove(Triple t);
 
     void tick();

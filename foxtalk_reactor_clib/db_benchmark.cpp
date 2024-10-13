@@ -10,12 +10,13 @@
 using namespace foxtalk::reactor::cypher_gen;
 int main(int argc, char* argv[]) {
 
-    int num_records = 100;
-    int query_multiplicity = 10;
+    uint64_t num_records = 100ul;
+    uint64_t query_multiplicity = 10ul;
     if (argc == 3)
     {
-        num_records = atoi(argv[1]);
-        query_multiplicity = atoi(argv[2]);
+        char* end;
+        num_records = strtol(argv[1], &end, 10);
+        query_multiplicity = strtol(argv[2], &end, 10);
     }
 
     std::cout << "Query multiplicity: " << query_multiplicity << std::endl;
@@ -23,7 +24,7 @@ int main(int argc, char* argv[]) {
 
     int cnt = 0;
     int qry = 0;
-    int num_results = 0;
+    uint64_t num_results = 0;
 
     kuzu::main::SystemConfig db_config {
         -1u,
@@ -67,15 +68,15 @@ int main(int argc, char* argv[]) {
             TripleNoun { static_cast<void*>(&i_str) },
             TripleNoun { i_str } };
 
-        reactor.claim(std::move(a));
+        reactor.claim(a);
         cnt++;
-        reactor.claim(std::move(b));
+        reactor.claim(b);
         cnt++;
-        reactor.claim(std::move(c));
+        reactor.claim(c);
         cnt++;
-        reactor.claim(std::move(d));
+        reactor.claim(d);
         cnt++;
-        reactor.claim(std::move(e));
+        reactor.claim(e);
         cnt++;
 
         for (auto j = 0; j < query_multiplicity; j++)
@@ -186,6 +187,8 @@ int main(int argc, char* argv[]) {
         };
         auto results = conn->query(query_for_triples_cypher(query));
         qry++;
+
+
         num_results += results->getNumTuples();
 
     }
@@ -196,3 +199,7 @@ int main(int argc, char* argv[]) {
     ctrack::result_print();
 
 }
+
+// BEGIN HANDLERS FOR BENCHMARKS
+
+// END HANDLERS FOR BENCHMARKS
