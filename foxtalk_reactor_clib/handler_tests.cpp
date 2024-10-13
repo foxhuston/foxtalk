@@ -16,13 +16,13 @@ using namespace std::literals;
 class HandlerTests : public ::testing::Test {};
 
 FOXTALK_INIT {
-    FOXTALK_REGISTER_HANDLE_QUERY({{}, {"is a"s}, {"husky"s}});
+    FOXTALK_REGISTER_HANDLE_QUERY({}, {"is a"s}, {"husky"s});
 }
 
 FOXTALK_HANDLE {
     if(auto maybe_t = FOXTALK_GET_NEXT_QUERY_RESULT(); maybe_t.has_value()) {
         auto who = maybe_t->get_subject<std::string>();
-        claim({ { who.value() }, { "is"s }, { "cool"s } }, handlerEnvironment);
+        FOXTALK_CLAIM({ who.value() }, { "is"s }, { "cool"s });
     }
 }
 
@@ -44,7 +44,7 @@ TEST_F(HandlerTests, WhoIsCool) {
     r.claim({ {"test"s}, {"has teardown"s}, { reinterpret_cast<void *>(teardown) }});
     r.claim({ {"test"s}, {"has ipc_buffer"s}, { static_cast<void *>(_foxtalk_ipc_triple_buffer) }});
 
-    // Add <lexi, is a, husky>
+    // Add <lexi, is a, husky
     r.claim({ {"lexi"s}, {"is a"s}, {"husky"s} });
 
     // Tick

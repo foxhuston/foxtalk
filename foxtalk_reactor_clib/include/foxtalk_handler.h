@@ -46,10 +46,10 @@ void teardown();
 #define FOXTALK_FREE_TUPLE void free_tuple()
 #define FOXTALK_HANDLE void handle(void* handlerEnvironment)
 #define FOXTALK_TEARDOWN void teardown()
-#define FOXTALK_CLAIM(...) claim(__VA_ARGS__, handlerEnvironment)
+#define FOXTALK_CLAIM(...) claim({__VA_ARGS__}, handlerEnvironment)
 #define FOXTALK_GET_NEXT_QUERY_RESULT() getNextQueryResult(handlerEnvironment)
 #define FOXTALK_REMOVE() remove(handlerEnvironment)
-#define FOXTALK_REGISTER_HANDLE_QUERY(...) registerHandleQuery(__VA_ARGS__, handlerEnvironment)
+#define FOXTALK_REGISTER_HANDLE_QUERY(...) registerHandleQuery({__VA_ARGS__}, handlerEnvironment)
 
 
 ///// C++ API //////////////////////////////////////////////////////////////////

@@ -54,7 +54,7 @@ public:
 
     Reactor(std::shared_ptr<kuzu::main::Database> db);
 
-    void claim(Triple t);
+    void claim(const Triple& t) const;
     void remove(Triple t);
 
     void tick();

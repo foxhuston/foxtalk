@@ -186,6 +186,8 @@ int main(int argc, char* argv[]) {
         };
         auto results = conn->query(query_for_triples_cypher(query));
         qry++;
+
+
         num_results += results->getNumTuples();
 
     }
@@ -196,3 +198,4 @@ int main(int argc, char* argv[]) {
     ctrack::result_print();
 
 }
+
