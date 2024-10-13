@@ -10,7 +10,7 @@
 #include "foxtalk_triple.h"
 
 struct Handler;
-struct Reactor;
+class Reactor;
 
 struct HandlerFunctionEnvironment {
     Triple *current_result;

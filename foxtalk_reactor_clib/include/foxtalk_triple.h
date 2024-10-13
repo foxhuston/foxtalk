@@ -9,9 +9,7 @@
 #include <format>
 #include <cassert>
 #include <variant>
-#include <cstring>
 #include <string>
-#include <unistd.h>
 #include <cstdint>
 #include <cmath>
 #include "debug_utils.h"
@@ -28,7 +26,7 @@ inline size_t write_t_to_buffer(uint8_t *buffer, size_t index, T what) {
 }
 
 template<typename T>
-inline std::pair<T, size_t> read_t_from_buffer(uint8_t *buffer, size_t index) {
+inline std::pair<T, size_t> read_t_from_buffer(const uint8_t *buffer, size_t index) {
     return {
             *((T *) (buffer + index)),
             sizeof(T) / sizeof(uint8_t)
@@ -44,6 +42,7 @@ struct TripleNoun {
             int64_t  // I64
     > NounData;
 
+
     TripleNoun(const TripleNoun &) = delete;
 
     void operator=(const TripleNoun &) = delete;
@@ -51,14 +50,14 @@ struct TripleNoun {
     TripleNoun(const TripleNoun &&other) noexcept
             : type{other.type}, data{other.data} {}
 
-    void operator=(const TripleNoun &&other) {
+    void operator=(TripleNoun &&other) noexcept {
         type = other.type;
         data = other.data;
     }
 
     TripleNoun() : type(NounType::Query), data(std::monostate()) {}
 
-    static TripleNoun query() { return TripleNoun(); }
+    static TripleNoun query() { return TripleNoun{}; }
 
     TripleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data) {
 //        std::cout << std::boolalpha
@@ -203,12 +202,12 @@ public:
     const TripleNoun predicate_;
     const TripleNoun object_;
 
-    //// CONSTRUCTORS /////
+    //// CONSTRUCTORS ////
     Triple(const Triple &) = delete;
 
     void operator=(const Triple &) = delete;
 
-    Triple(const Triple &&other)
+    Triple(const Triple &&other) noexcept
             : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
               object_(std::move(other.object_)) {}
 

@@ -32,7 +32,6 @@ include_directories(./)
 
 add_library(reactor
         reactor.cpp
-        foxtalk_triple.cpp
         debug_utils.cpp
         cypher_gen.cpp
 )

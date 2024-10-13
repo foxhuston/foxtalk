@@ -5,8 +5,9 @@
 #ifndef REACTOR_DEBUG_UTILS_H
 #define REACTOR_DEBUG_UTILS_H
 
-#include <unistd.h>
 #include <cstdint>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <cstdlib>
 
 void dbg_dump_buffer_region(uint8_t *buffer, size_t start, size_t length);
 

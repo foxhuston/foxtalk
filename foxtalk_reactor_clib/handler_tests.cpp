@@ -117,11 +117,10 @@ TEST_F(HandlerTests, HandlerTupleRemovalTest) {
 
     // <lexi, is a, husky> has been removed
     {
-        auto query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is a"}]->(c:Noun{string_data:"husky"}) RETURN a.type, a.string_data;)";
-        kuzu::main::Connection conn (db.get());
+        query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is a"}]->(c:Noun{string_data:"husky"}) RETURN a.type, a.string_data;)";
 
-        auto q = conn.query(query);
-        auto results = q.get();
+        q = conn.query(query);
+        results = q.get();
         if(!results->isSuccess()) {
             std::cerr << "Query failed with: " << results->getErrorMessage() << std::endl;
             FAIL();
@@ -132,11 +131,10 @@ TEST_F(HandlerTests, HandlerTupleRemovalTest) {
 
     // <lexi, is, cool> has been removed
     {
-        auto query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is"}]->(c:Noun{string_data:"cool"}) RETURN a.type, a.string_data;)";
-        kuzu::main::Connection conn (db.get());
+        query = R"(MATCH(a:Noun{string_data: "lexi"})-[b:Predicate{string_data: "is"}]->(c:Noun{string_data:"cool"}) RETURN a.type, a.string_data;)";
 
-        auto q = conn.query(query);
-        auto results = q.get();
+        q = conn.query(query);
+        results = q.get();
         if(!results->isSuccess()) {
             std::cerr << "Query failed with: " << results->getErrorMessage() << std::endl;
             FAIL();
