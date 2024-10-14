@@ -1,5 +1,11 @@
 #import "@preview/lovelace:0.3.0": *
 
+#set document(
+  title: [Foxtalk Notes],
+  author: "Fox Huston"
+)
+#set heading(numbering: "1.1")
+
 = Algorithm
 
 First, some definitions:
@@ -27,7 +33,10 @@ We define the state of the system at step $i$ recursively as:
 $ Database_0       & = & { Boot } \
   Database_(i + 1) & = & union.big_(Handler in handlers Database_i) f(Database_(i)(q)) $
 
-Where $handlers Database$ returns the subset of handler objects in $Database$.
+Where $handlers Database$ returns the subset of handler objects in $Database$. This whole system has the feeling of "facts in resonance;" that is, something exists in the database only so long as _something_ is asserting its existence. Deletions fall out of this system naturally: if some handler $h$ is asserting some (unique #footnote[If one or more other handlers were also asserting $t$, then the fact that $h$ stopped wouldn't mean anything for $Database_(i+1)$, since it is the union of _all_ of the outputs of all of the handlers.]) object $t$ on step $i$, and then it does not on step $i + 1$, then $t in.not Database_(i+1)$. Furthermore, on timestep $i+1$, any other handler that was depending on $t$ will have a new query result (lacking $t$), and it will recompute its output, which will possibly result in fewer tuples still. In this way, deletions ripple across steps, until the system comes to a new equilibrium.
+
+== Handler Invariants / Contract
++ Handlers are #strike[idempotent]. I don't know what word to use, here, but what we're going for is to be able to write an optimization (below) that will not call the handlers if their input doesn't change.
 
 = Implementation / Optimization
 
@@ -59,3 +68,7 @@ the following algorithm computes $R_(i+1)$.
   + *end for*
   + *return* $angle.l cal(H), Database angle.r$
 ]
+
+= Questions
+
+- How do we respond to events from the OS?
