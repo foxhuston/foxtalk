@@ -15,7 +15,7 @@ namespace foxtalk::reactor::cypher_gen {
 
     std::string cypher_node_data(const TripleNoun& noun);
 
-    std::string store_triple_cypher(const Triple& triple);
+    std::string store_triple_cypher(const Triple& triple, const std::optional<std::string>& creating_handler_name);
 
     TripleNoun triple_noun_from_kuzu_values(
             const std::vector<std::pair<std::string, std::unique_ptr<kuzu::common::Value>>> &props);
