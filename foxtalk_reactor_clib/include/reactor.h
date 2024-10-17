@@ -24,6 +24,7 @@ struct Handler {
     typedef void (*FreeTuple)();
     typedef void (*Teardown)();
 
+    // Uniquely identifying a handler. Path, probably? But maybe this should be like a foxtalk_type_t
     std::string name;
 
     std::optional<std::string> cypher_query;
@@ -42,7 +43,8 @@ private:
     std::shared_ptr<kuzu::main::Database> database;
     std::unique_ptr<kuzu::main::Connection> connection;
 
-    Triple query_single(const char* cypher);
+    std::unordered_map<std::string, std::unordered_set<Triple>> last_tick_created_triples;
+    std::unordered_map<std::string, std::unordered_set<Triple>> current_tick_created_triples;
 
     static std::pair<std::vector<Handler>, std::vector<Handler>> split_handlers_by_initialization_state(const std::vector<Handler> &handlers);
     std::vector<Handler> getHandlers();
@@ -53,8 +55,7 @@ public:
     void operator=(const Reactor&) = delete;
 
     Reactor(std::shared_ptr<kuzu::main::Database> db);
-
-    void claim(const Triple& t) const;
+    void claim(const Triple& t, std::optional<std::string> creating_handler_name = std::nullopt) const;
     void remove(Triple t);
 
     void tick();

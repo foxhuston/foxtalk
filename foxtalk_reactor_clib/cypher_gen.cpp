@@ -44,10 +44,18 @@ namespace foxtalk::reactor::cypher_gen {
         return builder.str();
     }
 
-    std::string store_triple_cypher(const Triple& triple) {
+    std::string store_triple_cypher(const Triple& triple, const std::optional<std::string>& creating_handler_name) {
         std::stringstream builder{};
 
         /*
+        MATCH (handler: Noun{string_data: "testhandler"})-[:Predicate{string_data: "is a"}]->(:Noun{string_data: "handler"})
+        MERGE (a:Noun{string_data: "fox"})
+        MERGE (b:Noun{string_data: "demonfox"})
+        MERGE (a)-[newPred:Predicate{string_data: "is a"}]->(b)
+        ON MATCH SET newPred.has_been_handled_by = list_distinct(newPred.has_been_handled_by + [handler.id])
+        ON CREATE SET newPred.has_been_handled_by = [handler.id]
+        RETURN a,newPred,b
+         *
         MERGE (subj:Noun{type: "Symbol", string_data: "lexi"})
         MERGE (obj:Noun{type: "Symbol", string_data: "husky"})
         MERGE (subj)-[pred:Predicate{type: "Symbol", string_data: "is a"}]->(obj)
@@ -60,7 +68,18 @@ namespace foxtalk::reactor::cypher_gen {
         builder << cypher_node_data(triple.object_);
         builder << ") MERGE (subj)-[pred:Predicate";
         builder << cypher_node_data(triple.predicate_);
+
         builder << "]->(obj) ";
+        if (creating_handler_name.has_value())
+        {
+            auto qName = std::quoted(creating_handler_name.value());
+            builder << "ON MATCH SET pred.has_been_handled_by = list_distinct(pred.has_been_handled_by + [";
+            builder << qName;
+            builder << "]) ";
+            builder << "ON CREATE SET pred.has_been_handled_by = [";
+            builder << qName;
+            builder << "] ";
+        }
 
         return builder.str();
     }

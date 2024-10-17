@@ -25,28 +25,48 @@ inline Triple from_flat_tuple(const std::shared_ptr<kuzu::processor::FlatTuple>&
                   triple_noun_from_kuzu_values(obj)};
 }
 
-void Reactor::claim(const Triple& t) const
+void Reactor::claim(const Triple& t, std::optional<std::string> creating_handler_name) const
 {
-    const auto create_triple_cypher = store_triple_cypher(t);
+    const auto create_triple_cypher = store_triple_cypher(t, creating_handler_name);
     if (auto res = connection->query(create_triple_cypher); !res->isSuccess()) {
         // TODO: Add real logger and log this instead of throw
         throw std::runtime_error(res->getErrorMessage());
     }
+    if (creating_handler_name.has_value())
+    {
+        std::string key = creating_handler_name.value();
+        auto set = current_tick_created_triples.at(key);
+        set.insert(std::move(t));
+    }
 }
 
 void Reactor::remove(Triple t) {
-    // This... might be too much. Let's think about this
-
-//    std::stringstream builder{};
-//    builder << foxtalk::reactor::cypher_gen::match_for_triples_cypher(t);
-//    builder << " DETACH DELETE subj, obj, pred;"; // Can we detach delete multiple like this?
-//    auto delete_query = builder.str()
+    /*
+     * Right now, this leaves the nouns dangling, as we only ever delete the predicate.
+     * The predicate is the edge of the graph, so that's what actually represents "the triple", uniquely.
+     * This should be totally safe, since even if later a predicate attaches to a previously detatched
+     * node, it's the predicate that defines that new triple, and that predicate will be new.
+     *
+     * The downside is that we'll have a bit of a messy db to deal with. We won't want to keep this for
+     * very long, but as a start, this is fine. We also might not even use Kuzu long-term, so I don't
+     * want to optimize for this sort of thing yet... until we validate that it can do what we want, instead
+     * of us just writing our own bespoke query engine.
+     */
+    // std::stringstream builder{};
+    // builder << match_for_triples_cypher(t);
+    // builder << "DELETE pred;";
+    // auto delete_query = builder.str();
+    //
+    // if (auto res = connection->query(delete_query); !res->isSuccess()) {
+    //     // TODO: Add real logger and log this instead of throw
+    //     throw std::runtime_error(res->getErrorMessage());
+    // }
 }
 
 inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple& t)
 {
     // Record the actual claim
-    env->reactor->claim(t);
+    env->reactor->claim(t, env->handler->name);
     // TODO Record a handler-provenance triple
 
     if (env->current_result != nullptr) {
@@ -63,7 +83,6 @@ extern "C" {
 
         auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
         foxtalk_claim_internal(env, t);
-        env->reactor->claim(t);
 
     }
 
@@ -102,38 +121,73 @@ void Reactor::tick() {
         auto res = connection->query(current_handler.cypher_query.value());
         if (current_handler.isAggregating) {
             throw std::runtime_error("Unimplemented!");
-        } else {
+        } else
+        {
             while (res->hasNext()) {
                 auto handler_result = from_flat_tuple(res->getNext());
                 handler_result.write_to_buffer(current_handler.handler_ipc_buffer, 0);
 
                 HandlerFunctionEnvironment hfe{
-                        &handler_result, &current_handler, this
-                };
+                    &handler_result, &current_handler, this
+            };
 
                 current_handler.handle(&hfe);
+
+                auto this_handler_this_tick_created_triples = current_tick_created_triples.at(current_handler.name);
+                auto it = last_tick_created_triples.find(current_handler.name);
+
+                if( it != current_tick_created_triples.end()) {
+                    auto this_handler_last_tick_created_triples = it->second;
+
+                    for (auto &this_tick_triple: this_handler_this_tick_created_triples)
+                    {
+                        auto last_tick_found = this_handler_last_tick_created_triples.find(this_tick_triple);
+                        if (last_tick_found != this_handler_last_tick_created_triples.end())
+                        {
+                            this_handler_last_tick_created_triples.erase(last_tick_found);
+                            // Do I need to free the memory?
+                        }
+                    }
+
+                    // Now, the only things remaining in this_handler_last_tick_created_triples are things that need deleting
+                    // AKA things in D_t that aren't in D_(t-1)
+                    for (auto &triple_to_delete: this_handler_last_tick_created_triples)
+                    {
+                        //remove(std::move(triple_to_delete));
+                        std::cout << "Deleting... " << triple_to_delete;
+                    }
+                    this_handler_last_tick_created_triples.clear();
+                    this_handler_last_tick_created_triples.swap(this_handler_this_tick_created_triples);
+
+                }
+                else
+                {
+                    std::unordered_set<Triple> new_set {};
+                    new_set.swap(this_handler_this_tick_created_triples);
+                }
+
             }
         }
     }
 }
 
-Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)} {
+Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)}, last_tick_created_triples()
+{
     connection = std::make_unique<Connection>(database.get());
     auto res = connection->query(
-            "CREATE NODE TABLE IF NOT EXISTS Noun (type STRING, string_data STRING, int_data INT64, id SERIAL, PRIMARY KEY (id))");
+        "CREATE NODE TABLE IF NOT EXISTS Noun (type STRING, string_data STRING, int_data INT64, id SERIAL, PRIMARY KEY (id))");
     if (!res->isSuccess())
     {
         throw std::runtime_error(res->getErrorMessage());
     }
     res = connection->query(
-            "CREATE REL TABLE IF NOT EXISTS Predicate(FROM Noun TO Noun, type STRING, string_data STRING, int_data INT64)");
+        "CREATE REL TABLE IF NOT EXISTS Predicate(FROM Noun TO Noun, type STRING, string_data STRING, int_data INT64, has_been_handled_by STRING[] DEFAULT [])");
     if (!res->isSuccess())
     {
         throw std::runtime_error(res->getErrorMessage());
     }
 }
 
-// lexi: Should we do this, or should we just return unitialized?
 std::pair<std::vector<Handler>, std::vector<Handler>> Reactor::split_handlers_by_initialization_state(const std::vector<Handler> &handlers)
 {
     std::vector<Handler> init;
@@ -210,6 +264,12 @@ std::vector<Handler> Reactor::getHandlers() {
     // (if aggregating) call the handle function with all of the results (** in spirit **)
     std::vector<Handler> out_vector{};
     for(auto [k, v] : out) {
+
+        auto it = current_tick_created_triples.find(v.name);
+
+        if( it == current_tick_created_triples.end()) {
+            current_tick_created_triples.insert(std::make_pair(v.name, std::unordered_set<Triple>()));
+        }
         out_vector.push_back(std::move(v));
     }
     return out_vector;

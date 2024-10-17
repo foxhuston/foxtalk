@@ -34,6 +34,7 @@ inline std::pair<T, size_t> read_t_from_buffer(const uint8_t *buffer, size_t ind
 }
 
 struct TripleNoun {
+
     typedef std::variant<
             std::monostate, // Query
             std::string, // Symbol
@@ -41,7 +42,6 @@ struct TripleNoun {
             uint64_t, // U64
             int64_t  // I64
     > NounData;
-
 
     TripleNoun(const TripleNoun &) = delete;
 
@@ -310,5 +310,27 @@ public:
         return std::pair<Triple, size_t>(Triple{std::move(subj), std::move(pred), std::move(obj)}, 0ul);
     }
 };
+namespace std {
+    template <>
+    struct hash<TripleNoun> {
+        size_t operator()(const TripleNoun& s) const noexcept
+        {
+            size_t hash_data = hash<TripleNoun::NounData>()(s.data);
+            size_t hash_type = hash<TripleNoun::NounType>()(s.type);
+            return hash_data ^ (hash_type << 1);
+        }
+    };
+    template <>
+    struct hash<Triple> {
+        size_t operator()(const Triple& s) const noexcept
+        {
+            size_t t1 = hash<TripleNoun>()(s.subject_);
+            size_t t2 = hash<TripleNoun>()(s.predicate_);
+            size_t t3 = hash<TripleNoun>()(s.object_);
+            return (t1 ^ (t2 << 1) ^ (t3 << 1));
+        }
+    };
+}
+
 
 #endif //REACTOR_FOXTALK_TRIPLE_H
