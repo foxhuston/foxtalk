@@ -55,7 +55,7 @@ public:
     void operator=(const Reactor&) = delete;
 
     Reactor(std::shared_ptr<kuzu::main::Database> db);
-    void claim(const Triple& t, std::optional<std::string> creating_handler_name = std::nullopt) const;
+    void claim(Triple t, std::optional<std::string> creating_handler_name = std::nullopt) const;
     void remove(Triple t);
 
     void tick();

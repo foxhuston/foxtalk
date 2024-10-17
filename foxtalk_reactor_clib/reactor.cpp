@@ -25,7 +25,7 @@ inline Triple from_flat_tuple(const std::shared_ptr<kuzu::processor::FlatTuple>&
                   triple_noun_from_kuzu_values(obj)};
 }
 
-void Reactor::claim(const Triple& t, std::optional<std::string> creating_handler_name) const
+void Reactor::claim(Triple t, std::optional<std::string> creating_handler_name) const
 {
     const auto create_triple_cypher = store_triple_cypher(t, creating_handler_name);
     if (auto res = connection->query(create_triple_cypher); !res->isSuccess()) {
@@ -36,7 +36,11 @@ void Reactor::claim(const Triple& t, std::optional<std::string> creating_handler
     {
         std::string key = creating_handler_name.value();
         auto set = current_tick_created_triples.at(key);
-        set.insert(std::move(t));
+        auto res = set.insert(std::move(t));
+        if (!res.second)
+        {
+            std::cerr << "Claim failed!? ";
+        }
     }
 }
 
@@ -52,26 +56,27 @@ void Reactor::remove(Triple t) {
      * want to optimize for this sort of thing yet... until we validate that it can do what we want, instead
      * of us just writing our own bespoke query engine.
      */
-    // std::stringstream builder{};
-    // builder << match_for_triples_cypher(t);
-    // builder << "DELETE pred;";
-    // auto delete_query = builder.str();
-    //
-    // if (auto res = connection->query(delete_query); !res->isSuccess()) {
-    //     // TODO: Add real logger and log this instead of throw
-    //     throw std::runtime_error(res->getErrorMessage());
-    // }
+
+    std::stringstream builder{};
+    builder << match_for_triples_cypher(t);
+    builder << " DELETE pred";
+
+    if (auto res = connection->query(builder.str()); !res->isSuccess())
+    {
+        throw std::runtime_error(res->getErrorMessage());
+    }
+
 }
 
-inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple& t)
+inline void foxtalk_claim_internal(HandlerFunctionEnvironment *env, Triple t)
 {
     // Record the actual claim
-    env->reactor->claim(t, env->handler->name);
-    // TODO Record a handler-provenance triple
-
-    if (env->current_result != nullptr) {
+    env->reactor->claim(std::move(t), env->handler->name);
+    // handler provenance is recorded in kuzu
+    // if (env->current_result != nullptr) {
         // TODO Record a tuple-provenance triple
-    }
+        // TODO V2: Tuple-provenance is now just done with ticks, I think?
+    // }
 }
 
 extern "C" {
@@ -82,7 +87,7 @@ extern "C" {
         assert(env->reactor != nullptr);
 
         auto [t, bytes_read] = Triple::read_from_buffer(env->handler->handler_ipc_buffer, 0);
-        foxtalk_claim_internal(env, t);
+        foxtalk_claim_internal(env, std::move(t));
 
     }
 
@@ -97,7 +102,7 @@ extern "C" {
         auto query = query_for_triples_cypher(t);
 
         Triple query_triple = {{env->handler->name}, {"has query"s}, {query}};
-        foxtalk_claim_internal(env, query_triple);
+        foxtalk_claim_internal(env, std::move(query_triple));
 
         // lexi: Should we do this, or just let the second tick do the work here?
         env->handler->cypher_query = query;
@@ -123,55 +128,48 @@ void Reactor::tick() {
             throw std::runtime_error("Unimplemented!");
         } else
         {
-            while (res->hasNext()) {
+            while (res->hasNext())
+            {
                 auto handler_result = from_flat_tuple(res->getNext());
                 handler_result.write_to_buffer(current_handler.handler_ipc_buffer, 0);
 
                 HandlerFunctionEnvironment hfe{
                     &handler_result, &current_handler, this
-            };
+                };
 
                 current_handler.handle(&hfe);
-
-                auto this_handler_this_tick_created_triples = current_tick_created_triples.at(current_handler.name);
-                auto it = last_tick_created_triples.find(current_handler.name);
-
-                if( it != current_tick_created_triples.end()) {
-                    auto this_handler_last_tick_created_triples = it->second;
-
-                    for (auto &this_tick_triple: this_handler_this_tick_created_triples)
-                    {
-                        auto last_tick_found = this_handler_last_tick_created_triples.find(this_tick_triple);
-                        if (last_tick_found != this_handler_last_tick_created_triples.end())
-                        {
-                            this_handler_last_tick_created_triples.erase(last_tick_found);
-                            // Do I need to free the memory?
-                        }
-                    }
-
-                    // Now, the only things remaining in this_handler_last_tick_created_triples are things that need deleting
-                    // AKA things in D_t that aren't in D_(t-1)
-                    for (auto &triple_to_delete: this_handler_last_tick_created_triples)
-                    {
-                        //remove(std::move(triple_to_delete));
-                        std::cout << "Deleting... " << triple_to_delete;
-                    }
-                    this_handler_last_tick_created_triples.clear();
-                    this_handler_last_tick_created_triples.swap(this_handler_this_tick_created_triples);
-
-                }
-                else
-                {
-                    std::unordered_set<Triple> new_set {};
-                    new_set.swap(this_handler_this_tick_created_triples);
-                }
-
             }
+            auto this_handler_this_tick_created_triples = current_tick_created_triples.at(current_handler.name);
+            auto this_handler_last_tick_created_triples = last_tick_created_triples.at(current_handler.name);
+
+
+            for (auto &this_tick_triple: this_handler_this_tick_created_triples)
+            {
+                auto last_tick_found = this_handler_last_tick_created_triples.find(this_tick_triple);
+                if (last_tick_found != this_handler_last_tick_created_triples.end())
+                {
+                    this_handler_last_tick_created_triples.erase(last_tick_found);
+                    // Do I need to free the memory?
+                }
+            }
+
+            // Now, the only things remaining in this_handler_last_tick_created_triples are things that need deleting
+            // AKA things in D_t that aren't in D_(t-1)
+            for (auto &triple_to_delete: this_handler_last_tick_created_triples)
+            {
+                // move the original i think??
+                remove(std::move(triple_to_delete));
+                std::cout << "Deleting... " << triple_to_delete;
+            }
+            this_handler_last_tick_created_triples.clear();
+            this_handler_last_tick_created_triples.swap(this_handler_this_tick_created_triples);
+
         }
     }
 }
 
-Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)}, last_tick_created_triples()
+
+Reactor::Reactor(std::shared_ptr<Database> db) : database{std::move(db)}
 {
     connection = std::make_unique<Connection>(database.get());
     auto res = connection->query(
@@ -265,10 +263,16 @@ std::vector<Handler> Reactor::getHandlers() {
     std::vector<Handler> out_vector{};
     for(auto [k, v] : out) {
 
-        auto it = current_tick_created_triples.find(v.name);
+        auto cur_it = current_tick_created_triples.find(v.name);
 
-        if( it == current_tick_created_triples.end()) {
+        if( cur_it == current_tick_created_triples.end()) {
             current_tick_created_triples.insert(std::make_pair(v.name, std::unordered_set<Triple>()));
+        }
+
+        auto last_it = last_tick_created_triples.find(v.name);
+
+        if( last_it == last_tick_created_triples.end()) {
+            last_tick_created_triples.insert(std::make_pair(v.name, std::unordered_set<Triple>()));
         }
         out_vector.push_back(std::move(v));
     }
