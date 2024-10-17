@@ -9,6 +9,9 @@
 )
 #set heading(numbering: "1.1")
 
+// `otf-stix` is in the AUR...
+// #show math.equation: set text(font: "Stix Two Math")
+
 ///// TITLE ////////////////////////////////////////////////////////////////////
 #context text(24pt)[
   *#document.title*
@@ -31,18 +34,69 @@
 
 ///// DOCUMENT /////////////////////////////////////////////////////////////////
 
-// TODO: In the next major version of typst, you can do figures that span both columns pretty easily. Unfortunately, even though I've installed the development compiler, the VSCode extension is doing its own damn thing, and I have no idea how to make it use the dev one. So for now, single column, not worying about it.
 #show: rest => columns(2, rest)
 #set par(justify: true)
+
+
+= Syntax
+
+#let Database   = {$upright(sans("D"))$}
+#let Aggregator = {$angle.l q, a angle.r$}
+#let Handler    = {$angle.l q, h angle.r$}
+#let Boot       = {$upright(sans("boot"))$}
+
+First I wrote this whole thing in terms of sets, but when I started to get to the actual evaluation of the thing, I couldn't figure out how to write it. Since I'm working on a runtime for a language, I realized _I might as well write it as a language._ When all you have is a hammer...
+
+#let term(t) = {$upright(sans(#t))$}
+#let claim = term("claim")
+#let when = term("when")
+#let sstep = {$-->^(Handler)$}
+#let made = {$==>^"gen"$}
+
+#table(
+  columns: (auto, auto, auto),
+  align: (right, center, left),
+  stroke: none,
+  [$e$], [$::=$], [$claim o$],
+  []   , [$|$]  , [$e; e | o$],
+  [$o$], [$::=$], [$circle.small | bullet | angle.l o, o angle.r | o made o$]
+)
+
+The $bullet$ is the unit value, $circle.small$ represents any other constant the system might encounter but not care about (i.e. things that the handlers can create that #Database stores, but doesn't use in evaluation), the angle brackets are pairs, and $o made o$ represents the _provenance_ of a tuple. In this case, the following rule uses it to store which handler generated an object:
+
+#show "E-Claim": smallcaps
+#show "E-When": smallcaps
+
+#proof-tree(
+  rule(
+    name: [E-Claim],
+    [$Database tack claim o sstep Database union {o, Handler made o} tack bullet$]
+  ),
+)
+
+Huh... Ok, so... a hypothetical E-When would behave exactly the same as E-Claim, and there's nothing that actually drives the evaluation of this language forward... How odd. I'm writing the relation as $sstep$, but this also needs to work for $Aggregator$ pairs. Duplicating every rule just to have that seems silly.
+
+== Tick
+
+#box( // Prevents breaking across columns/pages
+  pseudocode-list[
+    + *function* $sans("next")(Database)$:
+      + *let* $D'_a = emptyset, D'_h = emptyset$
+      + *for each* $Aggregator in Database(q_a)$
+        + *for each* $r_a in a(Database(q))$
+          + $D'_(a) := D'_(a) union {r_a, Aggregator made r_a}$
+      + *for each* $Handler in Database(q_h)$
+        + *for each* $r_q_h in Database(q)$
+          + *for each* $r_h in h(r_q_h)$
+            + $D'_(h) := D'_(h) union {r_h, Handler made r_h}$
+      + *return* $D'_a union D'_h$
+  ]
+)
 
 = Algorithm
 <algorithm>
 
 // #let Database = {$upright(sans("D"))$}
-#let Database   = {$upright(sans("D"))$}
-#let Aggregator = {$angle.l q, a angle.r$}
-#let Handler    = {$angle.l q, h angle.r$}
-#let Boot       = {$upright(sans("boot"))$}
 // #let handlers   = {$upright("handlers")$}
 
 #figure(
