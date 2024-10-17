@@ -43,18 +43,18 @@ struct TripleNoun {
             int64_t  // I64
     > NounData;
 
-    TripleNoun(const TripleNoun &) = delete;
+    // TODO: During performance testing, see if we're copying triples and triplenouns like crazy
+    // TripleNoun(const TripleNoun &) = delete;
+    // void operator=(const TripleNoun &) = delete;
+    //
+    // TripleNoun(const TripleNoun &&other) noexcept
+    //         : type{other.type}, data{other.data} {}
 
-    void operator=(const TripleNoun &) = delete;
-
-    TripleNoun(const TripleNoun &&other) noexcept
-            : type{other.type}, data{other.data} {}
-
-    TripleNoun& operator=(TripleNoun &&other) noexcept {
-        type = other.type;
-        data = other.data;
-        return *this;
-    }
+    // TripleNoun& operator=(TripleNoun &&other) noexcept {
+    //     type = other.type;
+    //     data = other.data;
+    //     return *this;
+    // }
 
     TripleNoun() : type(NounType::Query), data(std::monostate()) {}
 
@@ -204,13 +204,14 @@ public:
     const TripleNoun object_;
 
     //// CONSTRUCTORS ////
-    Triple(const Triple &) = delete;
 
-    void operator=(const Triple &) = delete;
+    // TODO: During performance testing, see if we're copying triples and triplenouns like crazy
+    // Triple(const Triple &) = delete;
+    // void operator=(const Triple &) = delete;
 
-    Triple(const Triple &&other) noexcept
-            : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
-              object_(std::move(other.object_)) {}
+    // Triple(const Triple &&other) noexcept
+    //         : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
+    //           object_(std::move(other.object_)) {}
 
     Triple(TripleNoun &&subject, TripleNoun &&predicate, TripleNoun &&object)
             : subject_(std::move(subject)),
@@ -322,12 +323,21 @@ namespace std {
     };
     template <>
     struct hash<Triple> {
+        size_t p = 31; // prime number
         size_t operator()(const Triple& s) const noexcept
         {
-            size_t t1 = hash<TripleNoun>()(s.subject_);
-            size_t t2 = hash<TripleNoun>()(s.predicate_);
-            size_t t3 = hash<TripleNoun>()(s.object_);
-            return (t1 ^ (t2 << 1) ^ (t3 << 1));
+            /*
+             *
+             * Algorithm shown by Joshua Bloch:
+             *      int result = (int) (x ^ (x >>> 32));
+                    result = 31 * result + (int) (y ^ (y >>> 32));
+                    result = 31 * result + (int) (z ^ (z >>> 32));
+                    return result;
+             */
+            size_t x = hash<TripleNoun>()(s.subject_);
+            size_t y = hash<TripleNoun>()(s.predicate_);
+            size_t z = hash<TripleNoun>()(s.object_);
+            return z ^ (z << 1) + p * ((y ^ y << 1) + p * (x ^ x << 1));
         }
     };
 }

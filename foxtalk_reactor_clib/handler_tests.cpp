@@ -114,6 +114,7 @@ TEST_F(HandlerTests, HandlerTupleRemovalTest) {
     r.remove({{ "lexi"s }, { "is a"s }, { "husky"s }});
     r.tick();
     r.tick();
+    r.tick();
 
     // <lexi, is a, husky> has been removed
     {
