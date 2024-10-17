@@ -1,0 +1,83 @@
+hill:
+  title: A first course in coding theory
+  type: book
+  author: Hill, Raymond
+  call-number: QA268 .H55 1986
+  citation-key: hillFirstCourseCoding1986
+  collection-title: Oxford applied mathematics and computing science series
+  event-place: 'Oxford [Oxfordshire] : New York'
+  ISBN: 978-0-19-853804-2 978-0-19-853803-5
+  issued:
+    - year: 1986
+  number-of-pages: '251'
+  publisher: Clarendon Press ; Oxford University Press
+  publisher-place: 'Oxford [Oxfordshire] : New York'
+  source: Library of Congress ISBN
+
+bergamasco:
+  title: An Accurate and Robust Artificial Marker Based on Cyclic Codes
+  type: article
+  accessed:
+    - year: 2024
+      month: 10
+      day: 15
+  author:
+    - Bergamasco, Filippo
+    - Albarelli, Andrea
+    - Cosmo, Luca
+    - Rodola, Emanuele
+    - Torsello, Andrea
+  container-title: IEEE Transactions on Pattern Analysis and Machine Intelligence
+  container-title-short: IEEE Trans. Pattern Anal. Mach. Intell.
+  DOI: 10.1109/TPAMI.2016.2519024
+  ISSN: 0162-8828, 2160-9292
+  issue: '12'
+  issued:
+    - year: 2016
+      month: 12
+      day: 1
+  page: 2359-2373
+  source: DOI.org (Crossref)
+  URL: http://ieeexplore.ieee.org/document/7384749/
+  volume: '38'
+
+degol:
+  title: 'ChromaTag: A Colored Marker and Fast Detection Algorithm'
+  title-short: ChromaTag
+  type: conference
+  author:
+    - DeGol, Joseph
+    - Bretl, Timothy
+    - Hoiem, Derek
+  abstract: >-
+    Current ﬁducial marker detection algorithms rely on marker IDs for false
+    positive rejection. Time is wasted on potential detections that will
+    eventually be rejected as false positives. We introduce ChromaTag, a ﬁducial
+    marker and detection algorithm designed to use opponent colors to limit and
+    quickly reject initial false detections and grayscale for precise
+    localization. Through experiments, we show that ChromaTag is signiﬁcantly
+    faster than current ﬁducial markers while achieving similar or better
+    detection accuracy. We also show how tag size and viewing direction effect
+    detection accuracy. Our contribution is signiﬁcant because ﬁducial markers
+    are often used in real-time applications (e.g. marker assisted robot
+    navigation) where heavy computation is required by other parts of the
+    system.
+  accessed:
+    - year: 2024
+      month: 10
+      day: 16
+  citation-key: degolChromaTagColoredMarker2017
+  container-title: 2017 IEEE International Conference on Computer Vision (ICCV)
+  DOI: 10.1109/ICCV.2017.164
+  event-place: Venice
+  event-title: 2017 IEEE International Conference on Computer Vision (ICCV)
+  ISBN: 978-1-5386-1032-9
+  issued:
+    - year: 2017
+      month: 10
+  language: en
+  page: 1481-1490
+  publisher: IEEE
+  publisher-place: Venice
+  source: DOI.org (Crossref)
+  URL: http://ieeexplore.ieee.org/document/8237426/
