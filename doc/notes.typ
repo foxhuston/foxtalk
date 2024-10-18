@@ -246,6 +246,7 @@ This is like, very broken (since it will insert multiple copies of some $Aggrega
     + *let* $A' = nothing, H' = nothing, R' = R$
     + *if* $angle.l o, n angle.r in R$ (where $n$ is any natural number):
       + $R' := (R' without {angle.l o, n angle.r}) union {angle.l o, n + 1 angle.r}$
+    - #fox[The rest of this is actually an *else*. That is, we only want to run this if $o$ is not in the database at all, yet.]
     + *for each* $Aggregator in A$:
       + *if* $o in.not I and q matches o$:
         + $A' := A' union dirty(angle.l q\, a\, I union {o}\, O angle.r)$
