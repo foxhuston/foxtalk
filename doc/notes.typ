@@ -1,5 +1,6 @@
 #import "@preview/lovelace:0.3.0": *
 #import "@preview/curryst:0.3.0": rule, proof-tree
+#import "@preview/quick-maths:0.1.0": shorthands
 
 #show "FoxTalk": smallcaps
 
@@ -9,6 +10,8 @@
 )
 #set heading(numbering: "1.1")
 #set math.equation(numbering: "(1)")
+
+#let fox(m) = {text(fill: orange)[#emoji.fox #m]}
 
 // `otf-stix` is in the AUR...
 // #show math.equation: set text(font: "Stix Two Math")
@@ -179,28 +182,23 @@ Changes are just a remove followed by an insert (as in the example), and we need
 
 Let's take a first-pass at this, only using aggregators. First, let $sdb = angle.l allAggs, A angle.r$ where $allAggs$ is the set of all aggregators with their current inputs and outputs---that is, tuples of $aggtriple$, where $I$ is the set of values that $q$ matches, and $O$ is the set of values that $a(Database(q))$ would match. $A$ is the set of aggregators that need to run. (Note that $sdb_0 = angle.l {Boot}, {Boot} angle.r$).
 
-#let matches = math.class("relation", "matches")
+#let matches = math.class("relation", math.accent(sym.tilde, "?"))
+
+I'll write the relation $q matches o$ to mean that the query $q$ matches the object $o$. #text(fill: luma(50%))[(TODO: this is pretty rough, but I just needed something. I could also be using $sigma_(phi)$ from relational algebra, and maybe saying something like $o in sigma_(phi)(Database)$? $phi$ is the same as $q$ in this case.)]
+
+Things we can take advantage of:
+- If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
 
 #box[
   #pseudocode-list[
-    + *function* $next(sdb):$
-      + *let* $Database'_a = emptyset, allAggs' = emptyset, A' = emptyset$
-      + *for each* $aggtriple in sdb. A:$
-        + *let* $O' = a(T)$
-        - \
-        -  _Additions:_
-        + *for each* $o in O' without O:$
-          + *for each* $aggtriplen(1) in allAggs$:
-            + *if* $o in.not I_1 and q_1 matches o$:
-              + $A' := A' union {angle.l q_1, a_1, I_1 union {o}, O_1 angle.r}$
-        - \
-        - _Removals:_
-        + *for each* $o in O without O':$
-          + *for each* $aggtriplen(2) in allAggs$:
-            + *if* $o in.not I_2 and q_2 matches o$:
-              + $A' := A' union {angle.l q_1, a, I_2 without {o}, O_2 angle.r}$
-        - \
-        + $Database'_a := Database'_a union O$
+    + *function* $next(???):$
+      + *for each* $angle.l Aggregator, angle.l N, R angle.r angle.r in cal(C)_(i):$
+      - _(where $N$ is the set of new objects and $R$ is the set of removed objects)_
+        + $I' = (I without R) union N$
+        + $O' = a(I')$
+        + $N' = O' without O$
+        + $R' = O without O'$
+        +
   ]
 ]
 
@@ -208,9 +206,156 @@ Let's take a first-pass at this, only using aggregators. First, let $sdb = angle
 This is like, very broken (since it will insert multiple copies of some $Aggregator$ if it has a removal and an output...)
 
 
+= Again Again
+
+#let object = $upright(sans(o))$
+#let Objects = $upright(sans(O))$
+#let Aggregator = {$angle.l q, a, I, O angle.r$}
+#let Handler = {$angle.l q, h, I, M, O angle.r$}
+#let dirty(h) = {$#h^(bullet)$}
+// SDB Destructured
+#let sdbd = {$angle.l A, H, R angle.r$}
+
+/ Objects: are things that the database operates on. Individuals are written #object, and a set of objects are written #Objects.
+/ Queries: match (or do not match) objects, written $q matches object$.
+/ Aggregators: Written $Aggregator$, where $q$ is a query, $a$ is a function from $Objects -> Objects$, $I$ is the set of _input_ objects, and $O$ is the set of _output_ objects.
+/ Handlers: Written $Handler$, where $h : object -> Objects$, and $M$ is a set of $angle.l object, object angle.r$ pairs, mapping objects in $I$ to objects in $O$.
+/ Dirty: Handlers are written $dirty(angle.l - angle.r)$.
+/ The Database: is written $sdb = sdbd$, where $A$ is the set of registered aggregators, $H$ is the set of registered handlers, and $R$ the _refcount_ map of $object times NN$.
 
 
+#show: shorthands.with(
+  ($<<$, $angle.l$),
+  ($>>$, $angle.r$),
+)
 
+#let insert = "insert"
+#show "insert": r => $upright(sans(#r))$
+
+#let swap = "swap"
+#show "swap": r => $upright(sans(#r))$
+
+#let remove = "remove"
+#show "remove": r => $upright(sans(#r))$
+
+#let tick = "tick"
+#show "tick": r => $upright(sans(#r))$
+
+#pseudocode-list(booktabs: true, title: [$insert: sdb -> o -> sdb$])[
+  + *function* $insert(sdbd, o)$:
+    + *let* $A' = nothing, H' = nothing, R' = R$
+    + *if* $angle.l o, n angle.r in R$ (where $n$ is any natural number):
+      + $R' := (R' without {angle.l o, n angle.r}) union {angle.l o, n + 1 angle.r}$
+    + *for each* $Aggregator in A$:
+      + *if* $o in.not I and q matches o$:
+        + $A' := A' union dirty(angle.l q\, a\, I union {o}\, O angle.r)$
+      + *else*
+        + $A' := A' union Aggregator$
+
+    + *for each* $Handler in H$:
+      + *if* $o in.not I and q matches o$:
+        + $H' := H' union dirty(angle.l q\, h\, I union {o}\, M\, O angle.r)$
+      + *else*
+        + $H' := H' union Handler$
+
+    + *return* $angle.l A', H', R' angle.r$
+]
+
+Addition simply increments the refcount in $sdb$ and, for each handler that matches (and that doesn't already have $o$ in its input set), it adds $o$ to that handler's input set and marks it dirty. Removals are a bit more complex:
+
+#pseudocode-list(booktabs: true, title: [$remove: sdb -> sdb$])[
+  + *function* $remove(sdb, o)$:
+    + *let* $A' = nothing, H' = nothing, R' = sdb. R$:
+    + *if* $<<o, n>> in R'$:
+      + *if* $n > 1$:
+        + $R' := (R' without {<<o, n>>}) union {<<o, n-1>>}$
+      + *else*
+        + $R' := R' without {<<o, n>>}$
+        + *for each* $a in A:$
+          + #text(fill: red)[*let* $sdb' := remove_(a)(sdb, o)$]
+        + *for each* $h in H:$
+          + #text(fill: red)[*let* $sdb' := remove_(h)(sdb, o)$]
+    + *return* $<<A', H', R'>>$
+]
+
+Next, we write the removal function on a specific aggregator:
+
+#pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> o -> sdb$])[
+  + *function* $remove_(a)(sdbd, o)$:
+    + *let* $A' = nothing$
+    + *for each* $Aggregator in A$:
+      + *if* $o in I$:
+        + $A' := A' union {dirty(<<q\, a\, I without {o}\, O>>)}$
+      + *else*:
+        + $A' := A' union Aggregator$
+
+
+    + *return* $<< A', H, R >>$
+]
+
+and finally the function on a handler:
+
+#pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> o -> sdb$])[
+  + *function* $remove_(h)(sdbd, o)$:
+    + *let* $H' = nothing$
+    + *for each* $Handler in A$:
+      + *if* $o in I$:
+        + $A' := A' union {dirty(<<q\, a\, I without {o}\, M\, O>>)}$
+      + *else*:
+        + $A' := A' union Handler$
+
+    + *return* $<< A, H', R >>$
+]
+
+Next, we have to write the tick function, that actually processes everything that happened with adds and removes.
+
+#pseudocode-list(booktabs: true, title: [$tick: sdb -> sdb$])[
+  + *function* $tick(sdb)$:
+    + *return* $tick_(a)(tick_(h)(sdb))$
+]
+
+#pseudocode-list(booktabs: true, title: [$tick_(a): sdb -> sdb$])[
+  + *function* $tick_(a)(sdbd)$:
+    + *let* $sdb' = sdbd$
+    + *for each* $dirty(Aggregator) in A$:
+      + $O' = a(I)$
+      + $"Ins" = O' without O$
+      + $"Rem" = O without O'$
+      + *for each* $o in "Ins"$:
+        + $sdb' := insert(sdbd, o)$
+      + *for each* $o in "Rem"$:
+        + $sdb' := remove(sdbd, o)$
+    + *return* $sdb'$
+]
+
+#box[
+  #pseudocode-list(booktabs: true, title: [$tick_(h): sdb -> sdb$])[
+    + *function* $swap_(h)(sdbd, h, h')$:
+      + *return* $<< A', (H without {h}) union {h'}, R>>$
+    - \
+    + *function* $tick_(h)(sdb)$:
+      + *let* $sdb' = sdbd$
+      + *for each* $dirty(Handler) in H$:
+        + *let* $O' = O, M' = M$
+        + $"Ins" = { o | o in I and exists.not <<o', p>> in M. o = o'}$
+        + $"Rem" = { <<o, p>> | <<o, p>> in M and o in.not I }$
+        - \
+        + *for each* $o in "Ins"$:
+          + *for each* $p in h(o)$:
+            + $O' := O' union {p}$
+            + $M' := M' union {<<o, p>>}$
+            + $sdb' := insert(sdb', p)$
+        - \
+        + $M' = { <<o, p>> | <<o, p>> in M and o in I}$
+        + $O' = { p | <<o, p>> in M}$
+        + *for each* $O without O'$: _(deleted outputs)_
+          + $sdb' := remove(sdb', p)$
+        + $sdb' := swap_(h)(sdb', dirty(Handler),$
+        + $"                     " <<q, h, I, M', O')>>$
+        // Note: I tried using the alignment character with a line-break on a single line, but lovelace didn't typeset it very well at all (the spacing between it and the surrounding lines was really tiny).
+      + *return* $sdb'$
+  ]
+]
 
 
 // = Algorithm
