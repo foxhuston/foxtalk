@@ -3,12 +3,15 @@
 #import "@preview/quick-maths:0.1.0": shorthands
 
 #show "FoxTalk": smallcaps
+#show "Reactor": smallcaps
 
 #set document(
   title: [#emoji.fox FoxTalk Notes],
   author: "Fox Huston"
 )
-#set page("us-letter", margin: ( x: 0.75in ))
+// #set page("us-letter", margin: ( x: 0.75in ))
+#set page("us-letter")
+#set text(size: 10pt)
 #set heading(numbering: "1.1")
 #set math.equation(numbering: "(1)")
 #set enum(numbering: "1.a.")
@@ -16,7 +19,7 @@
 #let fox(m) = {text(fill: orange)[#emoji.fox #m]}
 
 // `otf-stix` is in the AUR...
-// #show math.equation: set text(font: "Stix Two Math")
+#show math.equation: set text(font: "Stix Two Math")
 
 // Weird. Figures are the only referenceable objects, apparently, so you kind of
 // have to jump through this hoop in order to be able to write @claim or
@@ -39,11 +42,11 @@
 
 ///// ABSTRACT /////////////////////////////////////////////////////////////////
 
-#text(10pt)[
-  #smallcaps([Abstract:]) _blah blah_
-]
+// #text(10pt)[
+//   #smallcaps([Abstract:]) _blah blah_
+// ]
 
-#v(24pt)
+// #v(24pt)
 
 ///// DOCUMENT /////////////////////////////////////////////////////////////////
 
@@ -106,7 +109,7 @@ Let's set up an example: we can write a simple clock handler:
 
 #let timeobj(t) = {$mono("time" = #t)$}
 
-$ angle.l timeobj(\_), \ lambda(r) -> claim(timeobj(r + 1)) angle.r $
+$ angle.l timeobj(\_)," " lambda(r) -> claim(timeobj(r + 1)) angle.r $
 
 I have made _many_ leaps, here, but the gist is that this handler wants to find all objects in the db that look like $timeobj(\_)$, where the underscore matches any value, and the handler-function of that tuple claims there is a new object that says that "time is $r + 1$."
 
@@ -134,6 +137,8 @@ Things we can take advantage of:
 
 == Algorithm
 
+#fox[To Do! Rewrite this so that $A subset.eq D?$ Currently there's no way for handlers to add or remove handlers.]
+
 #show: shorthands.with(
   ($<<$, $angle.l$),
   ($>>$, $angle.r$),
@@ -144,15 +149,18 @@ Things we can take advantage of:
 #let Aggregator = {$<< q, a, S, I, O >>$}
 #let Handler = text(fill: red)[HANDLER]
 // #let Handler = {$<< q, a, I, M, O >>$}
-#let dirty(h) = {$#h^(bullet)$}
+#let dirty(new: false, ..h) = {
+  let bod = h.pos().join(", ")
+  $#bod^#if new { text(fill: red)[$bullet$]} else {$bullet$}$
+}
 // SDB Destructured
 #let sdbd = {$angle.l A, R angle.r$}
 
 / Objects: are things that the database operates on. Individuals are written #object, and a set of objects are written #Objects.
-/ Queries: match (or do not match) objects, written $q matches object$.
-/ Aggregators: Written $Aggregator$, where $q$ is a query, $a$ is a function from $Objects times S -> Objects times S$, $S$ is a set of opaque _sideband_ objects, $I$ is the set of _input_ objects, and $O$ is the set of _output_ objects.
+/ Queries: match (or do not match) objects, written #box[$q matches object$].
+/ Aggregators: Written $Aggregator$, where $q$ is a query, $a$ is a function from $Objects times S -> Objects times S$, $S$ is an opaque _sideband_ object, $I$ is the set of _input_ objects, and $O$ is the set of _output_ objects.
 // / Handlers: Written $Handler$, where $h : object -> Objects$, and $M$ is a set of $angle.l object, object angle.r$ pairs, mapping objects in $I$ to objects in $O$.
-/ Dirty: Handlers are written $dirty(angle.l - angle.r)$.
+/ Dirty: handlers are written $dirty(angle.l - angle.r)$.
 / The Database: is written $sdb = sdbd$, where $A$ is the set of registered aggregators, $H$ is the set of registered handlers, and $R$ the _refcount_ map of $object times NN$.
 
 
@@ -168,7 +176,7 @@ Things we can take advantage of:
 #let tick = "tick"
 #show "tick": r => $upright(sans(#r))$
 
-#pseudocode-list(booktabs: true,title: [$insert: sdb -> o -> sdb$])[
+#pseudocode-list(booktabs: true, title: [$insert: sdb -> object -> sdb$])[
   + *function* $insert(sdbd, o)$:
     + *let* $A' = nothing, R' = R$
     + *if* $<< o, n >> in R$ (where $n$ is any natural number):
@@ -187,21 +195,21 @@ Things we can take advantage of:
 Addition simply increments the refcount in $sdb$ and, for each handler that matches (and that doesn't already have $o$ in its input set), it adds $o$ to that handler's input set and marks it dirty. Removals are a bit more complex:
 
 #pseudocode-list(booktabs: true, title: [$remove: sdb -> sdb$])[
-  + *function* $remove(sdb, o)$:
-    + *let* $R' = sdb_(R)$
-    + *let* $sdb' = sdb$
+  + *function* $remove(sdbd, o)$:
+    + *let* $A' = A$
+    + *let* $R' = R$
     + *if* $<<o, n>> in R'$:
       + *if* $n > 1$:
         + $R' := (R' without {<<o, n>>}) union {<<o, n-1>>}$
       + *else*
         + $R' := R' without {<<o, n>>}$
-        + *let* $sdb' := remove_(a)(sdb', o)$
-    + *return* $<<sdb'_(A), sdb'_(H), R'>>$
+        + $<< A', R' >> := remove_(a)(<< A', R' >>, o)$
+    + *return* $<<A', R'>>$
 ]
 
 Next, we write the removal function on a specific aggregator:
 
-#pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> o -> sdb$])[
+#pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> object -> sdb$])[
   + *function* $remove_(a)(sdbd, o)$:
     + *let* $A' = nothing$
     + *for each* $Aggregator in A$:
@@ -211,7 +219,7 @@ Next, we write the removal function on a specific aggregator:
         + $A' := A' union Aggregator$
 
 
-    + *return* $<< A', H, R >>$
+    + *return* $<< A', R >>$
 ]
 
 Next, we have to write the tick function, that actually processes everything that happened with adds and removes.
@@ -223,70 +231,113 @@ Next, we have to write the tick function, that actually processes everything tha
   + *function* $tick(sdbd)$:
     + *let* $sdb' = sdbd$
     + *for each* $dirty(Aggregator) in A$:
-      + $O', S' = a(I, S)$
+      + $<< O', S' >> = a(I, S)$
       + $"Ins" = O' without O$
       + $"Rem" = O without O'$
       + $sdb' := swap_(a)(sdb', dirty(Aggregator),$
       + $"                     " <<q, a, S', I, O' >>)$
       + *for each* $o in "Ins"$:
-        + $sdb' := insert(sdbd, o)$
+        + $sdb' := insert(sdb', o)$
       + *for each* $o in "Rem"$:
-        + $sdb' := remove(sdbd, o)$
+        + $sdb' := remove(sdb', o)$
     + *return* $sdb'$
 ]
 
-== Specialization: Non-Aggregating Handlers
-
-Using the above abstractions, we can define a non-aggregating handler function that selectively calls its inner function $h$ based on the state of individual input objects. This will allow us to efficiently write operations on _system-level resources_, such as Vulkan instances or cameras.
-
-
-#let nonAgg = "nonAgg"
-#show "nonAgg": r => $upright(sans(#r))$
-
-
-#box[
-  #pseudocode-list(booktabs: true, label: <nonagg>, title: [$nonAgg: (o -> Objects) -> Objects times S -> Objects times S$])[
-    + *function* $nonAgg(h)$:
-      + *return function* $(I, S)$:
-          + *let* $"Ins" = { o | o in I and exists.not <<o', p>> in S. o = o'}$
-          + *let* $"Rem" = { <<o, p>> | <<o, p>> in S and o in.not I }$
-          + *let* $S' = S without "Rem"$
-          - \
-          + *for each* $o in "Ins"$:
-            + *for each* $p in h(o)$:
-              + $S' := S' union {<<o, p>>}$
-          - \
-          + $O' = { p | <<o, p>> in S'}$
-        + *return* $<< O', S'>>$
-  ]
-]
-
-== Examples
-
+== Example
 #set math.equation(numbering: none)
 
-Let's work through an example with for the non-aggregating handler. Say we start with the empty database with one handler, $sdb_0 = << { H }, {} >>$, and say that $H = << q, nonAgg(h), {}, {}, {}>>$. Let's also say that $q$ matches $o_1, o_2,$ and $o_3$. Let's also define
-$ h(o) = cases( {o_2, o_3} &"if" o = o_1,
-                {o_5}      &"if" o = o_2,
-                nothing    &"otherwise") $
-
-
-=== Adding an object
-So if we call: $insert(sdb_0, o_1)$, then:
-
-#let New(what) = {text(fill: red)[#what]}
+#let New(..what) = {text(fill: red)[#(what.pos().join(", "))]}
+#let Removed = New($bracket.b$)
 
 #let dbstate(a, r) = {$lr(angle.l
     #grid(
       columns: 1,
       rows: 20pt,
       align: horizon,
-      $lr(\{, size:#150%) #a lr(\}, size: #150%)$,
-      $lr(\{, size: #150%) #r lr(\}, size: #150%)$
+      $lr(\{, size:#150%) #a.join(", ") lr(\}, size: #150%)$,
+      $lr(\{, size: #150%) #r.join(", ") lr(\}, size: #150%)$
     ) angle.r)$}
 
-+ $R$ is empty, so we take the *else* case on line 6 of #insert. We only have one handler in $A$, which is $H$. By definition, the predicate on line 8 holds, so we change the state of the databse to be: $
-sdb_1 = dbstate(dirty(<< q\, nonAgg(h)\, {}\, {o_1}\, {}>>), << o_1\, 1 >>) $
+#let db_counter = counter("dbc")
+#db_counter.update(0)
+
+#let dbcc = context {
+  $sdb_(#db_counter.display())$
+}
+
+#let dbc = context {
+  db_counter.step()
+  $dbcc$
+}
+
+As a first example, let's say our objects are elements in $ZZ$, and our query matches $o$ where $o > 5 and o < 20$. Our aggregating function $a(O, S) = <<sum_(o in O) o, S >> $. So to start, our initial database state will be $
+    dbcc = dbstate(<< q, a , {}, {}, {} >> ; " ").
+$
+
++ To start, let's insert an object that doesn't match $q$ and see what happens: $
+    dbc &= insert(sdb_(0), 3) \
+        &= dbstate(
+          << q, a , {}, {}, {} >>;
+          New(<< 3, 1>>)).
+$ #fox[Show how...] So our object is inserted into the refcount set, even though no aggregator is actually matching on it.
+
++ If we then insert something that _does_ match a handler, say $dbc &= insert(sdb_(1), 7)$, then $
+  dbcc = dbstate(
+    dirty(new: #true, << q, a , {}, {New(7)}, {} >>);
+    << 3, 1 >>, New(<< 7, 1 >>)
+  ).
+$
+
++ On the next tick, we process all dirty handlers, and so $
+  dbc = dbstate(
+    << q, a , {}, {7}, {New(7)} >> ;
+    << 3, 1 >>, << 7, New(2) >>
+  ).
+$ Note that the aggregator in $dbcc$ is _not_ marked dirty, because 7 was already in its input set. If we then add another number, say 10, then $
+  dbc = dbstate(
+    << q, a , {}, {7, New(10)}, {Removed, New(17)} >> ;
+    << 3, 1 >>, << 7, New(1) >>, New(<< 17, 1 >>)
+  ).
+$
+
+== Example: Non-Aggregating Handlers
+#db_counter.update(0)
+
+For many cases in FoxTalk, our handler will (morally) be a function $h: object -> Objects$, that is, we think of our operations on an individual object rather than on the entire set. If we were to just use a simple for loop and call $h$ on each object in our input set and union the outputs, this would be semantically correct, but in a real system would impose a lot of unnecessary work.
+
+In this example, we can define a higher-order aggregator function that selectively calls its inner function $h$ based on the state of individual input objects. This will allow us to efficiently write operations on _system-level resources_, such as Vulkan instances or cameras.
+
+#let nonAgg = "nonAgg"
+#show "nonAgg": r => $upright(sans(#r))$
+
+#pseudocode-list(booktabs: true, label: <nonagg>, title: [$nonAgg: (object -> Objects) -> Objects times S -> Objects times S$])[
+  - _Note that $S : { <<object, Objects >>}$ _
+  + *function* $nonAgg(h)$:
+    + *return function* $(I, S)$:
+        + *let* $"Ins" = { o | o in I and exists.not <<o', p>> in S. o = o'}$
+        + *let* $"Rem" = { <<o, O>> | <<o, O>> in S and o in.not I }$
+        + *let* $S' = S without "Rem"$
+        - \
+        + *for each* $o in "Ins"$:
+          + $S' := S' union {<<o, h(o)>>}$
+        - \
+        + *let* $O' = union.big_(<< o, p >> in S') p $
+      + *return* $<< O', S'>>$
+]
+
+Let's work through an example with for the non-aggregating handler. Say we start with the empty database with one handler, $dbcc = << { H }, {} >>$, and say that $H = << q, nonAgg(h), {}, {}, {}>>$. Let's also say that $q$ matches $o_1, o_2,$ and $o_3$. Let's also define
+$ h(o) = cases( {o_2, o_3} &"if" o = o_1,
+                {o_5}      &"if" o = o_2,
+                nothing    &"otherwise") $
+
+
+=== Adding an object
+
+So if we call: $insert(dbcc, o_1)$, then:
+
+
++ $R$ is empty, so we take the *else* case on line 6 of #insert. We only have one handler in $A$, which is $H$. By definition, the predicate on line 8 holds, so we change the state of the database to be: $
+dbc = dbstate(dirty(new: #true, << q, nonAgg(h), {}, {New(o_1)}, {}>>) ; New(<< o_1, 1 >>) ) $
 
 + Next, we call tick, which will find our #dirty([H]), and call its handler function with the parameters $({o_1}, {})$. The handler function is the anonymous function defined in nonAgg starting on line 2, and we can take a look at what it does:
 
@@ -305,21 +356,46 @@ sdb_1 = dbstate(dirty(<< q\, nonAgg(h)\, {}\, {o_1}\, {}>>), << o_1\, 1 >>) $
 + We now have $O'$ and $S'$ as above, and we compute new insert sets and removal sets based on the previous output set of this handler (lines 7 and 8). In this case, $"Ins" = O'$ and $"Rem" = {}$.
 
 + On line 9, We unmark $H$ as dirty, and store its new sideband and output sets. At this point, say that $
-    S &= {<<o_1, o_2>>, <<o_1, o_3>>}, \
-    sdb_2 &= dbstate(<< q\, nonAgg(h)\, S\,  {o_1}\, {o_2, o_3}, << o_1\, 1 >>)
+    S   &= {New(<<o_1, o_2>>), New(<<o_1, o_3>>)}, \
+    dbc &= dbstate(<< q, nonAgg(h), S,  {o_1}, {New(o_2), New(o_3)} ; << o_1, 1 >>)
 $
 
 + For each inserted object, we call insert: $
-    sdb_3 &= insert(sdb_2, o_2) \
-          &= dbstate(dirty(<< q\, nonAgg(h)\, S\, {o_1, New(o_2)}\, {o_2, o_3}), << o_1\, 1 >>\, New(<<o_2\, 1>>))
+    dbc &= insert(sdb_2, o_2) \
+        &= dbstate(dirty(new: #true, << q, nonAgg(h), S, {o_1, New(o_2)}, {o_2, o_3}) ; << o_1, 1 >>, New(<<o_2, 1>>))
 $
 
-+ On the next tick, we go through the same process again. Inside of nonAgg, $"Ins" = { o_2 }$ and $"Rem" = {}$. Our new $S = {<<o_1, o_2>>, <<o_1, o_3>>, New(<<o_2\, o_5>>)}$, and $O = { o_2, o_3, New(o_5) }$. Our current DB state after this tick is: $
-    sdb_4 &= dbstate(<< q\, nonAgg(h)\, S\, {o_1, o_2}\, {o_2, o_3, New(o_5)}, << o_1\, 1 >>\, <<o_2\, 1>>)
++ On the next tick, we go through the same process again. Inside of nonAgg, $"Ins" = { o_2 }$ and $"Rem" = {}$. Our new $S = {<<o_1, o_2>>, <<o_1, o_3>>, New(<<o_2, o_5>>)}$, and $O = { o_2, o_3, New(o_5) }$. Our current DB state after this tick is: $
+    dbc &= dbstate(<< q, nonAgg(h), S, {o_1, o_2}, {o_2, o_3, New(o_5)} ; << o_1, 1 >>, <<o_2, 1>>, New(<<o_5, 1 >>))
 $
 
-=== Removing an object.
+=== Removing an object
+Next, let's say we want to remove $o_1$, so we
 
++ Call $dbc = remove(sdb_4, o_1)$. Now we follow the trail from removal: $ dbcc = dbstate(dirty(<<q, nonAgg(h), S, New({o_2}), {o_2, o_3, o_5} >>) ; Removed, << o_2, 1 >>, << o_5, 1 >>) $ _Note that the $Removed$ is just to draw attention to what was removed_
+
++ Calling $dbc = tick(sdb_6)$ will run the inner nonAgg handler, and this time:
+
+  + $"Ins" = {}$, and $"Rem" = {<< o_1, o_2 >>, << o_1, o_3 >>}$, since $o_1$ is no longer present in $I$.
+
+  + $S' = {<<o_2, o_5 >>}$, since $o_2$ and $o_3$ are in Rem, and since $O'$ is computed from $S'$, $O' = {o_5}$.
+
++ Back in tick, we calculate that $"Rem" = {o_2, o_3, o_5} without {o_5} = { o_2, o_3 }$. We update $dbcc'$ so that $ dbcc' = dbstate(
+  << q, nonAgg(h), New({<<o_2, o_5>>}), {o_2}, New({o_5})>> ;
+  << o_2, 1 >>, << o_5, 1>>
+). $
+
++ But now, on lines 13--14 in tick, we call remove on all of the objects that are no longer being asserted by our handler. So now we have a call to $remove(dbcc, o_2)$, so that $ dbc = dbstate(
+  dirty(<< q, nonAgg(h), {<<o_2, o_5>>}, New({}), {o_5}>>) ;
+  Removed, << o_5, 1>>
+). $
+
++ Going through the last tick would be similar to the last, and we would end up with our final state of:$ dbc= dbstate(
+  << q, nonAgg(h), New({}), {}, New({})>> ;
+  Removed
+). $
+
+Crucially, by allowing opaque sideband information, we can emulate the original case of two separate handler cases, while keeping the actual Reactor functions small and focused.
 
 == Adding Handlers
 
@@ -336,4 +412,4 @@ To add a handler $h'$, we have to set its initial input set to: $ { o | o in uni
 = Questions
 
 - How do we respond to events from the OS?
-- How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.)
+- How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.):
