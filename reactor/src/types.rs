@@ -1,5 +1,6 @@
 // type FFIFn = extern "C" fn();
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::marker::PhantomData;
 //
@@ -15,17 +16,27 @@ use std::marker::PhantomData;
 
 type S<O> = HashMap<O, HashSet<O>>;
 
+pub trait Query<O: Eq + Hash + Clone + Sized + Debug> {
+    fn query(o: O) -> bool;
+}
+
+pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
+    fn handle(o: O) -> HashSet<O>;
+}
+
 #[allow(non_snake_case)] ////////////////////////////////////////////////
-pub struct ReactorHandler<O>
-    where O: Eq + Hash + Clone + Sized
+pub struct ReactorHandler<'a, O>
+    where O: Eq + Hash + Clone + Sized + Debug
 {
+    q: dyn Query<O>,
+    h: &'a dyn Handler<O>,
     I: HashSet<O>,
     O: HashSet<O>,
     S: S<O>,
     dirty: bool,
 }
 
-impl<O: Eq + Hash + Clone> ReactorHandler<O> {
+impl<O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O> {
     pub fn new() -> Self {
         ReactorHandler {
             I: HashSet::new(),
@@ -44,13 +55,17 @@ impl<O: Eq + Hash + Clone> ReactorHandler<O> {
     }
 
     pub fn non_aggregating_handle(&mut self) -> (HashSet<O>, S<O>) {
-        for x in self.I.union(&self.S.keys()) {
+        let s_keys_set = &self.S.keys().clone().collect::<HashSet<&O>>();
+
+        let i_refs: &HashSet<&O> = &self.I.iter().collect::<HashSet<&O>>();
+
+        for x in i_refs.union(&s_keys_set) {
             let needs_inserting = !self.S.contains_key(x);
             let needs_removing = !self.I.contains(x);
-            if (needs_removing) {
+            if needs_removing {
                 self.S.remove(x);
             }
-            if (needs_inserting) {
+            if needs_inserting {
                 // let results = self.h
                 // self.S.insert(x.clone(), HashSet::new());
             }
