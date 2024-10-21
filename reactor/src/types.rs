@@ -19,17 +19,17 @@ type NonAggHandlerS<O> = HashMap<O, HashSet<O>>;
 pub struct ReactorHandler<O, S>
     where O: Eq + Hash + Clone + Sized + Debug
 {
-    q: fn(&O) -> bool,
-    a: fn(HashSet<O>, S) -> (HashSet<O>, S),
-    S: S,
-    I: HashSet<O>,
-    O: HashSet<O>,
-    dirty: bool,
+    pub q: fn(&O) -> bool,
+    pub a: Box<dyn Fn(HashSet<O>, S) -> (HashSet<O>, S)>,
+    pub S: S,
+    pub I: HashSet<O>,
+    pub O: HashSet<O>,
+    pub dirty: bool,
 }
 
 impl<O: Eq + Hash + Clone + Debug + Sized, S> ReactorHandler<O, S> {
     pub fn new(q: fn(&O) -> bool,
-               a: fn(HashSet<O>, S) -> (HashSet<O>, S),
+               a: Box<dyn Fn(HashSet<O>, S) -> (HashSet<O>, S)>,
                s: S) -> Self {
         ReactorHandler {
             q,
@@ -40,22 +40,6 @@ impl<O: Eq + Hash + Clone + Debug + Sized, S> ReactorHandler<O, S> {
             dirty: false,
         }
     }
-
-    pub fn add_input(&mut self, input: O) {
-        self.I.insert(input);
-    }
-
-    pub fn remove_input(&mut self, input: O) {
-        self.I.remove(&input);
-    }
-
-    fn remove_output(&mut self, outputs: Vec<&O>) {
-        for x in outputs {
-            self.O.remove(&x);
-        }
-    }
-
-
 }
 
 impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<O>> {
@@ -66,7 +50,7 @@ impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<
 
     // However, doing that without changing anything else causes errors. I think we either need to pass in a Box because O isn't sized
     // at compile time, or we need to pass the ref around, and do lifetimes on the struct.
-    pub fn non_aggregating_handle(h: impl Fn(&O) -> HashSet<O> + 'a) -> Box<dyn FnOnce (HashSet<O>, NonAggHandlerS<O>) -> (HashSet<O>, NonAggHandlerS<O>) + 'a> {
+    pub fn non_aggregating_handle(h: impl Fn(&O) -> HashSet<O> + 'a) -> Box<dyn Fn (HashSet<O>, NonAggHandlerS<O>) -> (HashSet<O>, NonAggHandlerS<O>) + 'a> {
         let ret_fn = move |input: HashSet<O>, s: NonAggHandlerS<O> | {
 
             let mut current_output: HashSet<O> = HashSet::new();
@@ -104,58 +88,38 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn can_create_handler_structs() {
-
-        // The interface here should be that:
-
-        // Create a struct that contains what you want to query about.
-        // Essentially, something that relates to O
-
-        // For triples, this would contain a subject, predicate, and object that could be Queries
-        struct GtQuery {
-            gt: u64,
-        }
-
-        // Then, we have to show how our object actually interacts with O. If this were triples, then
-        // this might be something like:
-        /*
-            (Q.subject == other.subject || q.subject == QUERY) &&
-            (Q.pred == other.pred || q.pred == QUERY) &&
-            (Q.object == other.object || q.object == QUERY) &&
-         */
-        // For test, we create a simple greater than query
-
-        struct SbInt {
-            i: u64
-        }
-
-        impl GtQuery {
-            fn matches(self, other: u64) -> bool {
-                self.gt > other
+    pub fn non_aggregating_handler_works() {
+        fn handle(o: &u64) -> HashSet<u64> {
+            match o {
+                1 => {
+                    let mut results = HashSet::new();
+                    results.insert(2);
+                    results.insert(3);
+                    results
+                }
+                2 => {
+                    let mut results = HashSet::new();
+                    results.insert(5);
+                    results
+                }
+                _ => HashSet::new()
             }
         }
 
+        let non_agg_handler_box = ReactorHandler::non_aggregating_handle(handle);
 
-        let query10 = GtQuery { gt: 10 };
-        let query100 = GtQuery { gt: 100 };
-        // let handler10 = ReactorHandler::new(query10);
+        let mut input: HashSet<u64> = HashSet::new();
+        input.insert(1);
+        let s: NonAggHandlerS<u64> = HashMap::new();
+        let (output1, new_s1) = non_agg_handler_box(input.clone(), s);
+        input.extend(output1.clone());
 
-        let number_needing_handling_10:u64  = 16;
-        let number_needing_handling_100:u64  = 160; // also handled by 10
-        let number_not_needing_handling:u64  = 6;
+        let (output2, new_s2) = non_agg_handler_box(input.clone(), new_s1);
+        input.extend(output2.clone());
 
-        //
-        //
-        // let handler10 = ReactorHandler {
-        //     I: HashSet::new(),
-        //     O: HashSet::new(),
-        //     S: HashSet::new(),
-        //     q: |o| query10.matches(o),
-        //     h: |o, s| {
-        //
-        //         (o, 10)
-        //     }
-        // };
+        assert_eq!(new_s2.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
+        assert_eq!(new_s2.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
+        assert_eq!(new_s2.get(&3).unwrap().is_empty(), true);
 
 
     }
