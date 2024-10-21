@@ -163,6 +163,8 @@ Things we can take advantage of:
 / Dirty: handlers are written $dirty(angle.l - angle.r)$.
 / The Database: is written $sdb = sdbd$, where $A$ is the set of registered aggregators, $H$ is the set of registered handlers, and $R$ the _refcount_ map of $object times NN$.
 
+Also note that, given some variable that represents a tuple, I will use $a.q$ to e.g. refer to the "$q$" field of $a$.
+
 
 #let insert = "insert"
 #show "insert": r => $upright(sans(#r))$
@@ -242,6 +244,29 @@ Next, we have to write the tick function, that actually processes everything tha
         + $sdb' := remove(sdb', o)$
     + *return* $sdb'$
 ]
+
+Finally, we need a way to insert and remove aggregators themselves.
+
+#pseudocode-list(booktabs: true, title: [$insert_a: sdb -> << q, a, S >> -> sdb$])[
+  + *function* $insert_(a)(sdbd, << q, A, S >>)$:
+    + *let* $cal(O) = union.big_(a in A) a.O$
+    + *let* $cal(I) = { o | o in cal(O) and q matches o}$
+    + #line-label(<agg-construction>) *let* $a' = dirty(<< q, a, S, cal(I), {} >>)$
+    + *return* $<< A union {a}, R >>$
+]
+
+Since we have no "central store" in this model, we need to generate the current, unified state of the world, which is just the union of all of the outputs of all of the existing handlers. We filter this set by what the new query matches, and then use that as the input set to a dirty version of the tuple. Note that the input object is not an aggregator proper, since it does not have the input or output sets. Instead, the aggregator is constructed on @agg-construction.
+
+#pseudocode-list(booktabs: true, title: [$insert_a: sdb -> a -> sdb$])[
+  + *function* $remove_(a)(sdbd, Aggregator)$:
+    + *let* $A' = A without {Aggregator}$
+    + *let* $R' = R$
+    + *for each* $o in O$:
+      + $<< A', R' >> := remove(<< A', R' >>, o)$
+
+    + *return* $<< A', R' >>$
+]
+
 
 == Example
 #set math.equation(numbering: none)
@@ -412,4 +437,4 @@ To add a handler $h'$, we have to set its initial input set to: $ { o | o in uni
 = Questions
 
 - How do we respond to events from the OS?
-- How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.):
+- How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.)
