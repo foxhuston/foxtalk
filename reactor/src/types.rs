@@ -14,34 +14,29 @@ use std::marker::PhantomData;
 // }
 //
 
-type S<O> = HashMap<O, HashSet<O>>;
-
-pub trait Query<O: Eq + Hash + Clone + Sized + Debug> {
-    fn query(o: O) -> bool;
-}
-
-pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
-    fn handle(o: O) -> HashSet<O>;
-}
-
+type NonAggHandlerS<O> = HashMap<O, HashSet<O>>;
 #[allow(non_snake_case)] ////////////////////////////////////////////////
-pub struct ReactorHandler<'a, O>
+pub struct ReactorHandler<O, S>
     where O: Eq + Hash + Clone + Sized + Debug
 {
-    q: dyn Query<O>,
-    h: &'a dyn Handler<O>,
+    q: fn(&O) -> bool,
+    a: fn(HashSet<O>, S) -> (HashSet<O>, S),
+    S: S,
     I: HashSet<O>,
     O: HashSet<O>,
-    S: S<O>,
     dirty: bool,
 }
 
-impl<O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O> {
-    pub fn new() -> Self {
+impl<O: Eq + Hash + Clone + Debug + Sized, S> ReactorHandler<O, S> {
+    pub fn new(q: fn(&O) -> bool,
+               a: fn(HashSet<O>, S) -> (HashSet<O>, S),
+               s: S) -> Self {
         ReactorHandler {
+            q,
+            a,
+            S: s,
             I: HashSet::new(),
             O: HashSet::new(),
-            S: HashMap::new(),
             dirty: false,
         }
     }
@@ -54,45 +49,55 @@ impl<O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O> {
         self.I.remove(&input);
     }
 
-    pub fn non_aggregating_handle(&mut self) -> (HashSet<O>, S<O>) {
-        let s_keys_set = &self.S.keys().clone().collect::<HashSet<&O>>();
+    fn remove_output(&mut self, outputs: Vec<&O>) {
+        for x in outputs {
+            self.O.remove(&x);
+        }
+    }
 
-        let i_refs: &HashSet<&O> = &self.I.iter().collect::<HashSet<&O>>();
 
-        for x in i_refs.union(&s_keys_set) {
-            let needs_inserting = !self.S.contains_key(x);
-            let needs_removing = !self.I.contains(x);
-            if needs_removing {
-                self.S.remove(x);
+}
+
+impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<O>> {
+    // Hmm. A direct translation from the paper is that this struct should take in an `a: (S X O (input)) -> (S X O (output)),
+    // and that the (nonAgg) is a helper function that takes in an h (o -> O (output)) and then generates the `a` using it. So,
+    // it needs to close over the h function. However, in Rust, if we want to return a function with closures, we can't use `fn`,
+    // instead we need to use one of Fn, FnOnce, or FnMut.
+
+    // However, doing that without changing anything else causes errors. I think we either need to pass in a Box because O isn't sized
+    // at compile time, or we need to pass the ref around, and do lifetimes on the struct.
+    pub fn non_aggregating_handle(h: fn(&O) -> HashSet<O>) -> Box<(dyn FnOnce (HashSet<O>, NonAggHandlerS<O>) -> (HashSet<O>, NonAggHandlerS<O>))> {
+        let ret_fn = move |input: HashSet<O>, s: NonAggHandlerS<O> | {
+
+            let mut current_output: HashSet<O> = HashSet::new();
+            let mut new_s: NonAggHandlerS<O> = HashMap::new();
+            let mut to_remove: HashSet<&O> = HashSet::new();
+
+            for (li, outs) in s.iter() {
+                if input.contains(&li) {
+                    new_s.insert(li.clone(), outs.clone());
+                    current_output.extend(outs.clone());
+                } else {
+                    to_remove.insert(&li);
+                }
             }
-            if needs_inserting {
-                // let results = self.h
-                // self.S.insert(x.clone(), HashSet::new());
+
+            for i in input.iter() {
+                if !s.contains_key(i) {
+                    let results = h(move i);
+                    new_s.insert(i.clone(), results.clone());
+                    current_output.extend(results.clone());
+                }
             }
+
+            (current_output, new_s)
 
         };
-        // let i_in_s = self.S.iter().map(|(o, _)| o.clone()).collect::<HashSet<O>>();
-        // let to_insert = self.I.difference(&i_in_s);
-        // let to_remove = i_in_s.difference(&self.I);
-        // //
-        // // // new_output is everything that was in self.S, unless the key was in to_remove
-        // //
-        // let new_output_after_removal =
-            // .map(|(input, outputSet)| outputSet.clone()).collect::<HashSet<O>>();
-        //
-        // let insertion_output = to_insert.map(|i| self.h);
-        //
-        // let new_output: HashSet<O> = new_output_after_removal.union(insertion_output);
-        //
-        // let new_state = self.S.iter()
-        //     .filter(|(input, outputSet)| !to_remove.contains(input))
-        //     // .union(insertion_output)
-        //     // .map(|(input, outputSet)| (input.clone(), outputSet.clone()))
-        //     // .chain(insertion_output)
-        //     .collect();
-        // //
-        // (new_output, new_state)
-        todo!()
+
+        let ret_box = Box::new(ret_fn);
+
+        ret_box
+
     }
 }
 
