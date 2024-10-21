@@ -66,7 +66,7 @@ impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<
 
     // However, doing that without changing anything else causes errors. I think we either need to pass in a Box because O isn't sized
     // at compile time, or we need to pass the ref around, and do lifetimes on the struct.
-    pub fn non_aggregating_handle(h: fn(&O) -> HashSet<O>) -> Box<(dyn FnOnce (HashSet<O>, NonAggHandlerS<O>) -> (HashSet<O>, NonAggHandlerS<O>))> {
+    pub fn non_aggregating_handle(h: impl Fn(&O) -> HashSet<O> + 'a) -> Box<dyn FnOnce (HashSet<O>, NonAggHandlerS<O>) -> (HashSet<O>, NonAggHandlerS<O>) + 'a> {
         let ret_fn = move |input: HashSet<O>, s: NonAggHandlerS<O> | {
 
             let mut current_output: HashSet<O> = HashSet::new();
@@ -84,7 +84,7 @@ impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<
 
             for i in input.iter() {
                 if !s.contains_key(i) {
-                    let results = h(move i);
+                    let results = h(i);
                     new_s.insert(i.clone(), results.clone());
                     current_output.extend(results.clone());
                 }
@@ -93,11 +93,8 @@ impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<
             (current_output, new_s)
 
         };
-
-        let ret_box = Box::new(ret_fn);
-
-        ret_box
-
+        
+        Box::from(ret_fn)
     }
 }
 

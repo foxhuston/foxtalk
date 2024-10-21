@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 use crate::types::{ReactorHandler};
-pub struct Reactor<O>
-    where O: Eq + Hash + Clone + Sized + Debug{ 
-    pub handlers: Vec<ReactorHandler<O>>,
+pub struct Reactor<O, S>
+    where O: Eq + Hash + Clone + Sized + Debug { 
+    pub handlers: Vec<ReactorHandler<O, S>>,
     pub ref_counts: HashMap<O, u64>
 }
 
-impl<O> Reactor<O>
+impl<O, S> Reactor<O, S>
 where O: Eq + Hash + Clone + Sized + Debug  {
     pub fn new() -> Self {
         Reactor {
@@ -17,7 +17,7 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         }
     }
 
-    pub fn add_handler(&mut self, handler: ReactorHandler<O>) {
+    pub fn add_handler(&mut self, handler: ReactorHandler<O, S>) {
         self.handlers.push(handler);
     }
 
@@ -66,12 +66,16 @@ mod tests {
                 _ => HashSet::new()
             }
         }
+        
+        let non_agg_handler_box = ReactorHandler::non_aggregating_handle(handle);
+        
+        let non_agg_handler = *non_agg_handler_box;
 
         fn paper_query(other: &u64) -> bool {
             *other == 1 || *other == 2
         }
         
-        let handler = ReactorHandler::new(handle, paper_query);
+        let handler = ReactorHandler::new(paper_query, non_agg_handler, HashSet::new());
 
         let mut reactor = Reactor::new();
         reactor.add_handler(handler);
