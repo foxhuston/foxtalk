@@ -5,6 +5,10 @@
 #show "FoxTalk": smallcaps
 #show "Reactor": smallcaps
 
+// There *must* be a way to set the default emoji font...
+#show emoji.face.meh: set text(font: "JoyPixels")
+#show emoji.fox: set text(font: "JoyPixels")
+
 #set document(
   title: [#emoji.fox FoxTalk Notes],
   author: "Fox Huston"
@@ -64,6 +68,13 @@
 #let next       = term("next")
 #let sstep      = {$-->^(Handler)$}
 #let made       = {$==>^"gen"$}
+
+= #fox[Todo]
+- Redo #(sym.section)2. The Denotation section is good, but all the definitions are out of date.
+- Settle on whether the things in $A$ are "aggregators," "handlers," or "programs." I'm honestly leaning towards "programs," since I think that captures more closely what the intention of each of these things are. Anyways, I need to update accordingly.
+- Unify the logical clock examples. In #(sym.section)3 I write triples like `time = 0`, while in the actual worked-out example, I write just `t0`.
+- Flesh out/clean up the text for the examples. I've written out selected snapshots of the database state for my own notes, but it would be good to write in some guidance.
+- Come up with a better "matches" operator #emoji.face.meh
 
 = Terms & Definitions:
 
@@ -136,9 +147,6 @@ Things we can take advantage of:
 - If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
 
 == Algorithm
-
-#fox[To Do! Rewrite this so that $A subset.eq D?$ Currently there's no way for handlers to add or remove handlers.]
-
 #show: shorthands.with(
   ($<<$, $angle.l$),
   ($>>$, $angle.r$),
@@ -236,26 +244,31 @@ Next, we have to write the tick function, that actually processes everything tha
       + $<< O', S' >> = a(I, S)$
       + $"Ins" = O' without O$
       + $"Rem" = O without O'$
-      + $sdb' := swap_(a)(sdb', dirty(Aggregator),$
+      + #line-label(<tick-swap>) $sdb' := swap_(a)(sdb', dirty(Aggregator),$
       + $"                     " <<q, a, S', I, O' >>)$
       + *for each* $o in "Ins"$:
         + $sdb' := insert(sdb', o)$
       + *for each* $o in "Rem"$:
         + $sdb' := remove(sdb', o)$
-    + *return* $sdb'$
+    + #line-label(<tick-return>) *return* $sdb'$
 ]
 
 Finally, we need a way to insert and remove aggregators themselves.
 
-#pseudocode-list(booktabs: true, title: [$insert_a: sdb -> << q, a, S >> -> sdb$])[
-  + *function* $insert_(a)(sdbd, << q, A, S >>)$:
-    + *let* $cal(O) = union.big_(a in A) a.O$
-    + *let* $cal(I) = { o | o in cal(O) and q matches o}$
-    + #line-label(<agg-construction>) *let* $a' = dirty(<< q, a, S, cal(I), {} >>)$
+#pseudocode-list(booktabs: true, title: [$insert_a: sdb -> << q, a, S, O >> -> sdb$])[
+  + *function* $insert_(a)(sdbd, << q, A, S, O >>)$:
+    + *let* $A' = A, R' = R$
+    + *for each* $o in O$:
+      + $<< A', R' >> := insert(<<A', R'>>, o)$
+    + #line-label(<ins-world-o>) *let* $cal(O) = O union (union.big_(a in A) a.O$)
+    + #line-label(<ins-world-i>) *let* $cal(I) = { o | o in cal(O) and q matches o}$
+    + #line-label(<agg-construction>) *let* $a' = dirty(<< q, a, S, cal(I), O >>)$
     + *return* $<< A union {a}, R >>$
 ]
 
 Since we have no "central store" in this model, we need to generate the current, unified state of the world, which is just the union of all of the outputs of all of the existing handlers. We filter this set by what the new query matches, and then use that as the input set to a dirty version of the tuple. Note that the input object is not an aggregator proper, since it does not have the input or output sets. Instead, the aggregator is constructed on @agg-construction.
+
+This is by far the slowest operation in this entire system, but adding and removing handlers will happen _far_ less often than the existing handlers needing to evaluate changes to their input sets, so that's what this algorithm optimizes for.
 
 #pseudocode-list(booktabs: true, title: [$insert_a: sdb -> a -> sdb$])[
   + *function* $remove_(a)(sdbd, Aggregator)$:
@@ -268,7 +281,7 @@ Since we have no "central store" in this model, we need to generate the current,
 ]
 
 
-== Example
+== Example: Aggregator
 #set math.equation(numbering: none)
 
 #let New(..what) = {text(fill: red)[#(what.pos().join(", "))]}
@@ -324,6 +337,37 @@ $ Note that the aggregator in $dbcc$ is _not_ marked dirty, because 7 was alread
     << 3, 1 >>, << 7, New(1) >>, New(<< 17, 1 >>)
   ).
 $
+
+== Example: A Clock Program
+#db_counter.update(0)
+
+#let T(n) = {$mono(t#n)$}
+
+Let $q$ match symbols like `t1`, `t2`, ..., and let $
+  a(<<I, S>>) = mono("inc")(mono("max")(I))
+$, where `max` finds the largest `tn`, and `inc` takes in `t(n)` and produces `t(n + 1)`. #fox[I am being _mega_ loose with the notation, here...] Let $dbcc$ be the empty database: $
+  dbcc = dbstate(" " ; " ").
+$
+
+Then, let
+
+$ dbc &= insert_(a)(sdb_0, << q, a, {}, {#T(1)}) \
+      &= dbstate(
+  dirty(<< q, a, {}, {#T(1)}, {#T(1)} >>);
+  << #T(1), 1 >>
+). $
+
+Note that `t1` shows up in the input set, because we union the initial output set into $cal(O)$ on @ins-world-o, and $q$ will match `t1` on @ins-world-i. Next, calling tick will yield $
+  dbcc' &= dbstate(
+    <<q, a, {}, {#T(1)}, {New(#T(2))} ;
+    << #T(1), 1 >>, New(<< #T(2), 1 >>)
+  )
+$ after @tick-swap, and $
+  dbc &= dbstate(
+    <<q, a, {}, {Removed, New(#T(2))}, {#T(2)} ;
+    Removed, << #T(2), 1 >>
+  )
+$ after @tick-return. Each tick, the cycle will repeat, with $a$ always deriving the next `t`. With this handler in place, any number of other handlers can depend on the output---that is, have their queries match objects like `t(n)`, and they will be updated every tick with the new time value. In this way, a single handler can drive any number of other handlers that need to run every tick.
 
 == Example: Non-Aggregating Handlers
 #db_counter.update(0)
@@ -421,18 +465,6 @@ Next, let's say we want to remove $o_1$, so we
 ). $
 
 Crucially, by allowing opaque sideband information, we can emulate the original case of two separate handler cases, while keeping the actual Reactor functions small and focused.
-
-== Adding Handlers
-
-To add a handler $h'$, we have to set its initial input set to: $ { o | o in union.big_{a in A} a. O and h'. q(o)}. $ This is an expensive operation, but I believe that the insertion and deletion of handlers will be far less frequent than the actual tick operations, so that's what I've optimized for.
-
-
-
-
-
-
-
-
 
 = Questions
 
