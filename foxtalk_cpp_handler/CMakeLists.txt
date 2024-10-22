@@ -18,5 +18,6 @@ FetchContent_MakeAvailable(googletest)
 
 ##### TRIPLE TEST #####
 include_directories(include/)
-add_executable(triple_test triple_tests.cpp debug_utils.cpp)
+add_executable(triple_test triple_tests.cpp debug_utils.cpp
+        include/foxtalk_handler.h)
 target_link_libraries(triple_test gtest_main)

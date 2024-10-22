@@ -83,11 +83,11 @@ TEST_F(TripleTests, TripleRoundTrip) {
     std::cout << "===== ORIG =====================================================================" << std::endl;
     dbg_dump_buffer_region(buffer, 0, 64);
 
-    Triple nWrite = {
-            TripleNoun{"lexi"s},
-            TripleNoun{"is a"s},
-            TripleNoun{"husky"s}
-    };
+    Triple nWrite{{
+                          TripleNoun{"lexi"s},
+                          TripleNoun{"is a"s},
+                          TripleNoun{"husky"s}
+                  }};
 
     nWrite.write_to_buffer(buffer, 0);
     std::cout << "===== POST WRITE ===============================================================" << std::endl;
@@ -100,37 +100,37 @@ TEST_F(TripleTests, TripleRoundTrip) {
 }
 
 TEST_F(TripleTests, TripleSubjectAccessor) {
-    Triple nWrite = {
-            TripleNoun{"lexi"s},
-            TripleNoun{"is a"s},
-            TripleNoun{"husky"s}
-    };
+    Triple nWrite{{
+                          TripleNoun{"lexi"s},
+                          TripleNoun{"is a"s},
+                          TripleNoun{"husky"s}
+                  }};
 
-    auto subj = nWrite.get_subject<std::string>();
+    auto subj = nWrite.at<std::string>(0);
 
     EXPECT_EQ(subj, "lexi"s);
 }
 
 TEST_F(TripleTests, TriplePredicateAccessor) {
-    Triple nWrite = {
-            TripleNoun{"lexi"s},
-            TripleNoun{"is a"s},
-            TripleNoun{"husky"s}
-    };
+    Triple nWrite{{
+                          TripleNoun{"lexi"s},
+                          TripleNoun{"is a"s},
+                          TripleNoun{"husky"s}
+                  }};
 
-    auto pred = nWrite.get_predicate<std::string>();
+    auto pred = nWrite.at<std::string>(1);
 
     EXPECT_EQ(pred, "is a"s);
 }
 
 TEST_F(TripleTests, TripleObjectAccessor) {
-    Triple nWrite = {
-            TripleNoun{0ul},
-            TripleNoun{1ul},
-            TripleNoun{42ul}
-    };
+    Triple nWrite{{
+                          TripleNoun{0ul},
+                          TripleNoun{1ul},
+                          TripleNoun{42ul}
+                  }};
 
-    if(auto subj = nWrite.get_object<uint64_t>()) {
+    if (auto subj = nWrite.at<uint64_t>(2)) {
         EXPECT_EQ(subj, 42ul);
     } else {
         FAIL();
@@ -138,35 +138,35 @@ TEST_F(TripleTests, TripleObjectAccessor) {
 }
 
 TEST_F(TripleTests, TripleSubjectAccessorWrongType) {
-    Triple nWrite = {
-            TripleNoun{"lexi"s},
-            TripleNoun{"is a"s},
-            TripleNoun{"husky"s}
-    };
+    Triple nWrite{{
+                          TripleNoun{"lexi"s},
+                          TripleNoun{"is a"s},
+                          TripleNoun{"husky"s}
+                  }};
 
-    auto subj = nWrite.get_subject<uint64_t>();
+    auto subj = nWrite.at<uint64_t>(0);
     EXPECT_EQ(subj, std::nullopt);
 }
 
 TEST_F(TripleTests, TriplePredicateAccessorWrongType) {
-    Triple nWrite = {
-            TripleNoun{"lexi"s},
-            TripleNoun{"is a"s},
-            TripleNoun{"husky"s}
-    };
+    Triple nWrite{{
+                          TripleNoun{"lexi"s},
+                          TripleNoun{"is a"s},
+                          TripleNoun{"husky"s}
+                  }};
 
-    auto pred = nWrite.get_predicate<void *>();
+    auto pred = nWrite.at<void *>(1);
     EXPECT_EQ(pred, std::nullopt);
 }
 
 TEST_F(TripleTests, TripleObjectAccessorWrongType) {
-    Triple nWrite = {
-            TripleNoun{0ul},
-            TripleNoun{1ul},
-            TripleNoun{42ul}
-    };
+    Triple nWrite{{
+                          TripleNoun{0ul},
+                          TripleNoun{1ul},
+                          TripleNoun{42ul}
+                  }};
 
-    if (auto subj = nWrite.get_object<int64_t>()) {
+    if (auto subj = nWrite.at<int64_t>(2)) {
         FAIL();
     }
 }

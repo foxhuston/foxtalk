@@ -197,12 +197,9 @@ struct TripleNoun {
 
 struct Triple {
 private:
+    std::vector<TripleNoun> nouns_;
 
 public:
-    const TripleNoun subject_;
-    const TripleNoun predicate_;
-    const TripleNoun object_;
-
     //// CONSTRUCTORS ////
 
     // TODO: During performance testing, see if we're copying triples and triplenouns like crazy
@@ -213,57 +210,40 @@ public:
     //         : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
     //           object_(std::move(other.object_)) {}
 
-    Triple(TripleNoun &&subject, TripleNoun &&predicate, TripleNoun &&object)
-            : subject_(std::move(subject)),
-              predicate_(std::move(predicate)),
-              object_(std::move(object)) {}
+    explicit Triple(std::vector<TripleNoun>&& nouns) : nouns_ { std::move(nouns) } {}
 
     bool operator==(const Triple &other) const {
-        return subject_ == other.subject_
-               && predicate_ == other.predicate_
-               && object_ == other.object_;
+        if(nouns_.size() != other.nouns_.size()) { return false; }
+
+        for(int i = 0; i < nouns_.size(); i++) {
+            if(nouns_[i] != other.nouns_[i]) { return false; }
+        }
+
+        return true;
     }
 
     //// TO STRING /////
     friend std::ostream &operator<<(std::ostream &os, const Triple &triple) {
-        os << "<" << triple.subject_ << ", " << triple.predicate_ << ", " << triple.object_ << ">";
+        os << "<";
+        auto s = triple.nouns_.size();
+        for(int i = 0; i < s; i++) {
+            os << triple.nouns_[i];
+            if(i + 1 < s) {
+                os << ", ";
+            }
+        }
+        os << ">";
         return os;
     }
 
     //// ACCESSORS /////
     template<typename T>
-    std::optional<const T> get_subject() {
-        if(std::holds_alternative<T>(subject_.data)) {
-            return { std::get<T>(subject_.data) };
+    std::optional<const T> at(size_t i) {
+        if(std::holds_alternative<T>(nouns_[i].data)) {
+            return { std::get<T>(nouns_[i].data) };
         } else {
-            std::cout << "WARNING: subject was not a " << typeid(T).name()
-                      << " (It had the foxtalk type id " << (size_t)subject_.type << ")"
-                      << std::endl;
-
-            return std::nullopt;
-        }
-    }
-
-    template<typename T>
-    std::optional<const T> get_predicate() {
-        if(std::holds_alternative<T>(predicate_.data)) {
-            return std::get<T>(predicate_.data);
-        } else {
-            std::cout << "WARNING: predicate was not a " << typeid(T).name()
-                      << " (It had the foxtalk type id " << (size_t)predicate_.type << ")"
-                      << std::endl;
-
-            return std::nullopt;
-        }
-    }
-
-    template<typename T>
-    std::optional<const T> get_object() {
-        if(std::holds_alternative<T>(object_.data)) {
-            return std::get<T>(object_.data);
-        } else {
-            std::cout << "WARNING: object was not a " << typeid(T).name()
-                      << " (It had the foxtalk type id " << (size_t)object_.type << ")"
+            std::cout << "WARNING: noun at " << i << " was not a " << typeid(T).name()
+                      << " (It had the foxtalk type id " << (size_t)nouns_[i].type << ")"
                       << std::endl;
 
             return std::nullopt;
@@ -272,75 +252,67 @@ public:
 
     //// SERIALIZATION / DESERIALIZATION /////
     void write_to_buffer(uint8_t *buffer, size_t start_position) const {
-        auto size_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) 0);
-        auto current_position = size_bytes;
+        auto count_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) nouns_.size());
+        auto current_position = count_bytes;
 
-        current_position += subject_.write_to_buffer(buffer, current_position);
-        current_position += predicate_.write_to_buffer(buffer, current_position);
-        current_position += object_.write_to_buffer(buffer, current_position);
-
-        write_t_to_buffer(buffer, start_position, (foxtalk_size_t)(current_position - start_position));
+        for(auto n : nouns_) {
+            current_position += n.write_to_buffer(buffer, current_position);
+        }
     }
 
     static std::pair<Triple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
         size_t current_position = start_position;
-        auto [triple_size, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
+        auto [noun_count, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
 
-        std::cout << std::format("Reading triple with size: {0:d} ({0:#x})", triple_size) << std::endl;
-        dbg_dump_buffer_region(buffer, start_position, triple_size + 1);
+        std::cout << std::format("Reading triple with noun-count: {0:d} ({0:#x})", noun_count) << std::endl;
+        dbg_dump_buffer_region(buffer, start_position, noun_count + 1);
 
         current_position += read_bytes;
 
-        std::cout << "Reading subject @ " << std::hex << current_position << std::endl;
-        auto [subj, s_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
-        std::cout << std::format("Read {:d} bytes for subject.", s_read_bytes) << std::endl;
-        current_position += s_read_bytes;
+        std::vector<TripleNoun> out {};
+        for(int i = 0; i < noun_count; i++) {
+            std::cout << "Reading subject @ " << std::hex << current_position << std::endl;
+            auto [noun, s_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+            std::cout << std::format("Read {:d} bytes for subject.", s_read_bytes) << std::endl;
+            current_position += s_read_bytes;
 
-        std::cout << "Reading predicate @ " << std::hex << current_position << std::endl;
-        auto [pred, p_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
-        current_position += p_read_bytes;
-        std::cout << std::format("Read {:d} bytes for predicate.", p_read_bytes) << std::endl;
+            out.push_back(noun);
+        }
 
-        std::cout << "Reading object @ " << std::hex << current_position << std::endl;
-        auto [obj, o_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
-        current_position += o_read_bytes;
-        std::cout << std::format("Read {:d} bytes for object.", o_read_bytes) << std::endl;
-
-        assert(current_position == triple_size);
-
-        return std::pair<Triple, size_t>(Triple{std::move(subj), std::move(pred), std::move(obj)}, 0ul);
+        return std::pair<Triple, size_t>(Triple{ std::move(out) }, current_position);
     }
 };
-namespace std {
-    template <>
-    struct hash<TripleNoun> {
-        size_t operator()(const TripleNoun& s) const noexcept
-        {
-            size_t hash_data = hash<TripleNoun::NounData>()(s.data);
-            size_t hash_type = hash<TripleNoun::NounType>()(s.type);
-            return hash_data ^ (hash_type << 1);
-        }
-    };
-    template <>
-    struct hash<Triple> {
-        size_t p = 31; // prime number
-        size_t operator()(const Triple& s) const noexcept
-        {
-            /*
-             *
-             * Algorithm shown by Joshua Bloch:
-             *      int result = (int) (x ^ (x >>> 32));
-                    result = 31 * result + (int) (y ^ (y >>> 32));
-                    result = 31 * result + (int) (z ^ (z >>> 32));
-                    return result;
-             */
-            size_t x = hash<TripleNoun>()(s.subject_);
-            size_t y = hash<TripleNoun>()(s.predicate_);
-            size_t z = hash<TripleNoun>()(s.object_);
-            return z ^ (z << 1) + p * ((y ^ y << 1) + p * (x ^ x << 1));
-        }
-    };
-}
+
+//namespace std {
+//    template <>
+//    struct hash<TripleNoun> {
+//        size_t operator()(const TripleNoun& s) const noexcept
+//        {
+//            size_t hash_data = hash<TripleNoun::NounData>()(s.data);
+//            size_t hash_type = hash<TripleNoun::NounType>()(s.type);
+//            return hash_data ^ (hash_type << 1);
+//        }
+//    };
+//    template <>
+//    struct hash<Triple> {
+//        size_t p = 31; // prime number
+//        size_t operator()(const Triple& s) const noexcept
+//        {
+//            /*
+//             *
+//             * Algorithm shown by Joshua Bloch:
+//             *      int result = (int) (x ^ (x >>> 32));
+//                    result = 31 * result + (int) (y ^ (y >>> 32));
+//                    result = 31 * result + (int) (z ^ (z >>> 32));
+//                    return result;
+//             */
+//            size_t x = hash<TripleNoun>()(s.subject_);
+//            size_t y = hash<TripleNoun>()(s.predicate_);
+//            size_t z = hash<TripleNoun>()(s.object_);
+//            return z ^ (z << 1) + p * ((y ^ y << 1) + p * (x ^ x << 1));
+//        }
+//    };
+//}
 
 
 #endif //REACTOR_FOXTALK_TRIPLE_H
