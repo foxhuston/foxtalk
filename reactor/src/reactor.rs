@@ -1,16 +1,19 @@
+use crate::utils::ReactorHandler;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-use crate::types::{ReactorHandler};
 
 
-pub struct Reactor<O, S: Clone>
+pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
+    fn handle(&mut self, input: HashSet<&O>) -> HashSet<O>;
+}
+pub struct Reactor<O>
     where O: Eq + Hash + Clone + Sized + Debug {
-    pub handlers: Vec<ReactorHandler<O, S>>,
+    pub handlers: Vec<ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>
 }
 
-impl<O, S: Clone> Reactor<O, S>
+impl<O> Reactor<O>
 where O: Eq + Hash + Clone + Sized + Debug  {
     pub fn new() -> Self {
         Reactor {
@@ -19,7 +22,17 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         }
     }
 
-    pub fn add_handler(&mut self, handler: ReactorHandler<O, S>) {
+    pub fn add_handler(&mut self, mut handler: ReactorHandler<O>) {
+        for output in &handler.O {
+            self.insert(output.clone());
+        }
+        let all_outputs = self.ref_counts.keys().collect::<HashSet<&O>>();
+        for output in all_outputs {
+            if (handler.q)(output) {
+                handler.I.insert(output.clone());
+            }
+        }
+        handler.dirty = true;
         self.handlers.push(handler);
     }
 
@@ -62,7 +75,8 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         let mut need_to_remove_total = HashSet::new();
         for handler in self.handlers.iter_mut() {
             if handler.dirty {
-                let (new_output, new_state) = (handler.a)(handler.I.clone(), handler.S.clone());
+                let a = &mut handler.a;
+                let new_output = a.handle(handler.I.iter().collect());
 
                 let need_to_insert = new_output.difference(&handler.O).cloned().collect::<HashSet<O>>();
                 for i in need_to_insert.iter() {
@@ -73,7 +87,6 @@ where O: Eq + Hash + Clone + Sized + Debug  {
                     need_to_remove_total.insert(i.clone());
                 }
                 handler.O = new_output;
-                handler.S = new_state;
                 handler.dirty = false;
 
             }
@@ -92,8 +105,9 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use super::*;
+    use crate::utils::{PureHandler, NonAggHandler};
+    use std::collections::HashSet;
 
     #[test]
     pub fn paper_agg_example() {
@@ -101,16 +115,19 @@ mod tests {
         fn paper_query(other: &u64) -> bool {
             *other > 5 && *other < 20
         }
-        fn agg(o: HashSet<u64>, s: ()) -> (HashSet<u64>, ()) {
-            let col: u64 = o.iter().sum();
+        fn agg(o: HashSet<&u64>) -> HashSet<u64> {
+            let mut sum = 0;
+            for i in o {
+                sum += i;
+            }
             let mut out = HashSet::new();
-            out.insert(col);
-            (out, ())
+            out.insert(sum);
+            out
         }
 
-        let boxed_agg = Box::new(agg);
+        let handler = Box::new(PureHandler::new(Box::new(agg)));
 
-        let handler = ReactorHandler::new(paper_query, boxed_agg, ());
+        let handler = ReactorHandler::new(paper_query, handler);
 
         let mut reactor = Reactor::new();
         reactor.add_handler(handler);
@@ -150,15 +167,13 @@ mod tests {
             }
         }
         
-        let non_agg_handler_box = ReactorHandler::non_aggregating_handle(handle);
+        let non_agg_handler_box = Box::new(NonAggHandler::new(Box::new(handle)));
         
-        let non_agg_handler = non_agg_handler_box;
-
         fn paper_query(other: &u64) -> bool {
             *other == 1 || *other == 2 || *other == 3
         }
         
-        let handler = ReactorHandler::new(paper_query, non_agg_handler, HashMap::new());
+        let handler = ReactorHandler::new(paper_query, non_agg_handler_box);
 
         let mut reactor = Reactor::new();
         reactor.add_handler(handler);
@@ -179,7 +194,7 @@ mod tests {
 
         assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
         assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3]));
-        assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
+        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
         assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
 
         reactor.tick();
@@ -191,9 +206,9 @@ mod tests {
 
         assert_eq!(reactor.handlers.get(0).unwrap().dirty, false);
         assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
-        assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
-        assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
+        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
+        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
+        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
         assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
 
     }
