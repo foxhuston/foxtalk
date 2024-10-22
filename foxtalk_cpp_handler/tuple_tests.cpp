@@ -170,3 +170,65 @@ TEST_F(TupleTests, TripleObjectAccessorWrongType) {
         FAIL();
     }
 }
+
+TEST_F(TupleTests, TupleNounVecRoundTrip1) {
+    std::vector<TupleNoun> tupleNouns{{
+                                              TupleNoun{"lexi"s},
+                                              TupleNoun{"is a"s},
+                                              TupleNoun{"husky"s}
+                                      }};
+
+    uint8_t buffer[256]{};
+    write_vec_to_buffer<TupleNoun>(buffer, 0, tupleNouns);
+    dbg_dump_buffer_region(buffer, 0, 256);
+
+    auto [res, bytes_read] = read_vec_from_buffer<TupleNoun>(buffer, 0);
+
+    ASSERT_EQ(tupleNouns, res);
+}
+
+TEST_F(TupleTests, TupleVecRoundTrip1) {
+    std::vector<Tuple> tuples{{
+                                      Tuple{{
+                                                    TupleNoun{"lexi"s},
+                                                    TupleNoun{"is a"s},
+                                                    TupleNoun{"husky"s}
+                                            }}
+                              }};
+
+    uint8_t buffer[256]{};
+    write_vec_to_buffer<Tuple>(buffer, 0, tuples);
+    dbg_dump_buffer_region(buffer, 0, 256);
+
+    // I would expect: 01 00 00 00 03 00 00 00 ...
+
+    auto [res, bytes_read] = read_vec_from_buffer<Tuple>(buffer, 0);
+
+    ASSERT_EQ(tuples, res);
+}
+
+TEST_F(TupleTests, TupleVecRoundTrip2) {
+    std::vector<Tuple> tuples{{
+                                      Tuple{{
+                                                    TupleNoun{"lexi"s},
+                                                    TupleNoun{"is a"s},
+                                                    TupleNoun{"husky"s}
+                                            }},
+
+                                      Tuple{{
+                                                    TupleNoun{"lexi"s},
+                                                    TupleNoun{"is"s},
+                                                    TupleNoun{"cool"s}
+                                            }}
+                              }};
+
+    uint8_t buffer[256]{};
+    write_vec_to_buffer<Tuple>(buffer, 0, tuples);
+    dbg_dump_buffer_region(buffer, 0, 256);
+
+    // I would expect: 01 00 00 00 03 00 00 00 ...
+
+    auto [res, bytes_read] = read_vec_from_buffer<Tuple>(buffer, 0);
+
+    ASSERT_EQ(tuples, res);
+}

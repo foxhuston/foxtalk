@@ -34,6 +34,37 @@ inline std::pair<T, size_t> read_t_from_buffer(const uint8_t *buffer, size_t ind
     };
 }
 
+template<typename T>
+inline size_t write_vec_to_buffer(uint8_t *buffer, size_t start_position, const std::vector<T>& vec) {
+    auto count_bytes = write_t_to_buffer<foxtalk_size_t>(buffer, start_position, (foxtalk_size_t) vec.size());
+    auto current_position = start_position + count_bytes;
+
+    for(auto n : vec) {
+        current_position += n.write_to_buffer(buffer, current_position);
+    }
+
+    return current_position - start_position;
+}
+
+template<typename T>
+inline std::pair<std::vector<T>, size_t> read_vec_from_buffer(uint8_t *buffer, size_t start_position) {
+    size_t current_position = start_position;
+    auto [vec_size, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
+    current_position += read_bytes;
+
+//    std::cout << std::format("Reading vector of size: {0:d} ({0:#x})", vec_size) << std::endl;
+
+    std::vector<T> out {};
+    for(int i = 0; i < vec_size; i++) {
+        auto [noun, s_read_bytes] = T::read_from_buffer(buffer, current_position);
+        current_position += s_read_bytes;
+
+        out.push_back(noun);
+    }
+
+    return std::pair<std::vector<T>, size_t>(out, current_position - start_position);
+}
+
 struct TupleNoun {
     typedef std::variant<
             std::monostate, // Query
@@ -252,36 +283,12 @@ public:
 
     //// SERIALIZATION / DESERIALIZATION /////
     size_t write_to_buffer(uint8_t *buffer, size_t start_position) const {
-        auto count_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) nouns_.size());
-        auto current_position = count_bytes;
-
-        for(auto n : nouns_) {
-            current_position += n.write_to_buffer(buffer, current_position);
-        }
-
-        return current_position - start_position;
+        return write_vec_to_buffer(buffer, start_position, nouns_);
     }
 
     static std::pair<Tuple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
-        size_t current_position = start_position;
-        auto [noun_count, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
-
-        std::cout << std::format("Reading triple with noun-count: {0:d} ({0:#x})", noun_count) << std::endl;
-        dbg_dump_buffer_region(buffer, start_position, noun_count + 1);
-
-        current_position += read_bytes;
-
-        std::vector<TupleNoun> out {};
-        for(int i = 0; i < noun_count; i++) {
-            std::cout << "Reading subject @ " << std::hex << current_position << std::endl;
-            auto [noun, s_read_bytes] = TupleNoun::read_from_buffer(buffer, current_position);
-            std::cout << std::format("Read {:d} bytes for subject.", s_read_bytes) << std::endl;
-            current_position += s_read_bytes;
-
-            out.push_back(noun);
-        }
-
-        return std::pair<Tuple, size_t>(Tuple{std::move(out) }, current_position - start_position);
+        auto [nouns, read_bytes] = read_vec_from_buffer<TupleNoun>(buffer, start_position);
+        return std::pair<Tuple, size_t>(Tuple{std::move(nouns) }, read_bytes);
     }
 };
 

@@ -17,34 +17,18 @@ public:
 
     virtual bool matches(const Tuple& n) = 0;
 
-    void ffi_handle() {
+    void ffi_handle(uint8_t *buffer) {
         // Initialize
         claims.clear();
 
         // How many tuples in query result set?
-        auto [tuple_count, current_position] = read_t_from_buffer<foxtalk_size_t>(_foxtalk_ipc_buffer, 0);
-
-        // Deserialize the results
-        std::vector<Tuple> query_results {};
-        for(int i = 0; i < tuple_count; i++) {
-            auto [t, read_bytes] = Tuple::read_from_buffer(_foxtalk_ipc_buffer, current_position);
-            current_position += read_bytes;
-            query_results.push_back(t);
-        }
+        auto [query_results, read_bytes] = read_vec_from_buffer<Tuple>(buffer, 0);
 
         // Actually work with the results
         handle(query_results);
 
         // Serialize
-
-        auto count_bytes = write_t_to_buffer(_foxtalk_ipc_buffer, 0, (foxtalk_size_t) claims.size());
-        current_position = count_bytes;
-
-        for(auto c : claims) {
-            current_position += c.write_to_buffer(_foxtalk_ipc_buffer, current_position);
-        }
-
-
+        write_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 };
 
