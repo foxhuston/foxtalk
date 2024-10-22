@@ -11,7 +11,7 @@
 
 #set document(
   title: [#emoji.fox FoxTalk Notes],
-  author: "Fox Huston"
+  author: ("Fox Huston", "lexi Huston")
 )
 // #set page("us-letter", margin: ( x: 0.75in ))
 #set page("us-letter")
@@ -38,9 +38,12 @@
 ]
 
 #context for a in document.author [
-  #a
-
+  #a #h(2cm)
 ]
+
+#v(12pt)
+
+#datetime.today().display()
 
 #v(12pt)
 
@@ -56,6 +59,11 @@
 
 #show: rest => columns(2, rest)
 #set par(justify: true)
+
+#show: shorthands.with(
+  ($<<$, $angle.l$),
+  ($>>$, $angle.r$),
+)
 
 #let Database   = {$upright(sans("D"))$}
 #let Aggregator = {$angle.l q, a angle.r$}
@@ -76,35 +84,48 @@
 - Flesh out/clean up the text for the examples. I've written out selected snapshots of the database state for my own notes, but it would be good to write in some guidance.
 - Come up with a better "matches" operator #emoji.face.meh
 
-= Terms & Definitions:
+= Introduction
+
+I came across Dynamicland @dynamicland recently, and was pretty enamoured with it---although I'll confess to being pretty enamoured with many of the things Brett Victor and co. come up with. There are a lot of interesting pieces to this system, but this particular document is a collection of my thoughts around trying to understand the core semantics of their programming language, Realtalk. It took some thinking, but after relentlessly paring down what I think the central tenant of this system could be, I've come up with something that I think is simple, yet elegant.
+
+As an outline, in @denotational-semantics, I'll write out what I think are a reasonable denotational semantics of the system, and in @algorithm, I'll write out an algorithm to actually implement these sementics along with thoughts about the tradeoffs it makes. Finally, in @implementation, I'll write out some details about our choices actually implementing the system.
+
+When reading about Realtalk, one of the things that stuck out to me was that they refer to their system as (having) a database, and things are either _in_ the database, or not. _Programs_ can be added or removed from the running system, and these programs are written as either a set of `claim`s, e.g.
+```
+  Claim "lexi" is a "husky".
+```
+or as a `when` clause, e.g.
+```
+  When /x/ is a "husky":
+    Wish (x) is "cool".
+  End
+```
+
+This, at first, felt like some kind of graph database, but that didn't really capture the actual semantics of what it seemed like to work with the system. It has, from what I've seen, this feeling of "facts in resonance." That is, the database would have the fact that `"lexi" is "cool"` only as long as `"lexi" is a "husky"` is present in the database. If the first claim is removed, then any claim that was generated from it will also be removed---this has the feel of dependent pairs to me: if there is no witness, there can't be anything that follows. This has a ripple effect throughout the system: from the previous example, there may have been `When` clauses that matched on "things that are cool," and anything _those_ generated would also need to be cleaned up.
+
+== Denotationally<denotational-semantics>
+Distilling all of this, it suggests a fairly elegant model of the state of the database over steps. In order to write this, I'll first need to define some terms:
 
 #table(
   columns: (auto, auto),
-  align: (right, left), // Huh. Could also be a function of row/column.
   stroke: none,
-  [$Database$], [is a database of objects.],
-  [$Aggregator$], [is an aggregator.],
-  [$Handler$], [is a handler.],
-  [$q$], [is a _query_, such that:],
-  [$T = Database(q)$], [is the set of objects in $Database$ that match $q$.],
-  [$a : T -> T$], [is a function that takes in a set of objects, and returns a set of objects.],
-  [$h : o -> T$], [is a function that takes in _a single_ object, and returns a set of objects.],
-  [$q_a$], [is the query that matches all aggregators in #Database.],
-  [$q_h$], [is the query that matches all handlers in #Database.],
+  align: (right, left),
+  [$Database$], [The abstract database. This contains:],
+  [$o$], [An abstract object that can be in $Database.$]
 )
 
-== Denotationally
+
 
 To find the state of the database at the $i$th step:
 
 $ Database_0       & = { Boot } \
   Database_(i + 1) & = union.big_(Aggregator in Database_(i)(q_a)) a(Database_(i)(q)) $<set-theory-db>
 
-This whole system has the feeling of "facts in resonance;" that is, something exists in the database only so long as _something_ is asserting its existence. Deletions fall out of this system naturally: if some handler $h$ is asserting some (unique #footnote[If one or more other handlers were also asserting $t$, then the fact that $h$ stopped wouldn't mean anything for $Database_(i+1)$, since it is the union of _all_ of the outputs of all of the handlers.]) object $t$ on step $i$, and then it does not on step $i + 1$, then $t in.not Database_(i+1)$. Furthermore, on timestep $i+1$, any other handler that was depending on $t$ will have a new query result (lacking $t$), and it will recompute its output, which will possibly result in fewer tuples still. In this way, deletions ripple across steps, until the system comes to a new equilibrium.
+// This whole system has the feeling of "facts in resonance;" that is, something exists in the database only so long as _something_ is asserting its existence. Deletions fall out of this system naturally: if some handler $h$ is asserting some (unique #footnote[If one or more other handlers were also asserting $t$, then the fact that $h$ stopped wouldn't mean anything for $Database_(i+1)$, since it is the union of _all_ of the outputs of all of the handlers.]) object $t$ on step $i$, and then it does not on step $i + 1$, then $t in.not Database_(i+1)$. Furthermore, on timestep $i+1$, any other handler that was depending on $t$ will have a new query result (lacking $t$), and it will recompute its output, which will possibly result in fewer tuples still. In this way, deletions ripple across steps, until the system comes to a new equilibrium.
 
 This is also the intended output-behavior of everything else that follows. That is, at the end of the $i$th step, whatever algorithm we come up with should produce a set equivalent to $Database_(i)$.
 
-= An Incremental #next
+= An Incremental #next <algorithm>
 
 I think our actual goals for a performant algorithm are as follows:
 
@@ -147,10 +168,6 @@ Things we can take advantage of:
 - If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
 
 == Algorithm
-#show: shorthands.with(
-  ($<<$, $angle.l$),
-  ($>>$, $angle.r$),
-)
 
 #let object = $upright(sans(o))$
 #let Objects = $upright(sans(O))$
@@ -466,7 +483,11 @@ Next, let's say we want to remove $o_1$, so we
 
 Crucially, by allowing opaque sideband information, we can emulate the original case of two separate handler cases, while keeping the actual Reactor functions small and focused.
 
+= Implementation<implementation>
+
 = Questions
 
 - How do we respond to events from the OS?
 - How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.)
+
+#bibliography("./bib.yml")

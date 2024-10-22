@@ -83,6 +83,7 @@ degol:
   URL: http://ieeexplore.ieee.org/document/8237426/
 
 lamport1978:
+  type: article
   author: Lamport, Leslie
   abstract: >-
     The concept of one event happening before another in a distributed system is
@@ -99,5 +100,8 @@ lamport1978:
   language: en
   source: Zotero
   title: Time, Clocks, and the Ordering of Events in a Distributed System
-  type: article-journal
   volume: '21'
+
+dynamicland:
+  type: web
+  url: https://dynamicland.org/
