@@ -17,6 +17,11 @@ public:
 
     virtual bool matches(const Tuple& n) = 0;
 
+    bool ffi_matches(uint8_t *buffer) {
+        auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
+        return matches(t);
+    }
+
     void ffi_handle(uint8_t *buffer) {
         // Initialize
         claims.clear();
@@ -31,6 +36,22 @@ public:
         write_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 };
+
+
+#define FOXTALK_HANDLER_BOD(T, qr) void T::handle(const std::vector<Tuple>& qr)
+#define FOXTALK_HANDLER_DEF(T, qr) class T : public Handler { virtual bool matches(const Tuple&); virtual void handle(const std::vector<Tuple>&); }
+#define FOXTALK_HANDLER(T, qr) FOXTALK_HANDLER_DEF(T, qr); FOXTALK_HANDLER_BOD(T, qr)
+#define FOXTALK_HANDLER_MATCHES(T, inp) bool T::matches(const Tuple& inp)
+
+#define FOXTALK_FFI_HANDLER(T, qr) \
+    FOXTALK_HANDLER_DEF(T, qr);     \
+    static T* T ## _instance = nullptr; \
+    void init() { T ## _instance = new T(); } \
+    void free_tuple() { throw new std::runtime_error("Unimplemented!"); } \
+    bool matches() { return T ## _instance ->ffi_matches(_foxtalk_ipc_buffer); } \
+    void handle() { T ## _instance ->ffi_handle(_foxtalk_ipc_buffer); } \
+    void teardown() { delete T ## _instance; } \
+    FOXTALK_HANDLER_BOD(T, qr) \
 
 
 #endif //REACTOR_FOXTALK_HANDLER_HPP

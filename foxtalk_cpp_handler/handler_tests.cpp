@@ -70,16 +70,16 @@ TEST_F(HandlerTests, EmptyHandlerFfiWorks) {
     EmptyHandler e {};
 
     uint8_t buffer[256] {};
-    std::cout << "======== INITIAL BUFFER ========" << std::endl;
-    dbg_dump_buffer_region(buffer, 0, 256);
+//    std::cout << "======== INITIAL BUFFER ========" << std::endl;
+//    dbg_dump_buffer_region(buffer, 0, 256);
 
-    std::cout << "======== TEST WRITE TO BUFFER ========" << std::endl;
-    write_vec_to_buffer(buffer, 0, queryResults);
+//    std::cout << "======== TEST WRITE TO BUFFER ========" << std::endl;
+//    write_vec_to_buffer(buffer, 0, queryResults);
     dbg_dump_buffer_region(buffer, 0, 256);
 
     e.ffi_handle(buffer);
 
-    std::cout << "======== POST HANDLER BUFFER ========" << std::endl;
+//    std::cout << "======== POST HANDLER BUFFER ========" << std::endl;
     auto [res, bytes_read] = read_vec_from_buffer<Tuple>(buffer, 0);
 
     ASSERT_EQ(res.size(), 0);

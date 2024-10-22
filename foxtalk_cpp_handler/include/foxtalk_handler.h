@@ -32,7 +32,7 @@ inline uint8_t _foxtalk_ipc_buffer[FOXTALK_IPC_BUFFER_SIZE];
 // from the <q, a, S, I, O> in the paper...
 void init();
 void free_tuple();
-void matches(); // this is q
+bool matches(); // this is q
 void handle();  // this is a
 void teardown();
 }
