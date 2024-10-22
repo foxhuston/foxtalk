@@ -4,11 +4,16 @@
 
 #include <foxtalk_handler.hpp>
 
-FOXTALK_FFI_HANDLER(SummingHandler, query_results) {
+class SummingHandler : public Handler {
+public:
+    bool matches(const Tuple &n) override {
+        return false;
+    }
 
-}
+protected:
+    void handle(const std::vector<Tuple> &queryResults) override {
 
-FOXTALK_HANDLER_MATCHES(SummingHandler, tup) {
-    return tup.at<uint64_t>(0).has_value();
-}
+    }
+};
 
+FOXTALK_FFI_HANDLER_REG(SummingHandler);
