@@ -1,4 +1,6 @@
-use crate::serde::TupleNoun;
+use serde::TupleNoun;
+
+mod serde;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]

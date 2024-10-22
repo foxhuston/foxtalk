@@ -1,5 +1,5 @@
 use byteorder::{ByteOrder, NativeEndian};
-
+use crate::triples_reactor::Tuple;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum TupleNoun {
@@ -10,7 +10,25 @@ pub enum TupleNoun {
     I64(i64),       // 4
 }
 
-impl FoxTalkSerializable for TupleNoun {
+impl FoxTalkSerializable for Tuple {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+        
+        let num_nouns = self.0.len() as FoxtalkSize; 
+        let num_nouns_bytes: [u8;size_of::<FoxtalkSize>()] = num_nouns.to_ne_bytes();
+        let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+        write_to[start_position..current_position].copy_from_slice(&num_nouns_bytes);
+        
+         
+        for noun in self.0.iter() {
+            let ret_position = noun.write_to_buffer(write_to, current_position);
+            current_position = ret_position.pos;
+        }
+        ReturnPosition{pos: current_position}
+        
+    }
+}
+
+impl TupleNoun {
     fn write_type_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
             TupleNoun::Query => {
@@ -71,17 +89,24 @@ impl FoxTalkSerializable for TupleNoun {
             }
             TupleNoun::I64(value) => {
 
+                let current_position = self.write_type_to_buffer(write_to, start_position);
                 let i64_bytes: [u8;size_of::<i64>()] = value.to_ne_bytes();
-                write_to[start_position] = Self::I64_TYPE;
-                let s = start_position + 1;
-                let e = s + size_of::<i64>();
-                write_to[s..e].copy_from_slice(&i64_bytes);
-                ReturnPosition{ pos: e }
+                let e = (current_position.pos) + size_of::<i64>();
+                write_to[current_position.pos..e].copy_from_slice(&i64_bytes);
+                ReturnPosition{pos: e}
             }
         }
     }
 }
+
+impl FoxTalkSerializable for TupleNoun {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+        self.write_data_to_buffer(write_to, start_position)
+    }
+}
+
 #[repr(transparent)]
+#[derive(PartialEq, Eq, Debug)]
 pub(crate) struct ReturnPosition { pub pos: usize }
 
 pub(crate) type FoxtalkSize = u32;
@@ -94,8 +119,7 @@ pub(crate) trait FoxTalkSerializable {
     const U64_TYPE: u8 = 3;
     const I64_TYPE: u8 = 4;
 
-    fn write_type_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
-    fn write_data_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition;
 }
 
 
@@ -139,16 +163,18 @@ pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (TupleNoun, Ret
 
 }
 
-pub fn parse_row(input: &[u8]) -> (TupleNoun, TupleNoun, TupleNoun) {
-    let (total_byte_size, current_position) = read_foxtalk_size(input, 0);
+pub fn parse_row(input: &[u8]) -> Tuple {
+    let (num_nouns, mut current_position) = read_foxtalk_size(input, 0);
 
-    let (subject, current_position) = parse_type(&input, current_position.pos);
-    let (predicate, current_position) = parse_type(&input, current_position.pos);
-    let (object, current_position) = parse_type(&input, current_position.pos);
+    let mut out_nouns = Vec::with_capacity(num_nouns as usize);
 
-    debug_assert_eq!(current_position.pos, total_byte_size as usize);
+    for _ in 0..num_nouns {
 
-    (subject, predicate, object)
+        let (noun, new_position) = parse_type(&input, current_position.pos);
+        current_position = new_position;
+        out_nouns.push(noun);
+    }
+    Tuple(out_nouns)
 }
 
 
@@ -159,7 +185,7 @@ mod tests {
     #[test]
     pub fn bytes_from_cpp_work() {
        let bytes = "
-       20 00 00 00 01 04 00 00 00 6c 65 78 69 01 04 00
+       03 00 00 00 01 04 00 00 00 6c 65 78 69 01 04 00
        00 00 69 73 20 61 01 05 00 00 00 68 75 73 6b 79
        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
@@ -172,12 +198,49 @@ mod tests {
 
         println!("{:?}", bytes);
 
-        let (parsed_subj, parsed_pred, parsed_obj) = parse_row(&bytes);
+        let Tuple(nouns) = parse_row(&bytes);
 
-        assert_eq!(parsed_subj, TupleNoun::Symbol("lexi".to_string()));
-        assert_eq!(parsed_pred, TupleNoun::Symbol("is a".to_string()));
-        assert_eq!(parsed_obj, TupleNoun::Symbol("husky".to_string()));
+        assert_eq!(nouns.len(), 3);
 
+        assert_eq!(nouns[0], TupleNoun::Symbol("lexi".to_string()));
+        assert_eq!(nouns[1], TupleNoun::Symbol("is a".to_string()));
+        assert_eq!(nouns[2], TupleNoun::Symbol("husky".to_string()));
+
+    }
+
+    pub fn round_trip_works_for_noun(noun: TupleNoun) {
+        let buffer = &mut [0u8; 1024];;
+
+        let new_position_after_write = noun.write_to_buffer(buffer, 0);
+        let (deserialized, new_position_after_read) = parse_type(buffer, 0);
+
+        assert_eq!(new_position_after_write.pos, new_position_after_read.pos);
+        assert_eq!(noun, deserialized)
+    }
+
+    #[test]
+    pub fn round_trip_works_for_query() {
+        round_trip_works_for_noun(TupleNoun::Query)
+    }
+
+    #[test]
+    pub fn round_trip_works_for_symbol() {
+        round_trip_works_for_noun(TupleNoun::Symbol("testing".to_string()))
+    }
+
+    #[test]
+    pub fn round_trip_works_for_cptr() {
+        round_trip_works_for_noun(TupleNoun::CPtr(0x834237423))
+    }
+
+    #[test]
+    pub fn round_trip_works_for_u64() {
+        round_trip_works_for_noun(TupleNoun::U64(1834u64))
+    }
+
+    #[test]
+    pub fn round_trip_works_for_i64() {
+        round_trip_works_for_noun(TupleNoun::I64(-84539))
     }
 
     #[test]
@@ -187,21 +250,12 @@ mod tests {
         let obj = TupleNoun::CPtr(0x12345678);
         let buffer = &mut [0u8; 1024];
 
+        let tuple = Tuple(vec![subj, pred, obj]);
 
-        let subj_pos = subj.write_data_to_buffer(buffer, size_of::<FoxtalkSize>());
-        let pred_pos = pred.write_data_to_buffer(buffer, subj_pos.pos);
-        let obj_pos = obj.write_data_to_buffer(buffer, pred_pos.pos);
+        let tuple_bytes = tuple.write_to_buffer(buffer, 0);
 
-        let size = obj_pos.pos as FoxtalkSize;
-        let size_bytes = size.to_ne_bytes();
+        let deserialized = parse_row(buffer);
 
-        buffer[0..size_of::<FoxtalkSize>()]
-            .copy_from_slice(size_bytes.as_ref());
-
-        let (parsed_subj, parsed_pred, parsed_obj) = parse_row(buffer);
-
-        assert_eq!(subj, parsed_subj);
-        assert_eq!(pred, parsed_pred);
-        assert_eq!(obj, parsed_obj);
+        assert_eq!(tuple, deserialized)
     }
 }
