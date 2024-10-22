@@ -1,8 +1,8 @@
 use byteorder::{ByteOrder, NativeEndian};
 
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum FoxTalkType {
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+pub enum TupleNoun {
     Query,          // 0
     Symbol(String), // 1
     CPtr(u64),      // 2
@@ -10,22 +10,22 @@ pub enum FoxTalkType {
     I64(i64),       // 4
 }
 
-impl FoxTalkSerializable for FoxTalkType {
+impl FoxTalkSerializable for TupleNoun {
     fn write_type_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
-            FoxTalkType::Query => {
+            TupleNoun::Query => {
                 write_to[start_position] = Self::QUERY_TYPE;
             }
-            FoxTalkType::Symbol(_) => {
+            TupleNoun::Symbol(_) => {
                 write_to[start_position] = Self::SYMBOL_TYPE;
             }
-            FoxTalkType::CPtr(_) => {
+            TupleNoun::CPtr(_) => {
                 write_to[start_position] = Self::CPTR_TYPE;
             }
-            FoxTalkType::U64(_) => {
+            TupleNoun::U64(_) => {
                 write_to[start_position] = Self::U64_TYPE;
             }
-            FoxTalkType::I64(_) => {
+            TupleNoun::I64(_) => {
                 write_to[start_position] = Self::I64_TYPE;
             }
         }
@@ -35,10 +35,10 @@ impl FoxTalkSerializable for FoxTalkType {
 
     fn write_data_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
-            FoxTalkType::Query => {
+            TupleNoun::Query => {
                 self.write_type_to_buffer(write_to, start_position)
             },
-            FoxTalkType::Symbol(value) => {
+            TupleNoun::Symbol(value) => {
 
                 let current_position = self.write_type_to_buffer(write_to, start_position);
                 // If string len is > u32, this will probably overflow?
@@ -55,21 +55,21 @@ impl FoxTalkSerializable for FoxTalkType {
 
                 ReturnPosition{pos: utf8_end_idx}
             }
-            FoxTalkType::CPtr(value) => {
+            TupleNoun::CPtr(value) => {
                 let current_position = self.write_type_to_buffer(write_to, start_position);
                 let u64_bytes: [u8;size_of::<u64>()] = value.to_ne_bytes();
                 let e = (current_position.pos) + size_of::<u64>();
                 write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
                 ReturnPosition{pos: e}
             }
-            FoxTalkType::U64(value) => {
+            TupleNoun::U64(value) => {
                 let current_position = self.write_type_to_buffer(write_to, start_position);
                 let u64_bytes: [u8;size_of::<u64>()] = value.to_ne_bytes();
                 let e = (current_position.pos) + size_of::<u64>();
                 write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
                 ReturnPosition{pos: e}
             }
-            FoxTalkType::I64(value) => {
+            TupleNoun::I64(value) => {
 
                 let i64_bytes: [u8;size_of::<i64>()] = value.to_ne_bytes();
                 write_to[start_position] = Self::I64_TYPE;
@@ -106,31 +106,31 @@ fn read_foxtalk_size(input: &[u8], start_position: usize) -> (FoxtalkSize, Retur
 }
 
 
-pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (FoxTalkType, ReturnPosition) {
+pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (TupleNoun, ReturnPosition) {
     let type_input = &input[start_position];
     let current_position = ReturnPosition{ pos: start_position + size_of::<u8>() };
 
     match type_input {
         0 => {
-            (FoxTalkType::Query, current_position)
+            (TupleNoun::Query, current_position)
         }
         1 => {
             let (symbol_length, current_position) = read_foxtalk_size(input, current_position.pos);
             let symbol_bytes = &input[current_position.pos..(current_position.pos + symbol_length as usize)];
             let symbol = String::from_utf8(symbol_bytes.to_vec()).unwrap();
-            (FoxTalkType::Symbol(symbol), ReturnPosition{ pos: current_position.pos + symbol_length as usize })
+            (TupleNoun::Symbol(symbol), ReturnPosition{ pos: current_position.pos + symbol_length as usize })
         }
         2 => {
             let bytes = &input[current_position.pos..(current_position.pos + size_of::<u64>())];
-           (FoxTalkType::CPtr(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
+           (TupleNoun::CPtr(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
         }
         3 => {
             let bytes = &input[current_position.pos..(current_position.pos + size_of::<u64>())];
-            (FoxTalkType::U64(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
+            (TupleNoun::U64(NativeEndian::read_u64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<u64>() })
         }
         4 => {
             let bytes = &input[current_position.pos..(current_position.pos + size_of::<i64>())];
-            (FoxTalkType::I64(NativeEndian::read_i64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<i64>() })
+            (TupleNoun::I64(NativeEndian::read_i64(bytes)), ReturnPosition{ pos: current_position.pos + size_of::<i64>() })
         }
         _ => {
             panic!("UNKNOWN TUPLENOUN TYPE CASE! Value {} at position {}", type_input, start_position)
@@ -139,7 +139,7 @@ pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (FoxTalkType, R
 
 }
 
-pub fn parse_row(input: &[u8]) -> (FoxTalkType, FoxTalkType, FoxTalkType) {
+pub fn parse_row(input: &[u8]) -> (TupleNoun, TupleNoun, TupleNoun) {
     let (total_byte_size, current_position) = read_foxtalk_size(input, 0);
 
     let (subject, current_position) = parse_type(&input, current_position.pos);
@@ -174,17 +174,17 @@ mod tests {
 
         let (parsed_subj, parsed_pred, parsed_obj) = parse_row(&bytes);
 
-        assert_eq!(parsed_subj, FoxTalkType::Symbol("lexi".to_string()));
-        assert_eq!(parsed_pred, FoxTalkType::Symbol("is a".to_string()));
-        assert_eq!(parsed_obj, FoxTalkType::Symbol("husky".to_string()));
+        assert_eq!(parsed_subj, TupleNoun::Symbol("lexi".to_string()));
+        assert_eq!(parsed_pred, TupleNoun::Symbol("is a".to_string()));
+        assert_eq!(parsed_obj, TupleNoun::Symbol("husky".to_string()));
 
     }
 
     #[test]
     pub fn round_trip_works() {
-        let subj = FoxTalkType::Symbol("/dev/cam1".to_string());
-        let pred = FoxTalkType::Symbol("is at".to_string());
-        let obj = FoxTalkType::CPtr(0x12345678);
+        let subj = TupleNoun::Symbol("/dev/cam1".to_string());
+        let pred = TupleNoun::Symbol("is at".to_string());
+        let obj = TupleNoun::CPtr(0x12345678);
         let buffer = &mut [0u8; 1024];
 
 

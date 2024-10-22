@@ -2,7 +2,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::marker::PhantomData;
 //
 //
 // trait Lib<'a> {
@@ -14,7 +13,7 @@ use std::marker::PhantomData;
 // }
 //
 
-type NonAggHandlerS<O> = HashMap<O, HashSet<O>>;
+pub type NonAggHandlerS<O> = HashMap<O, HashSet<O>>;
 #[allow(non_snake_case)] ////////////////////////////////////////////////
 pub struct ReactorHandler<O, S>
     where O: Eq + Hash + Clone + Sized + Debug
@@ -79,48 +78,5 @@ impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<O, NonAggHandlerS<
         };
         
         Box::from(ret_fn)
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    pub fn non_aggregating_handler_works() {
-        fn handle(o: &u64) -> HashSet<u64> {
-            match o {
-                1 => {
-                    let mut results = HashSet::new();
-                    results.insert(2);
-                    results.insert(3);
-                    results
-                }
-                2 => {
-                    let mut results = HashSet::new();
-                    results.insert(5);
-                    results
-                }
-                _ => HashSet::new()
-            }
-        }
-
-        let non_agg_handler_box = ReactorHandler::non_aggregating_handle(handle);
-
-        let mut input: HashSet<u64> = HashSet::new();
-        input.insert(1);
-        let s: NonAggHandlerS<u64> = HashMap::new();
-        let (output1, new_s1) = non_agg_handler_box(input.clone(), s);
-        input.extend(output1.clone());
-
-        let (output2, new_s2) = non_agg_handler_box(input.clone(), new_s1);
-        input.extend(output2.clone());
-
-        assert_eq!(new_s2.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        assert_eq!(new_s2.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
-        assert_eq!(new_s2.get(&3).unwrap().is_empty(), true);
-
-
     }
 }

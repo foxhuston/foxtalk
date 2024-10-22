@@ -2,8 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use crate::types::{ReactorHandler};
+
+
 pub struct Reactor<O, S: Clone>
-    where O: Eq + Hash + Clone + Sized + Debug { 
+    where O: Eq + Hash + Clone + Sized + Debug {
     pub handlers: Vec<ReactorHandler<O, S>>,
     pub ref_counts: HashMap<O, u64>
 }
@@ -61,7 +63,7 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         for handler in self.handlers.iter_mut() {
             if handler.dirty {
                 let (new_output, new_state) = (handler.a)(handler.I.clone(), handler.S.clone());
-                
+
                 let need_to_insert = new_output.difference(&handler.O).cloned().collect::<HashSet<O>>();
                 for i in need_to_insert.iter() {
                     need_to_insert_total.insert(i.clone());
@@ -73,16 +75,16 @@ where O: Eq + Hash + Clone + Sized + Debug  {
                 handler.O = new_output;
                 handler.S = new_state;
                 handler.dirty = false;
-                
+
             }
         }
-        
+
         for i in need_to_insert_total.iter() {
             self.insert(i.clone());
         }
         for i in need_to_remove_total.iter() {
             self.remove(i.clone());
-        }   
+        }
     }
 
 
@@ -105,7 +107,7 @@ mod tests {
             out.insert(col);
             (out, ())
         }
-        
+
         let boxed_agg = Box::new(agg);
 
         let handler = ReactorHandler::new(paper_query, boxed_agg, ());
@@ -168,7 +170,7 @@ mod tests {
         assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1]));
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
         assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
-        
+
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
         assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
@@ -193,6 +195,26 @@ mod tests {
         assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
         assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
         assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
-        
+
     }
+    // #[test]
+    // pub fn can_use_different_s_types_per_reactor() {
+    //     let handler1 = ReactorHandler::new(|o: &u64| *o == 1, Box::new(|o: HashSet<u64>, s: u64| {
+    //         let mut new_s = s;
+    //         for i in o.iter() {
+    //             new_s += i;
+    //         }
+    //         (o, new_s)
+    //     }), 0);
+    //
+    //     let handler2 = ReactorHandler::new(|o: &u64| *o == 2, Box::new(|o: HashSet<u64>, s: String| {
+    //         let mut new_s = s.clone();
+    //         for i in o.iter() {
+    //             new_s.push_str(&i.to_string());
+    //         }
+    //         (o, new_s)
+    //     }), String::from(""));
+    //
+    //     let mut reactor = Reactor::new();
+    // }
 }
