@@ -270,6 +270,8 @@ public:
     //// ACCESSORS /////
     template<typename T>
     std::optional<const T> at(size_t i) const {
+        if(nouns_.size() < i) return std::nullopt;
+
         if(std::holds_alternative<T>(nouns_[i].data)) {
             return { std::get<T>(nouns_[i].data) };
         } else {

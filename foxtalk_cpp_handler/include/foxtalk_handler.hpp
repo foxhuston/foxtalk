@@ -11,6 +11,7 @@ class Handler {
 protected:
     void claim(Tuple&& n) { claims.push_back(std::move(n)); }
     virtual void handle(const std::vector<Tuple>& queryResults) = 0;
+    virtual void free_tuple_nouns(const Tuple&) { }
 
 public:
     std::vector<Tuple> claims {}; // should be private, but I need to test...
@@ -20,6 +21,13 @@ public:
     bool ffi_matches(uint8_t *buffer) {
         auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
         return matches(t);
+    }
+
+    bool ffi_free_tuple_nouns(uint8_t *buffer) {
+        auto [tuples_to_free, read_bytes] = read_vec_from_buffer<Tuple>(buffer, 0);
+        for(auto& t : tuples_to_free) {
+            free_tuple_nouns(t);
+        }
     }
 
     void ffi_handle(uint8_t *buffer) {
@@ -41,7 +49,7 @@ public:
 // This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) { ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... }
 // It's pretty cool, but a bit unwieldy given that you can choose to do init/teardowns or not. Although perhaps I'm
 // not quite thinking about this correctly...?
-//
+
 //#define FOXTALK_HANDLER_BOD(T, qr) void T::handle(const std::vector<Tuple>& qr)
 //#define FOXTALK_HANDLER_DEF(T, qr) class T : public Handler { virtual bool matches(const Tuple&); virtual void handle(const std::vector<Tuple>&); }
 //#define FOXTALK_HANDLER(T, qr) FOXTALK_HANDLER_DEF(T, qr); FOXTALK_HANDLER_BOD(T, qr)
@@ -49,7 +57,7 @@ public:
 
 #define FOXTALK_FFI_HANDLER_REG(T) static T* T ## _instance = nullptr; \
     void init() { T ## _instance = new T(); } \
-    void free_tuple() { throw new std::runtime_error("Unimplemented!"); } \
+    void free_tuple_nouns() { T ## _instance ->ffi_free_tuple_nouns(_foxtalk_ipc_buffer); } \
     bool matches() { return T ## _instance ->ffi_matches(_foxtalk_ipc_buffer); } \
     void handle() { T ## _instance ->ffi_handle(_foxtalk_ipc_buffer); } \
     void teardown() { delete T ## _instance; } \

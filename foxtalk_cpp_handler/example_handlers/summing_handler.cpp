@@ -4,6 +4,7 @@
 
 #include <foxtalk_handler.hpp>
 
+
 class SummingHandler : public Handler {
 public:
     bool matches(const Tuple &n) override {

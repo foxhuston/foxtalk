@@ -74,8 +74,8 @@ TEST_F(HandlerTests, EmptyHandlerFfiWorks) {
 //    dbg_dump_buffer_region(buffer, 0, 256);
 
 //    std::cout << "======== TEST WRITE TO BUFFER ========" << std::endl;
-//    write_vec_to_buffer(buffer, 0, queryResults);
-    dbg_dump_buffer_region(buffer, 0, 256);
+    write_vec_to_buffer(buffer, 0, queryResults);
+//    dbg_dump_buffer_region(buffer, 0, 256);
 
     e.ffi_handle(buffer);
 

@@ -16,9 +16,6 @@ constexpr size_t FOXTALK_IPC_BUFFER_SIZE = 10 * 1024 * 1024; // 10Mb
 ///// C FFI ////////////////////////////////////////////////////////////////////
 
 extern "C" {
-///// MY HANDLER ID /////
-inline foxtalk_id_t my_handler_id;
-
 /**
  * This is the runtime communication buffer, fixed to 10Mb by the constant above.
  * The first `sizeof(foxtalk_size_t)` bytes are the number of tuples in the buffer, which
@@ -31,7 +28,7 @@ inline uint8_t _foxtalk_ipc_buffer[FOXTALK_IPC_BUFFER_SIZE];
 
 // from the <q, a, S, I, O> in the paper...
 void init();
-void free_tuple();
+void free_tuple_nouns();
 bool matches(); // this is q
 void handle();  // this is a
 void teardown();
