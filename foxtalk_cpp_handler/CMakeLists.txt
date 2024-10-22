@@ -16,48 +16,7 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-##### KUZU #####
-FetchContent_Declare(
-        kuzulib
-        URL https://github.com/kuzudb/kuzu/releases/download/v0.6.0/libkuzu-linux-x86_64.tar.gz
-)
-
-FetchContent_MakeAvailable(kuzulib)
-set(KUZULIB_SO_PATH "${kuzulib_SOURCE_DIR}/libkuzu.so")  # Adjust the path accordingly
-
-##### REACTOR #####
-
-include_directories(include/)
-include_directories(./)
-
-add_library(reactor
-        reactor.cpp
-        debug_utils.cpp
-        cypher_gen.cpp
-)
-
-target_link_libraries(reactor PUBLIC ${KUZULIB_SO_PATH})
-
-
 ##### TRIPLE TEST #####
-add_executable(triple_test triple_tests.cpp)
-target_link_libraries(triple_test reactor gtest_main)
-
-
-## Foxtalk dload handler
-# add_library(foxtalk_dload_handler handlers/dload_handler.cpp)
-
-## Going to use this for testing handlers.
-add_executable(handler_test handler_tests.cpp)
-target_link_libraries(handler_test reactor gtest_main ${KUZULIB_SO_PATH})
-
-##### DB BENCHMARK #####
-add_executable(
-        benchmark
-        db_benchmark.cpp
-        vendor/ctrack.hpp
-        benchmark/handlers/update_n_tuples_per_tick.cpp
-        benchmark/handlers/update_n_tuples_per_tick.h
-)
-
-target_link_libraries(benchmark reactor ${KUZULIB_SO_PATH})
+include_directories(include/)
+add_executable(triple_test triple_tests.cpp debug_utils.cpp)
+target_link_libraries(triple_test gtest_main)
