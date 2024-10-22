@@ -2,8 +2,8 @@
 // Created by fox on 10/11/24.
 //
 
-#ifndef REACTOR_FOXTALK_TRIPLE_H
-#define REACTOR_FOXTALK_TRIPLE_H
+#ifndef REACTOR_FOXTALK_TUPLE_H
+#define REACTOR_FOXTALK_TUPLE_H
 
 #include <iostream>
 #include <format>
@@ -195,7 +195,7 @@ struct TripleNoun {
     }
 };
 
-struct Triple {
+struct Tuple {
 private:
     std::vector<TripleNoun> nouns_;
 
@@ -210,9 +210,9 @@ public:
     //         : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
     //           object_(std::move(other.object_)) {}
 
-    explicit Triple(std::vector<TripleNoun>&& nouns) : nouns_ { std::move(nouns) } {}
+    explicit Tuple(std::vector<TripleNoun>&& nouns) : nouns_ {std::move(nouns) } {}
 
-    bool operator==(const Triple &other) const {
+    bool operator==(const Tuple &other) const {
         if(nouns_.size() != other.nouns_.size()) { return false; }
 
         for(int i = 0; i < nouns_.size(); i++) {
@@ -223,7 +223,7 @@ public:
     }
 
     //// TO STRING /////
-    friend std::ostream &operator<<(std::ostream &os, const Triple &triple) {
+    friend std::ostream &operator<<(std::ostream &os, const Tuple &triple) {
         os << "<";
         auto s = triple.nouns_.size();
         for(int i = 0; i < s; i++) {
@@ -260,7 +260,7 @@ public:
         }
     }
 
-    static std::pair<Triple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
+    static std::pair<Tuple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
         size_t current_position = start_position;
         auto [noun_count, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
 
@@ -279,7 +279,7 @@ public:
             out.push_back(noun);
         }
 
-        return std::pair<Triple, size_t>(Triple{ std::move(out) }, current_position);
+        return std::pair<Tuple, size_t>(Tuple{std::move(out) }, current_position);
     }
 };
 
@@ -315,4 +315,4 @@ public:
 //}
 
 
-#endif //REACTOR_FOXTALK_TRIPLE_H
+#endif //REACTOR_FOXTALK_TUPLE_H

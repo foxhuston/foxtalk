@@ -6,14 +6,14 @@
 
 #include "gtest/gtest.h"
 
-#include "foxtalk_triple.h"
+#include "foxtalk_tuple.h"
 
 using namespace std::literals;
 
-class TripleTests : public ::testing::Test {
+class TupleTests : public ::testing::Test {
 };
 
-TEST_F(TripleTests, TripleNounQueryRoundTrip) {
+TEST_F(TupleTests, TripleNounQueryRoundTrip) {
     uint8_t buffer[64]{};
 
     auto nWrite = TripleNoun();
@@ -24,7 +24,7 @@ TEST_F(TripleTests, TripleNounQueryRoundTrip) {
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleNounSymbolRoundTrip) {
+TEST_F(TupleTests, TripleNounSymbolRoundTrip) {
     uint8_t buffer[64]{};
     constexpr size_t start_position = 0x5;
     dbg_dump_buffer_region(buffer, 0, 64);
@@ -45,7 +45,7 @@ TEST_F(TripleTests, TripleNounSymbolRoundTrip) {
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleNounCptrRoundTrip) {
+TEST_F(TupleTests, TripleNounCptrRoundTrip) {
     uint8_t buffer[64]{};
 
     auto nWrite = TripleNoun(&buffer);
@@ -56,7 +56,7 @@ TEST_F(TripleTests, TripleNounCptrRoundTrip) {
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleNounU64RoundTrip) {
+TEST_F(TupleTests, TripleNounU64RoundTrip) {
     uint8_t buffer[64]{};
 
     auto nWrite = TripleNoun(4242ul);
@@ -67,7 +67,7 @@ TEST_F(TripleTests, TripleNounU64RoundTrip) {
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleNounI64RoundTrip) {
+TEST_F(TupleTests, TripleNounI64RoundTrip) {
     uint8_t buffer[64]{};
 
     auto nWrite = TripleNoun(2424l);
@@ -78,12 +78,12 @@ TEST_F(TripleTests, TripleNounI64RoundTrip) {
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleRoundTrip) {
+TEST_F(TupleTests, TripleRoundTrip) {
     uint8_t buffer[64]{};
     std::cout << "===== ORIG =====================================================================" << std::endl;
     dbg_dump_buffer_region(buffer, 0, 64);
 
-    Triple nWrite{{
+    Tuple nWrite{{
                           TripleNoun{"lexi"s},
                           TripleNoun{"is a"s},
                           TripleNoun{"husky"s}
@@ -94,13 +94,13 @@ TEST_F(TripleTests, TripleRoundTrip) {
     dbg_dump_buffer_region(buffer, 0, 64);
 
     std::cout << "===== WILL READ ================================================================" << std::endl;
-    auto [nRead, read_bytes] = Triple::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = Tuple::read_from_buffer(buffer, 0);
 
     EXPECT_EQ(nRead, nWrite);
 }
 
-TEST_F(TripleTests, TripleSubjectAccessor) {
-    Triple nWrite{{
+TEST_F(TupleTests, TripleSubjectAccessor) {
+    Tuple nWrite{{
                           TripleNoun{"lexi"s},
                           TripleNoun{"is a"s},
                           TripleNoun{"husky"s}
@@ -111,8 +111,8 @@ TEST_F(TripleTests, TripleSubjectAccessor) {
     EXPECT_EQ(subj, "lexi"s);
 }
 
-TEST_F(TripleTests, TriplePredicateAccessor) {
-    Triple nWrite{{
+TEST_F(TupleTests, TriplePredicateAccessor) {
+    Tuple nWrite{{
                           TripleNoun{"lexi"s},
                           TripleNoun{"is a"s},
                           TripleNoun{"husky"s}
@@ -123,8 +123,8 @@ TEST_F(TripleTests, TriplePredicateAccessor) {
     EXPECT_EQ(pred, "is a"s);
 }
 
-TEST_F(TripleTests, TripleObjectAccessor) {
-    Triple nWrite{{
+TEST_F(TupleTests, TripleObjectAccessor) {
+    Tuple nWrite{{
                           TripleNoun{0ul},
                           TripleNoun{1ul},
                           TripleNoun{42ul}
@@ -137,8 +137,8 @@ TEST_F(TripleTests, TripleObjectAccessor) {
     }
 }
 
-TEST_F(TripleTests, TripleSubjectAccessorWrongType) {
-    Triple nWrite{{
+TEST_F(TupleTests, TripleSubjectAccessorWrongType) {
+    Tuple nWrite{{
                           TripleNoun{"lexi"s},
                           TripleNoun{"is a"s},
                           TripleNoun{"husky"s}
@@ -148,8 +148,8 @@ TEST_F(TripleTests, TripleSubjectAccessorWrongType) {
     EXPECT_EQ(subj, std::nullopt);
 }
 
-TEST_F(TripleTests, TriplePredicateAccessorWrongType) {
-    Triple nWrite{{
+TEST_F(TupleTests, TriplePredicateAccessorWrongType) {
+    Tuple nWrite{{
                           TripleNoun{"lexi"s},
                           TripleNoun{"is a"s},
                           TripleNoun{"husky"s}
@@ -159,8 +159,8 @@ TEST_F(TripleTests, TriplePredicateAccessorWrongType) {
     EXPECT_EQ(pred, std::nullopt);
 }
 
-TEST_F(TripleTests, TripleObjectAccessorWrongType) {
-    Triple nWrite{{
+TEST_F(TupleTests, TripleObjectAccessorWrongType) {
+    Tuple nWrite{{
                           TripleNoun{0ul},
                           TripleNoun{1ul},
                           TripleNoun{42ul}

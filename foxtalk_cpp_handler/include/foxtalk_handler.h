@@ -13,7 +13,7 @@
 #include <cmath>
 #include <optional>
 
-#include "foxtalk_triple.h"
+#include "foxtalk_tuple.h"
 
 constexpr size_t FOXTALK_IPC_BUFFER_SIZE = 4096;
 
@@ -51,30 +51,30 @@ void teardown();
 
 ///// C++ API //////////////////////////////////////////////////////////////////
 
-inline void write_to_ipc_buffer(const Triple& t) {
+inline void write_to_ipc_buffer(const Tuple& t) {
     // size to the 0 position
     memset(_foxtalk_ipc_triple_buffer, 0, FOXTALK_IPC_BUFFER_SIZE);
     t.write_to_buffer(_foxtalk_ipc_triple_buffer, 0);
 }
 
-inline static Triple read_from_ipc_buffer() {
-    auto [t, bytes_read] = Triple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
+inline static Tuple read_from_ipc_buffer() {
+    auto [t, bytes_read] = Tuple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
     return std::move(t);
 }
 
-inline void claim(const Triple& t, void* handlerEnvironment) {
+inline void claim(const Tuple& t, void* handlerEnvironment) {
     write_to_ipc_buffer(std::move(t));
     foxtalk_claim(handlerEnvironment);
 }
 
-inline void registerHandleQuery(const Triple& t, void* handlerEnvironment) {
+inline void registerHandleQuery(const Tuple& t, void* handlerEnvironment) {
     write_to_ipc_buffer(std::move(t));
     foxtalk_registerHandleQuery(handlerEnvironment);
 }
 
-inline std::optional<Triple> getNextQueryResult(void *handlerEnvironment) {
+inline std::optional<Tuple> getNextQueryResult(void *handlerEnvironment) {
     if(foxtalk_getNextQueryResult(handlerEnvironment)) {
-        auto [t, bytes_read] = Triple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
+        auto [t, bytes_read] = Tuple::read_from_buffer(_foxtalk_ipc_triple_buffer, 0);
         return std::move(t);
     } else {
         return std::nullopt;
