@@ -19,5 +19,17 @@ FetchContent_MakeAvailable(googletest)
 ##### TRIPLE TEST #####
 include_directories(include/)
 add_executable(tuple_test tuple_tests.cpp debug_utils.cpp
-        include/foxtalk_handler.h)
+        include/foxtalk_handler.h
+        include/foxtalk_handler.hpp)
 target_link_libraries(tuple_test gtest_main)
+
+##### HANDLER TEST #####
+include_directories(include/)
+add_executable(handler_test handler_tests.cpp debug_utils.cpp
+        include/foxtalk_handler.hpp
+        include/foxtalk_handler.hpp)
+target_link_libraries(handler_test gtest_main)
+
+##### EXAMPLE HANDLERS #####
+add_subdirectory(example_handlers)
+

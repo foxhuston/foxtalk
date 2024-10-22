@@ -16,10 +16,10 @@ class TupleTests : public ::testing::Test {
 TEST_F(TupleTests, TripleNounQueryRoundTrip) {
     uint8_t buffer[64]{};
 
-    auto nWrite = TripleNoun();
+    auto nWrite = TupleNoun();
     nWrite.write_to_buffer(buffer, 0);
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, 0);
 
     EXPECT_EQ(nRead, nWrite);
 }
@@ -31,7 +31,7 @@ TEST_F(TupleTests, TripleNounSymbolRoundTrip) {
     std::cout << "===== ORIG =====================================================================" << std::endl;
 
     auto s = "Hello, World!"s;
-    auto nWrite = TripleNoun(s);
+    auto nWrite = TupleNoun(s);
 
     size_t bytes_written = nWrite.write_to_buffer(buffer, start_position);
     //                       type byte       + string length marker               + actual string length
@@ -40,7 +40,7 @@ TEST_F(TupleTests, TripleNounSymbolRoundTrip) {
     dbg_dump_buffer_region(buffer, 0, 64);
     std::cout << "===== POST WRITE ===============================================================" << std::endl;
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, start_position);
+    auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, start_position);
 
     EXPECT_EQ(nRead, nWrite);
 }
@@ -48,10 +48,10 @@ TEST_F(TupleTests, TripleNounSymbolRoundTrip) {
 TEST_F(TupleTests, TripleNounCptrRoundTrip) {
     uint8_t buffer[64]{};
 
-    auto nWrite = TripleNoun(&buffer);
+    auto nWrite = TupleNoun(&buffer);
     nWrite.write_to_buffer(buffer, 0);
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, 0);
 
     EXPECT_EQ(nRead, nWrite);
 }
@@ -59,10 +59,10 @@ TEST_F(TupleTests, TripleNounCptrRoundTrip) {
 TEST_F(TupleTests, TripleNounU64RoundTrip) {
     uint8_t buffer[64]{};
 
-    auto nWrite = TripleNoun(4242ul);
+    auto nWrite = TupleNoun(4242ul);
     nWrite.write_to_buffer(buffer, 0);
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, 0);
 
     EXPECT_EQ(nRead, nWrite);
 }
@@ -70,10 +70,10 @@ TEST_F(TupleTests, TripleNounU64RoundTrip) {
 TEST_F(TupleTests, TripleNounI64RoundTrip) {
     uint8_t buffer[64]{};
 
-    auto nWrite = TripleNoun(2424l);
+    auto nWrite = TupleNoun(2424l);
     nWrite.write_to_buffer(buffer, 0);
 
-    auto [nRead, read_bytes] = TripleNoun::read_from_buffer(buffer, 0);
+    auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, 0);
 
     EXPECT_EQ(nRead, nWrite);
 }
@@ -84,9 +84,9 @@ TEST_F(TupleTests, TripleRoundTrip) {
     dbg_dump_buffer_region(buffer, 0, 64);
 
     Tuple nWrite{{
-                          TripleNoun{"lexi"s},
-                          TripleNoun{"is a"s},
-                          TripleNoun{"husky"s}
+                         TupleNoun{"lexi"s},
+                         TupleNoun{"is a"s},
+                         TupleNoun{"husky"s}
                   }};
 
     nWrite.write_to_buffer(buffer, 0);
@@ -101,9 +101,9 @@ TEST_F(TupleTests, TripleRoundTrip) {
 
 TEST_F(TupleTests, TripleSubjectAccessor) {
     Tuple nWrite{{
-                          TripleNoun{"lexi"s},
-                          TripleNoun{"is a"s},
-                          TripleNoun{"husky"s}
+                         TupleNoun{"lexi"s},
+                         TupleNoun{"is a"s},
+                         TupleNoun{"husky"s}
                   }};
 
     auto subj = nWrite.at<std::string>(0);
@@ -113,9 +113,9 @@ TEST_F(TupleTests, TripleSubjectAccessor) {
 
 TEST_F(TupleTests, TriplePredicateAccessor) {
     Tuple nWrite{{
-                          TripleNoun{"lexi"s},
-                          TripleNoun{"is a"s},
-                          TripleNoun{"husky"s}
+                         TupleNoun{"lexi"s},
+                         TupleNoun{"is a"s},
+                         TupleNoun{"husky"s}
                   }};
 
     auto pred = nWrite.at<std::string>(1);
@@ -125,9 +125,9 @@ TEST_F(TupleTests, TriplePredicateAccessor) {
 
 TEST_F(TupleTests, TripleObjectAccessor) {
     Tuple nWrite{{
-                          TripleNoun{0ul},
-                          TripleNoun{1ul},
-                          TripleNoun{42ul}
+                         TupleNoun{0ul},
+                         TupleNoun{1ul},
+                         TupleNoun{42ul}
                   }};
 
     if (auto subj = nWrite.at<uint64_t>(2)) {
@@ -139,9 +139,9 @@ TEST_F(TupleTests, TripleObjectAccessor) {
 
 TEST_F(TupleTests, TripleSubjectAccessorWrongType) {
     Tuple nWrite{{
-                          TripleNoun{"lexi"s},
-                          TripleNoun{"is a"s},
-                          TripleNoun{"husky"s}
+                         TupleNoun{"lexi"s},
+                         TupleNoun{"is a"s},
+                         TupleNoun{"husky"s}
                   }};
 
     auto subj = nWrite.at<uint64_t>(0);
@@ -150,9 +150,9 @@ TEST_F(TupleTests, TripleSubjectAccessorWrongType) {
 
 TEST_F(TupleTests, TriplePredicateAccessorWrongType) {
     Tuple nWrite{{
-                          TripleNoun{"lexi"s},
-                          TripleNoun{"is a"s},
-                          TripleNoun{"husky"s}
+                         TupleNoun{"lexi"s},
+                         TupleNoun{"is a"s},
+                         TupleNoun{"husky"s}
                   }};
 
     auto pred = nWrite.at<void *>(1);
@@ -161,9 +161,9 @@ TEST_F(TupleTests, TriplePredicateAccessorWrongType) {
 
 TEST_F(TupleTests, TripleObjectAccessorWrongType) {
     Tuple nWrite{{
-                          TripleNoun{0ul},
-                          TripleNoun{1ul},
-                          TripleNoun{42ul}
+                         TupleNoun{0ul},
+                         TupleNoun{1ul},
+                         TupleNoun{42ul}
                   }};
 
     if (auto subj = nWrite.at<int64_t>(2)) {

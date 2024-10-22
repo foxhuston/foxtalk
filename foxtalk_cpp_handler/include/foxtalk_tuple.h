@@ -5,6 +5,7 @@
 #ifndef REACTOR_FOXTALK_TUPLE_H
 #define REACTOR_FOXTALK_TUPLE_H
 
+#include <vector>
 #include <iostream>
 #include <format>
 #include <cassert>
@@ -33,8 +34,7 @@ inline std::pair<T, size_t> read_t_from_buffer(const uint8_t *buffer, size_t ind
     };
 }
 
-struct TripleNoun {
-
+struct TupleNoun {
     typedef std::variant<
             std::monostate, // Query
             std::string, // Symbol
@@ -56,18 +56,18 @@ struct TripleNoun {
     //     return *this;
     // }
 
-    TripleNoun() : type(NounType::Query), data(std::monostate()) {}
+    TupleNoun() : type(NounType::Query), data(std::monostate()) {}
 
-    static TripleNoun query() { return TripleNoun{}; }
+    static TupleNoun query() { return TupleNoun{}; }
 
-    TripleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data) {
+    TupleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data) {
 //        std::cout << std::boolalpha
 //                  << "ND string? " << std::holds_alternative<std::string>(data)
 //                  << " With index " << data.index()
 //                  << std::endl;
     }
 
-    bool operator==(const TripleNoun &other) const {
+    bool operator==(const TupleNoun &other) const {
         return type == other.type && data == other.data;
     }
 
@@ -83,7 +83,7 @@ struct TripleNoun {
     NounData data;
 
     //// TO STRING /////
-    friend std::ostream &operator<<(std::ostream &os, const TripleNoun &noun) {
+    friend std::ostream &operator<<(std::ostream &os, const TupleNoun &noun) {
         switch (noun.type) {
             case NounType::Query:
                 os << "Query";
@@ -108,7 +108,7 @@ struct TripleNoun {
         return os;
     }
 
-    static std::pair<TripleNoun, size_t> read_from_buffer(uint8_t *buffer, size_t buffer_position) {
+    static std::pair<TupleNoun, size_t> read_from_buffer(uint8_t *buffer, size_t buffer_position) {
         auto start_position = buffer_position;
         auto [type, offset] = read_t_from_buffer<uint8_t>(buffer, buffer_position);
         buffer_position += offset;
@@ -118,7 +118,7 @@ struct TripleNoun {
         switch ((NounType) type) {
             case NounType::Query:
                 return {
-                        TripleNoun{std::monostate()},
+                        TupleNoun{std::monostate()},
                         buffer_position - start_position
                 };
             case NounType::Symbol: {
@@ -126,7 +126,7 @@ struct TripleNoun {
                 buffer_position += read_bytes;
                 auto str = std::string((char *) (buffer + buffer_position), str_length);
                 return {
-                        TripleNoun{str},
+                        TupleNoun{str},
                         (buffer_position - start_position) + str_length
                 };
             }
@@ -135,7 +135,7 @@ struct TripleNoun {
                 buffer_position += read_bytes;
 
                 return {
-                        TripleNoun{dat},
+                        TupleNoun{dat},
                         buffer_position - start_position
                 };
             }
@@ -144,7 +144,7 @@ struct TripleNoun {
                 buffer_position += read_bytes;
 
                 return {
-                        TripleNoun{dat},
+                        TupleNoun{dat},
                         buffer_position - start_position
                 };
             }
@@ -153,7 +153,7 @@ struct TripleNoun {
                 buffer_position += read_bytes;
 
                 return {
-                        TripleNoun{dat},
+                        TupleNoun{dat},
                         buffer_position - start_position
                 };
             }
@@ -197,7 +197,7 @@ struct TripleNoun {
 
 struct Tuple {
 private:
-    std::vector<TripleNoun> nouns_;
+    std::vector<TupleNoun> nouns_;
 
 public:
     //// CONSTRUCTORS ////
@@ -210,7 +210,7 @@ public:
     //         : subject_(std::move(other.subject_)), predicate_(std::move(other.predicate_)),
     //           object_(std::move(other.object_)) {}
 
-    explicit Tuple(std::vector<TripleNoun>&& nouns) : nouns_ {std::move(nouns) } {}
+    explicit Tuple(std::vector<TupleNoun>&& nouns) : nouns_ {std::move(nouns) } {}
 
     bool operator==(const Tuple &other) const {
         if(nouns_.size() != other.nouns_.size()) { return false; }
@@ -251,13 +251,15 @@ public:
     }
 
     //// SERIALIZATION / DESERIALIZATION /////
-    void write_to_buffer(uint8_t *buffer, size_t start_position) const {
+    size_t write_to_buffer(uint8_t *buffer, size_t start_position) const {
         auto count_bytes = write_t_to_buffer(buffer, start_position, (foxtalk_size_t) nouns_.size());
         auto current_position = count_bytes;
 
         for(auto n : nouns_) {
             current_position += n.write_to_buffer(buffer, current_position);
         }
+
+        return current_position - start_position;
     }
 
     static std::pair<Tuple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position) {
@@ -269,17 +271,17 @@ public:
 
         current_position += read_bytes;
 
-        std::vector<TripleNoun> out {};
+        std::vector<TupleNoun> out {};
         for(int i = 0; i < noun_count; i++) {
             std::cout << "Reading subject @ " << std::hex << current_position << std::endl;
-            auto [noun, s_read_bytes] = TripleNoun::read_from_buffer(buffer, current_position);
+            auto [noun, s_read_bytes] = TupleNoun::read_from_buffer(buffer, current_position);
             std::cout << std::format("Read {:d} bytes for subject.", s_read_bytes) << std::endl;
             current_position += s_read_bytes;
 
             out.push_back(noun);
         }
 
-        return std::pair<Tuple, size_t>(Tuple{std::move(out) }, current_position);
+        return std::pair<Tuple, size_t>(Tuple{std::move(out) }, current_position - start_position);
     }
 };
 
