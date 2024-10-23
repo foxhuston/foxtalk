@@ -1,6 +1,7 @@
 use serde::TupleNoun;
 
 mod serde;
+mod ffi;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
@@ -34,4 +35,8 @@ mod tests {
         assert!(matcher(&t2));
         assert!(!matcher(&t3));
     }
+}
+
+struct TriplesReactor {
+    
 }

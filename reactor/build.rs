@@ -8,7 +8,11 @@ fn main() {
     println!("cargo::rustc-link-arg=-export-dynamic");
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let include_dir = PathBuf::from(&manifest_dir).join("c");
+    let include_dir = PathBuf::from(&manifest_dir)
+        .parent()
+        .unwrap()
+        .join("foxtalk_cpp_handler")
+        .join("include");
 
     let dirs = fs::read_dir("tests/test_libs/src").unwrap();
     fs::create_dir_all("tests/test_libs/out").unwrap();
@@ -26,6 +30,7 @@ fn main() {
                     let status = Command::new("clang++")
                         .args([
                             "-shared",
+                            "-std=c++26",
                             "-I",
                             include_dir.as_os_str().to_str().unwrap(),
                             "-fPIC",
