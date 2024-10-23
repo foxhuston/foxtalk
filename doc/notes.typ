@@ -134,7 +134,36 @@ $ Database_0       & = {} \
 
 This is also the intended output-behavior of everything else that follows. That is, at the end of the $i$th step, whatever algorithm we come up with should produce a set equivalent to $Database_(i)$---although hopefully much more efficiently!
 
+== Example: A Logical-Clock Handler
+#let timeobj(t) = {$mono("time" ) #t$}
+#let inc = $mono("inc")$
+
+For this example, let's set up some objects and queries, which are strings defined by the following grammar: $
+  e &::= timeobj(n) \
+  q &::= timeobj(n) | timeobj("_")
+$
+And $n in NN$. The query objects $q$ match either an exact time object (e.g. $timeobj(0), timeobj(42)$) or _any_ time object ($timeobj("_")$).
+
+To allow our example to actually do something, let's define an operation #inc on $e$ such that $
+  inc(timeobj(n)) = timeobj((n+1)).
+$
+
+Finally, let $h(O) = { inc(o) | o in O}.$
+If we set up our database so that $Database_0 = {timeobj(0)}$ and $H = {<< timeobj("_"), h>>}$, then by @def-abstract-db, we would expect $
+  D_(1) &= union.big_(<< q',h' >> in H) h'({o | o in D_(0) and q' matches o}) \
+    &= h({o | o in {timeobj(0)} and q matches o}) \
+    &= h({timeobj(0)}) \
+    &= {inc(o) | o in {timeobj(0)}} \
+    &= {inc(timeobj(0))} \
+    &= {timeobj(1)}
+
+$
+
+Note that @def-abstract-db takes care of the removal of the previous time object, and indeed sets up an "oscillating" handler response---since our example handler matches on the kinds of objects it produces, there will always be a new state of the database in $D_(i+1)$. This does not need to be the case, and in fact, is probably usually not! Most of the time, I expect these to operate more like stages in a pipeline, but it's important to note that this behavior is available, should programmers want it.
+
+
 = An Incremental Algorithm <algorithm>
+#fox[Reviewed up to here #emoji.sparkles]
 
 I think our actual goals for a performant algorithm are as follows:
 
@@ -152,19 +181,6 @@ We would expect that in most cases during a running system, inserting or removin
 
 Furthermore, to simplify writing these handlers, Reactor needs to be able to minimize the calls to handlers while _removing_ objects as well. That is, if the removal doesn't affect the input set of some $h$, it doesn't need to be called (by @when-changed).
 
-== Example: A Logical-Clock Handler
-#let timeobj(t) = {$mono("time" =) #t$}
-
-For this example, let's set up some objects and queries, being strings defined by the following grammar: $
-  q &::= "blah"
-$
-
-I'll write $<< timeobj(\_)," " lambda(r) -> "claim"(timeobj(r + 1)) >>$
-
-I have made _many_ leaps, here, but the gist is that this handler wants to find all objects in the db that look like $timeobj(\_)$, where the underscore matches any value, and the handler-function of that tuple claims there is a new object that says that "time is $r + 1$."
-
-Looking back at @def-abstract-db, we should expect that if, say, $timeobj(10) in Database_(i)$, then $timeobj(10) in.not Database_(i+1) and timeobj(11) in Database_(i+1)$, since the time-handler would no longer be asserting the previous object, and would have generated a new one. From a practical standpoint, if #Database is some kind of storage system, we need to _remove_ #timeobj(10) and _insert_ #timeobj(11) during the processing of this particular handler.
-
 Anyways, back to @when-changed, it would be good if we had a way to---on insertion---know what handlers will need to run on the _next_ tick of the system. That is, if $o$ is new in $D_(i)$, then we know that in $D_(i+1)$, any handler that has a query $q$ that matches $o$ will need to be re-run#footnote[And just for that specific $o$ in the case of non-aggregating handlers.].
 
 Changes are just a remove followed by an insert (as in the example), and we need to know what to do on removal: if $o in Database_(i) and o in.not Database_(i+1)$, then the output of any handler that matched on $o$ is invalid, and needs to be run again.
@@ -178,7 +194,7 @@ Changes are just a remove followed by an insert (as in the example), and we need
 
 Let's take a first-pass at this, only using aggregators. First, let $sdb = angle.l allAggs, A angle.r$ where $allAggs$ is the set of all aggregators with their current inputs and outputs---that is, tuples of $aggtriple$, where $I$ is the set of values that $q$ matches, and $O$ is the set of values that $a(Database(q))$ would match. $A$ is the set of aggregators that need to run. (Note that $sdb_0 = angle.l {"Boot"}, {"Boot"} angle.r$).
 
-I'll write the relation $q matches o$ to mean that the query $q$ matches the object $o$. #text(fill: luma(50%))[(TODO: this is pretty rough, but I just needed something. I could also be using $sigma_(phi)$ from relational algebra, and maybe saying something like $o in sigma_(phi)(Database)$? $phi$ is the same as $q$ in this case.)]
+I'll write the relation $q matches o$ to mean that the query $q$ matches the object $o$.
 
 Things we can take advantage of:
 - If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
