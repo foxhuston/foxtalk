@@ -209,7 +209,7 @@ mod tests {
     }
 
     pub fn round_trip_works_for_noun(noun: TupleNoun) {
-        let buffer = &mut [0u8; 1024];;
+        let buffer = &mut [0u8; 1024];
 
         let new_position_after_write = noun.write_to_buffer(buffer, 0);
         let (deserialized, new_position_after_read) = parse_type(buffer, 0);
@@ -252,7 +252,7 @@ mod tests {
 
         let tuple = Tuple(vec![subj, pred, obj]);
 
-        let tuple_bytes = tuple.write_to_buffer(buffer, 0);
+        let _ = tuple.write_to_buffer(buffer, 0);
 
         let deserialized = parse_row(buffer);
 

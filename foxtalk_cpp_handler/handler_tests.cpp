@@ -85,3 +85,43 @@ TEST_F(HandlerTests, EmptyHandlerFfiWorks) {
     ASSERT_EQ(res.size(), 0);
     ASSERT_EQ(e.match_count, 2);
 }
+
+
+class HuskyHandler : public Handler {
+public:
+    bool matches(const Tuple &n) override {
+        return n.at<std::string>(1).has_value() && n.at<std::string>(1).value() == "is a" &&
+            n.at<std::string>(2).has_value() && n.at<std::string>(2).value() == "husky";
+    }
+
+    void handle(const std::vector<Tuple> &queryResults) override {
+        for (auto& i: queryResults)
+        {
+            auto subj = i.at<std::string>(0).value();
+            claim(Tuple {std::vector{TupleNoun(subj) , TupleNoun("is"), TupleNoun("cool") } });
+        }
+    }
+};
+
+FOXTALK_FFI_HANDLER_REG(HuskyHandler);
+
+
+TEST_F(HandlerTests, HuskyHandlerClaimsCoolness) {
+    std::vector<Tuple> queryResults{
+                {
+                    Tuple{{
+                        TupleNoun{"lexi"s},
+                        TupleNoun{"is a"s},
+                        TupleNoun{"husky"s}
+                    }}
+}};
+
+    HuskyHandler e{};
+    e.handle(queryResults);
+
+    ASSERT_EQ(e.claims.size(), 1);
+    ASSERT_EQ(e.claims.at(0).at<std::string>(0), "lexi");
+    ASSERT_EQ(e.claims.at(0).at<std::string>(1), "is");
+    ASSERT_EQ(e.claims.at(0).at<std::string>(2), "cool");
+}
+

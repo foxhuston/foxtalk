@@ -17,9 +17,9 @@ fn linked_lib_path(filename: &str) -> String {
 }
 // 
 // #[test]
-// fn ffi_loads_a_library() {
-//     unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.expect("opens the library");
-// }
+fn ffi_loads_a_library() {
+    // unsafe { CWhen::new(linked_lib_path("test.so").as_str()) }.expect("opens the library");
+}
 // 
 // #[test]
 // fn ffi_runs_handler() {
