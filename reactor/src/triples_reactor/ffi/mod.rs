@@ -56,29 +56,30 @@ impl<'a> HandlerRegistry<'a> {
     }
 
     pub fn create_handler(&'a mut self, path: &Path) -> FoxTalkHandlerLib<'a> {
+        todo!()
 
-        let name = path.iter().last().unwrap().to_str().unwrap().to_string();
-
-        unsafe { self.libs.insert(name.clone(), libloading::Library::new(path).unwrap()) };
-        let lib = self.libs.get(&name).unwrap();
-        let init: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"init").unwrap() };
-        let free_tuple_nouns: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"free_tuple_nouns").unwrap() };
-        let matches: libloading::Symbol<extern "C" fn() -> bool> = unsafe { lib.get(b"matches").unwrap() };
-        let handle: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"handle").unwrap() };
-        let teardown: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"teardown").unwrap() };
-
-        let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
-        init();
-        let i = FoxTalkHandlerLib {
-            init,
-            free_tuple_nouns,
-            matches,
-            handle,
-            teardown,
-            buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
-        }
-        
-        self.handlers.insert(name, i)
+        // let name = path.iter().last().unwrap().to_str().unwrap().to_string();
+        //
+        // unsafe { self.libs.insert(name.clone(), libloading::Library::new(path).unwrap()) };
+        // let lib = self.libs.get(&name).unwrap();
+        // let init: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"init").unwrap() };
+        // let free_tuple_nouns: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"free_tuple_nouns").unwrap() };
+        // let matches: libloading::Symbol<extern "C" fn() -> bool> = unsafe { lib.get(b"matches").unwrap() };
+        // let handle: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"handle").unwrap() };
+        // let teardown: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"teardown").unwrap() };
+        //
+        // let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
+        // init();
+        // let i = FoxTalkHandlerLib {
+        //     init,
+        //     free_tuple_nouns,
+        //     matches,
+        //     handle,
+        //     teardown,
+        //     buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
+        // };
+        //
+        // self.handlers.insert(name, i);
         
         
     }
