@@ -30,6 +30,7 @@ fn main() {
                     let status = Command::new("clang++")
                         .args([
                             "-shared",
+                            "-g", "-O0",
                             "-std=c++26",
                             "-I",
                             include_dir.as_os_str().to_str().unwrap(),

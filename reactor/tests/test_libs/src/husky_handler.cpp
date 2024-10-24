@@ -1,5 +1,9 @@
+//
+// Created by fox on 10/22/24.
+//
 
 #include <foxtalk_handler.hpp>
+
 
 class HuskyHandler : public Handler {
 public:
@@ -18,4 +22,9 @@ protected:
     }
 };
 
-FOXTALK_FFI_HANDLER_REG(HuskyHandler);
+static HuskyHandler* HuskyHandler_instance = nullptr;
+void init() { HuskyHandler_instance = new HuskyHandler(); }
+void free_tuple_nouns() { HuskyHandler_instance->ffi_free_tuple_nouns(_foxtalk_ipc_buffer); }
+bool matches() { return HuskyHandler_instance->ffi_matches(_foxtalk_ipc_buffer); }
+void handle() { HuskyHandler_instance->ffi_handle(_foxtalk_ipc_buffer); }
+void teardown() { delete HuskyHandler_instance; };

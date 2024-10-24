@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use byteorder::{ByteOrder, NativeEndian};
 use crate::triples_reactor::Tuple;
 
@@ -10,21 +11,94 @@ pub enum TupleNoun {
     I64(i64),       // 4
 }
 
+// impl FoxTalkSerializable for Vec<Tuple> {
+//
+//     fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+//
+//         let num_tuples = self.len() as FoxtalkSize;
+//
+//         let num_tuples_bytes: [u8;size_of::<FoxtalkSize>()] = num_tuples.to_ne_bytes();
+//         let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+//         write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
+//         let mut pos_after_tuple = current_position;
+//         for t in self {
+//             let ret_position = t.write_to_buffer(write_to, current_position);
+//             pos_after_tuple = ret_position.pos
+//         }
+//         ReturnPosition { pos: pos_after_tuple }
+//     }
+// }
+
+
+
+impl FoxTalkSerializable for HashSet<Tuple> {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+        let num_tuples = self.len() as FoxtalkSize;
+
+        let num_tuples_bytes: [u8;size_of::<FoxtalkSize>()] = num_tuples.to_ne_bytes();
+        let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+        write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
+        let mut pos_after_tuple = current_position;
+        for t in self {
+            let ret_position = t.write_to_buffer(write_to, current_position);
+            pos_after_tuple = ret_position.pos
+        }
+        ReturnPosition { pos: pos_after_tuple }
+    }
+}
+impl FoxTalkSerializable for Vec<&Tuple> {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+        let num_tuples = self.len() as FoxtalkSize;
+
+        let num_tuples_bytes: [u8;size_of::<FoxtalkSize>()] = num_tuples.to_ne_bytes();
+        let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+        write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
+        let mut pos_after_tuple = current_position;
+        for &t in self {
+            let ret_position = t.write_to_buffer(write_to, current_position);
+            pos_after_tuple = ret_position.pos
+        }
+        ReturnPosition { pos: pos_after_tuple }
+    }
+}
+
+impl FoxTalkSerializable for Vec<Tuple> {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+        let num_tuples = self.len() as FoxtalkSize;
+
+        let num_tuples_bytes: [u8;size_of::<FoxtalkSize>()] = num_tuples.to_ne_bytes();
+        let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+        write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
+        let mut pos_after_tuple = current_position;
+        for t in self {
+            let ret_position = t.write_to_buffer(write_to, current_position);
+            pos_after_tuple = ret_position.pos
+        }
+        ReturnPosition { pos: pos_after_tuple }
+    }
+}
+
 impl FoxTalkSerializable for Tuple {
     fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
-        
-        let num_nouns = self.0.len() as FoxtalkSize; 
+        (&self).write_to_buffer(write_to, start_position)
+    }
+}
+
+impl FoxTalkSerializable for &Tuple {
+    fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
+
+        let num_nouns = self.0.len() as FoxtalkSize;
         let num_nouns_bytes: [u8;size_of::<FoxtalkSize>()] = num_nouns.to_ne_bytes();
         let mut current_position = (start_position) + size_of::<FoxtalkSize>();
         write_to[start_position..current_position].copy_from_slice(&num_nouns_bytes);
-        
-         
+
+
         for noun in self.0.iter() {
             let ret_position = noun.write_to_buffer(write_to, current_position);
             current_position = ret_position.pos;
         }
         ReturnPosition{pos: current_position}
-        
+
     }
 }
 
@@ -107,11 +181,11 @@ impl FoxTalkSerializable for TupleNoun {
 
 #[repr(transparent)]
 #[derive(PartialEq, Eq, Debug)]
-pub(crate) struct ReturnPosition { pub pos: usize }
+pub struct ReturnPosition { pub pos: usize }
 
 pub(crate) type FoxtalkSize = u32;
 
-pub(crate) trait FoxTalkSerializable {
+pub trait FoxTalkSerializable {
 
     const QUERY_TYPE: u8 = 0;
     const SYMBOL_TYPE: u8 = 1;
@@ -163,18 +237,23 @@ pub(crate) fn parse_type(input: &[u8], start_position: usize) -> (TupleNoun, Ret
 
 }
 
-pub fn parse_row(input: &[u8]) -> Tuple {
-    let (num_nouns, mut current_position) = read_foxtalk_size(input, 0);
+pub fn parse_tuples(input: &[u8]) -> Vec<Tuple> {
+    let (num_tuples, mut current_position) = read_foxtalk_size(input, 0);
 
-    let mut out_nouns = Vec::with_capacity(num_nouns as usize);
-
-    for _ in 0..num_nouns {
-
-        let (noun, new_position) = parse_type(&input, current_position.pos);
+    let mut tuples = Vec::new();
+    for _ in 0..num_tuples {
+        let (num_nouns, new_position) = read_foxtalk_size(input, current_position.pos);
         current_position = new_position;
-        out_nouns.push(noun);
+        let mut out_nouns = Vec::with_capacity(num_nouns as usize);
+
+        for _ in 0..num_nouns {
+            let (noun, new_position) = parse_type(&input, current_position.pos);
+            current_position = new_position;
+            out_nouns.push(noun);
+        }
+        tuples.push(Tuple(out_nouns));
     }
-    Tuple(out_nouns)
+    tuples
 }
 
 
@@ -185,7 +264,7 @@ mod tests {
     #[test]
     pub fn bytes_from_cpp_work() {
        let bytes = "
-       03 00 00 00 01 04 00 00 00 6c 65 78 69 01 04 00
+       01 00 00 00 03 00 00 00 01 04 00 00 00 6c 65 78 69 01 04 00
        00 00 69 73 20 61 01 05 00 00 00 68 75 73 6b 79
        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00";
@@ -198,7 +277,9 @@ mod tests {
 
         println!("{:?}", bytes);
 
-        let Tuple(nouns) = parse_row(&bytes);
+        let tuples = parse_tuples(&bytes);
+
+        let Tuple(nouns) = &tuples[0];
 
         assert_eq!(nouns.len(), 3);
 
@@ -250,12 +331,12 @@ mod tests {
         let obj = TupleNoun::CPtr(0x12345678);
         let buffer = &mut [0u8; 1024];
 
-        let tuple = Tuple(vec![subj, pred, obj]);
+        let tuples = vec![Tuple(vec![subj, pred, obj])];
 
-        let _ = tuple.write_to_buffer(buffer, 0);
+        let _ = tuples.write_to_buffer(buffer, 0);
 
-        let deserialized = parse_row(buffer);
+        let deserialized = &parse_tuples(buffer);
 
-        assert_eq!(tuple, deserialized)
+        assert_eq!(&tuples, deserialized)
     }
 }
