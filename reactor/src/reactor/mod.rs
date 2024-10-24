@@ -1,12 +1,12 @@
+// mod fox_experiments;
+pub mod reactor_handler;
+mod non_aggregating_handler;
+
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-use crate::reactor_handler::ReactorHandler;
-//
-// pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
-//     fn handle(&mut self, input: HashSet<&O>) -> HashSet<O>;
-// }
-
+use reactor_handler::ReactorHandler;
+use crate::reactor::reactor_handler::Handler;
 /*
  * Reactor has handlers.
  * These handlers live _at most_ as long as Reactor.
@@ -30,7 +30,9 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         }
     }
 
-    pub fn add_handler(&mut self, mut handler: ReactorHandler<O>) {
+    pub fn add_handler_with_bootstrap_output(&mut self, handler: Box<dyn Handler<O>>, O: HashSet<O>) {
+        let mut handler = ReactorHandler::new_with_bootstrap_output(handler, O);
+
         for output in &handler.O {
             self.insert(output.clone());
         }
@@ -44,6 +46,10 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         }
         handler.dirty = true;
         self.handlers.push(handler);
+    }
+
+    pub fn add_handler(&mut self, handler: Box<dyn Handler<O>>) {
+        self.add_handler_with_bootstrap_output(handler, HashSet::new())
     }
 
     pub fn insert(&mut self, input: O) {
@@ -123,7 +129,7 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 mod tests {
     use super::*;
     use std::collections::HashSet;
-    use crate::reactor_handler::Handler;
+    use crate::reactor::reactor_handler::Handler;
 
     #[test]
     pub fn paper_agg_example() {
@@ -144,7 +150,7 @@ mod tests {
         }
 
         let mut reactor = Reactor::new();
-        let handler = ReactorHandler::new(Box::new(PaperHandler));
+        let handler = Box::new(PaperHandler);
         reactor.add_handler(handler);
 
         reactor.tick();

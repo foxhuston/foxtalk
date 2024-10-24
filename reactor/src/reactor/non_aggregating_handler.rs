@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use crate::reactor_handler::Handler;
+use crate::reactor::reactor_handler::Handler;
 
 pub trait NonAggregatingHandler<O> {
     fn query(&mut self, o: &O) -> bool;
@@ -65,7 +65,6 @@ mod test {
 
     use std::collections::HashSet;
     use crate::reactor::Reactor;
-    use crate::reactor_handler::ReactorHandler;
 
     #[test]
     pub fn paper_non_agg_example() {
@@ -91,7 +90,7 @@ mod test {
         }
 
         let mut reactor = Reactor::new();
-        let handler = ReactorHandler::new(Box::new(NonAggregatingAdapter::new(Box::new(PaperHandler))));
+        let handler = Box::new(NonAggregatingAdapter::new(Box::new(PaperHandler)));
         reactor.add_handler(handler);
 
         reactor.tick();

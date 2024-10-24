@@ -6,7 +6,6 @@ mod tests {
     use reactor::triples_reactor::{Tuple, TupleNoun};
 
     use std::path::PathBuf;
-    use reactor::reactor_handler::ReactorHandler;
     use reactor::triples_reactor::ffi::DynamicHandler;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
@@ -25,7 +24,7 @@ mod tests {
         let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
 
         let handler = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
-        reactor.add_handler(ReactorHandler::new(Box::new(handler)));
+        reactor.add_handler(Box::new(handler));
         
         reactor.tick();
         reactor.insert(tuple);

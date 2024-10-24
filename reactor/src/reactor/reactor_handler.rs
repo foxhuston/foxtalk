@@ -7,13 +7,25 @@ pub trait Handler<O>
     fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
 }
 
+#[cfg(not(test))]
+#[allow(non_snake_case)]
+pub(super) struct ReactorHandler<O: Eq + Hash>
+{
+    pub(super) qa: Box<dyn Handler<O>>,
+    pub(super) I: HashSet<O>,
+    pub(super) O: HashSet<O>,
+    pub(super) dirty: bool,
+}
+
+// This doesn't seem like a great idea...?
+#[cfg(test)]
 #[allow(non_snake_case)]
 pub struct ReactorHandler<O: Eq + Hash>
 {
-    pub(crate) qa: Box<dyn Handler<O>>,
-    pub(crate) I: HashSet<O>,
-    pub(crate) O: HashSet<O>,
-    pub(crate) dirty: bool,
+    pub qa: Box<dyn Handler<O>>,
+    pub I: HashSet<O>,
+    pub O: HashSet<O>,
+    pub dirty: bool,
 }
 
 impl<O: Eq + Hash> ReactorHandler<O> {

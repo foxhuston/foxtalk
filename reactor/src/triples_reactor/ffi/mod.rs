@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::ffi::c_char;
 use std::path::Path;
 use libloading::os::unix::{Library, Symbol};
-use crate::reactor_handler::Handler;
+use crate::reactor::reactor_handler::Handler;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
 
@@ -63,7 +63,6 @@ pub mod test {
 
     use std::path::PathBuf;
     use crate::reactor::Reactor;
-    use crate::reactor_handler::ReactorHandler;
     use crate::triples_reactor::TupleNoun;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
@@ -80,10 +79,10 @@ pub mod test {
         let handler = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
         {
             let handler2 = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
-            reactor.add_handler(ReactorHandler::new(Box::new(handler2)));
+            reactor.add_handler(Box::new(handler2));
         }
 
-        reactor.add_handler(ReactorHandler::new(Box::new(handler)));
+        reactor.add_handler(Box::new(handler));
     }
 
     #[test]
