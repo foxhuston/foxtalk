@@ -7,6 +7,15 @@ use std::hash::Hash;
 pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
     fn handle(&mut self, input: HashSet<&O>) -> HashSet<O>;
 }
+
+/*
+ * Reactor has handlers.
+ * These handlers live _at most_ as long as Reactor.
+ *
+ * TupleReactor (specifically) watches its own database (somehow) for tuples that describe handlers
+ */
+
+
 pub struct Reactor<'a, O>
     where O: Eq + Hash + Clone + Sized + Debug {
     pub handlers: Vec<ReactorHandler<'a, O>>,
@@ -82,8 +91,6 @@ where O: Eq + Hash + Clone + Sized + Debug  {
             if handler.dirty {
                 let qa = &mut handler.qa;
                 let input = handler.I.iter().collect::<HashSet<&O>>();
-                // TODO: This causes a SIGSERV error somewhere if this if isn't here
-                // Figure out why
                 if !input.is_empty() {
                     let new_output = qa.a(&input);
 

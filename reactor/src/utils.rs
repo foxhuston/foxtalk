@@ -74,14 +74,14 @@ pub trait ReactorHandle<O> {
 pub struct ReactorHandler<'a, O>
     where O: Eq + Hash + Clone + Sized + Debug
 {
-    pub qa: Box<dyn ReactorHandle<O> + 'a>,
+    pub qa: Box<dyn ReactorHandle<O> +'a >,
     pub I: HashSet<O>,
     pub O: HashSet<O>,
     pub dirty: bool,
 }
 
 impl<'a, O: Eq + Hash + Clone + Debug + Sized> ReactorHandler<'a, O> {
-    pub fn new(qa: Box<dyn ReactorHandle<O> + 'a>) -> Self {
+    pub fn new(qa: Box<dyn ReactorHandle<O> +'a>) -> Self {
         ReactorHandler {
             qa,
             I: HashSet::new(),

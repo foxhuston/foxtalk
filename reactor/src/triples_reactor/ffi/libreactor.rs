@@ -46,8 +46,7 @@ pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, bu
 #[no_mangle]
 pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
     let path = Path::new(path.to_str().unwrap());
-    let x = (*reactor_ptr).handler_registry.create_handler(path);
-    (*reactor_ptr).handler_registry.handlers(x)
+    (*reactor_ptr).handler_registry.create_handler(path);
 }
 
 #[no_mangle]
