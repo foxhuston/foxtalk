@@ -5,17 +5,26 @@ use std::hash::Hash;
 use crate::reactor_handler::Handler;
 
 pub type NonAggHandlerS<O> = HashMap<O, HashSet<O>>;
+
+pub trait WrappedHandler<O> {
+    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
+}
+
 pub struct PureHandler <O: Eq + Hash + Clone + Sized + Debug>{
-    aggregate: Box<dyn FnMut(HashSet<&O>) -> HashSet<O>>
+    aggregate: Box<dyn FnMut(&HashSet<O>) -> HashSet<O>>
 }
 
 impl<O: Eq + Hash + Clone + Sized + Debug> PureHandler<O> {
-    pub fn new(aggregate: Box<dyn FnMut(HashSet<&O>) -> HashSet<O>>) -> Self {
+    pub fn new(aggregate: Box<dyn FnMut(&HashSet<O>) -> HashSet<O>>) -> Self {
         PureHandler {
             aggregate
         }
     }
-    pub fn handle(&mut self, input: HashSet<&O>) -> HashSet<O> {
+}
+
+
+impl<O: Eq + Hash + Clone + Sized + Debug> WrappedHandler<O> for PureHandler<O> { 
+    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O> {
         (self.aggregate)(input)
     }
 }
@@ -39,9 +48,10 @@ impl<O: Eq + Hash + Clone + Sized + Debug> NonAggHandler<O> {
             handle
         }
     }
-    pub fn handle(&mut self, input: HashSet<&O>) -> HashSet<O> {
+    pub fn handle(&mut self, input: &HashSet<O>) -> HashSet<O> {
         let keys = self.sideband.keys().collect::<HashSet<&O>>();
-        let all_inputs = keys.union(&input).collect::<HashSet<&&O>>();
+        let input_iter: HashSet<&O> = input.iter().collect::<HashSet<&O>>();
+        let all_inputs = keys.union(&input_iter).collect::<HashSet<&&O>>();
         let mut newly_inserted: HashMap<O, HashSet<O>> = HashMap::new();
         let mut need_to_remove = HashSet::new();
         for &i in all_inputs {

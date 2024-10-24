@@ -1,3 +1,5 @@
+pub mod libreactor;
+
 use std::collections::HashSet;
 use std::ffi::c_char;
 use std::path::Path;

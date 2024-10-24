@@ -132,7 +132,7 @@ mod tests {
         fn paper_query(other: &u64) -> bool {
             *other > 5 && *other < 20
         }
-        fn agg(o: HashSet<&u64>) -> HashSet<u64> {
+        fn agg(o: &HashSet<u64>) -> HashSet<u64> {
             let mut sum = 0;
             for i in o {
                 sum += i;
@@ -144,20 +144,14 @@ mod tests {
 
         let q = &mut paper_query;
 
-        let handler = PureHandler::new(Box::new(agg));
+        let wh = PureHandler::new(Box::new(agg));
         struct PaperHandler;
         impl Handler<u64> for PaperHandler {
             fn query(&mut self, o: &u64) -> bool {
                 *o > 5 && *o < 20
             }
             fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {
-                let mut sum = 0;
-                for &i in o {
-                    sum += i;
-                }
-                let mut out = HashSet::new();
-                out.insert(sum);
-                out
+                wh
             }
         }
 
