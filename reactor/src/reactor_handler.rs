@@ -10,17 +10,18 @@ pub trait Handler<O>
 #[allow(non_snake_case)]
 pub struct ReactorHandler<O: Eq + Hash>
 {
-    qa: Box<dyn Handler<O>>,
-    pub(super) I: HashSet<O>,
-    pub(super) O: HashSet<O>,
-    pub(super) dirty: bool,
+    pub(crate) qa: Box<dyn Handler<O>>,
+    pub(crate) I: HashSet<O>,
+    pub(crate) O: HashSet<O>,
+    pub(crate) dirty: bool,
 }
 
 impl<O: Eq + Hash> ReactorHandler<O> {
     #[allow(non_snake_case)]
     pub fn new_with_bootstrap_output(qa: Box<dyn Handler<O>>, O: HashSet<O>) -> Self {
         Self {
-            qa, O,
+            qa,
+            O,
             I: HashSet::new(),
             dirty: false,
         }
