@@ -1,7 +1,9 @@
 use std::ffi::{c_void, CStr, CString};
+use std::path::*;
 use crate::reactor::Reactor;
 use crate::triples_reactor::ffi::HandlerRegistry;
 use crate::triples_reactor::Tuple;
+use crate::triples_reactor::serde::*;
 
 struct DynamicLibFfiReactor<'a> {
     handler_registry: HandlerRegistry<'a>,
@@ -31,20 +33,28 @@ pub unsafe extern "C" fn free_reactor(reactor: *mut c_void) -> () {
 
 #[no_mangle]
 pub unsafe extern "C" fn add_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: &[u8]) {
-    // (*reactor_ptr).reactor.insert();
+    let (t, _) = Tuple::read_from_buffer(buff, 0);
+    (*reactor_ptr).reactor.insert(t);
 }
 
 #[no_mangle]
-pub extern "C" fn remove_tuple(reactor_ptr: *mut c_void, buff: &[u8]) { }
+pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: &[u8]) {
+    let (t, _) = Tuple::read_from_buffer(buff, 0);
+    (*reactor_ptr).reactor.remove(t);
+}
 
 #[no_mangle]
-pub extern "C" fn add_handler(reactor_ptr: *mut c_void, path: &CStr) { }
+pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
+    let path = Path::new(path.to_str().unwrap());
+    let x = (*reactor_ptr).handler_registry.create_handler(path);
+    (*reactor_ptr).handler_registry.handlers(x)
+}
 
 #[no_mangle]
-pub extern "C" fn remove_handler(reactor_ptr: *mut c_void, path: &CStr) { }
+pub unsafe extern "C" fn remove_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) { }
 
 #[no_mangle]
-pub extern "C" fn tick(reactor: *mut c_void) { }
+pub unsafe extern "C" fn tick(reactor: *mut DynamicLibFfiReactor) { }
 
 
 

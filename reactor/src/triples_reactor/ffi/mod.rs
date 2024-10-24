@@ -7,7 +7,7 @@ use crate::utils::ReactorHandle;
 use libloading;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_char;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct FoxTalkHandlerLib<'a> {
     pub init: libloading::Symbol<'a, extern "C" fn() -> ()>,
@@ -55,11 +55,11 @@ impl<'a> HandlerRegistry<'a> {
         }
     }
 
-    pub fn create_handler(&'a mut self, path_buf: PathBuf) -> FoxTalkHandlerLib<'a> {
+    pub fn create_handler(&'a mut self, path: &Path) -> FoxTalkHandlerLib<'a> {
 
-        let name = path_buf.iter().last().unwrap().to_str().unwrap().to_string();
+        let name = path.iter().last().unwrap().to_str().unwrap().to_string();
 
-        unsafe { self.libs.insert(name.clone(), libloading::Library::new(path_buf).unwrap()) };
+        unsafe { self.libs.insert(name.clone(), libloading::Library::new(path).unwrap()) };
         let lib = self.libs.get(&name).unwrap();
         let init: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"init").unwrap() };
         let free_tuple_nouns: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"free_tuple_nouns").unwrap() };
@@ -69,16 +69,20 @@ impl<'a> HandlerRegistry<'a> {
 
         let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
         init();
-        let t = FoxTalkHandlerLib {
+        let i = FoxTalkHandlerLib {
             init,
             free_tuple_nouns,
             matches,
             handle,
             teardown,
             buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
-        };
-
-        t
+        }
+        
+        self.handlers.insert(name, i)
+        
+        
     }
-    
+    pub fn insert_handler(&'a mut self, name: String, lib: &'a FoxTalkHandlerLib<'a>) {
+        self.handlers.insert(name, lib);
+    }   
 }
