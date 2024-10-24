@@ -65,7 +65,7 @@ impl<'a> HandlerRegistry<'a> {
         let teardown: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"teardown").unwrap() };
 
         let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
-
+        init();
         let t = FoxTalkHandlerLib {
             init,
             free_tuple_nouns,

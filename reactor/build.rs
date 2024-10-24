@@ -42,7 +42,9 @@ fn main() {
                         .status();
 
                     assert_eq!(status.unwrap().success(), true);
-                    // println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+                    println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+                    println!("cargo::rerun-if-changed=tests/test_libs/out/{filename}.cpp");
+                    println!("cargo::rerun-if-changed=../foxtalk_cpp_handler/include");
                 }
             }
             _ => {}
