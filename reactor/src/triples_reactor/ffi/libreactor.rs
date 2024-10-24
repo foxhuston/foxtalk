@@ -1,19 +1,17 @@
 use std::ffi::{c_void, CStr, CString};
 use std::path::*;
 use crate::reactor::Reactor;
-use crate::triples_reactor::ffi::HandlerRegistry;
+use crate::triples_reactor::ffi::DynamicHandler;
 use crate::triples_reactor::Tuple;
 use crate::triples_reactor::serde::*;
 
-struct DynamicLibFfiReactor<'a> {
-    handler_registry: HandlerRegistry<'a>,
-    reactor: Reactor<'a, Tuple>
+struct DynamicLibFfiReactor {
+    reactor: Reactor<Tuple>
 }
 
-impl<'a> DynamicLibFfiReactor<'a> {
+impl DynamicLibFfiReactor {
     pub fn new() -> Self {
         DynamicLibFfiReactor {
-            handler_registry: HandlerRegistry::new(),
             reactor: Reactor::new()
         }
     }
@@ -46,7 +44,8 @@ pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, bu
 #[no_mangle]
 pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
     let path = Path::new(path.to_str().unwrap());
-    (*reactor_ptr).handler_registry.create_handler(path);
+    let dload_handler = DynamicHandler::new(path);
+    (*reactor_ptr).reactor.add_handler(dload_handler)
 }
 
 #[no_mangle]

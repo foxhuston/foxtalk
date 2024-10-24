@@ -1,12 +1,11 @@
-use crate::utils::ReactorHandler;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-
-
-pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
-    fn handle(&mut self, input: HashSet<&O>) -> HashSet<O>;
-}
+use crate::reactor_handler::ReactorHandler;
+//
+// pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
+//     fn handle(&mut self, input: HashSet<&O>) -> HashSet<O>;
+// }
 
 /*
  * Reactor has handlers.
@@ -16,13 +15,13 @@ pub trait Handler<O: Eq + Hash + Clone + Sized + Debug> {
  */
 
 
-pub struct Reactor<'a, O>
+pub struct Reactor<O>
     where O: Eq + Hash + Clone + Sized + Debug {
-    pub handlers: Vec<ReactorHandler<'a, O>>,
+    pub handlers: Vec<ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>
 }
 
-impl<'a, O> Reactor<'a, O>
+impl<O> Reactor<O>
 where O: Eq + Hash + Clone + Sized + Debug  {
     pub fn new() -> Self {
         Reactor {
@@ -31,15 +30,15 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         }
     }
 
-    pub fn add_handler(&mut self, mut handler: ReactorHandler<'a, O>) {
+    pub fn add_handler(&mut self, mut handler: ReactorHandler<O>) {
         for output in &handler.O {
             self.insert(output.clone());
         }
 
-        let mut qa = &mut handler.qa;
+        let qa = &mut handler.qa;
         let all_outputs = self.ref_counts.keys().collect::<HashSet<&O>>();
         for output in all_outputs {
-            if qa.q(output) {
+            if qa.query(output) {
                 handler.I.insert(output.clone());
             }
         }
@@ -56,8 +55,8 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 
             for handler in self.handlers.iter_mut() {
 
-                let mut qa = &mut handler.qa;
-                if qa.q(&input) && !handler.I.contains(&input) {
+                let qa = &mut handler.qa;
+                if qa.query(&input) && !handler.I.contains(&input) {
                     handler.I.insert(input.clone());
                     handler.dirty = true;
                 }
@@ -90,9 +89,9 @@ where O: Eq + Hash + Clone + Sized + Debug  {
         for handler in self.handlers.iter_mut() {
             if handler.dirty {
                 let qa = &mut handler.qa;
-                let input = handler.I.iter().collect::<HashSet<&O>>();
+                let input = &handler.I;
                 if !input.is_empty() {
-                    let new_output = qa.a(&input);
+                    let new_output = qa.handle(input);
 
                     let need_to_insert = new_output.difference(&handler.O).cloned().collect::<HashSet<O>>();
                     for i in need_to_insert.iter() {
@@ -123,8 +122,9 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{PureHandler, NonAggHandler, ReactorHandle};
+    use crate::utils::{PureHandler};
     use std::collections::HashSet;
+    use crate::reactor_handler::Handler;
 
     #[test]
     pub fn paper_agg_example() {
@@ -132,7 +132,7 @@ mod tests {
         fn paper_query(other: &u64) -> bool {
             *other > 5 && *other < 20
         }
-        fn agg(o: HashSet<&u64>) -> HashSet<u64> {
+        fn agg(o: &HashSet<u64>) -> HashSet<u64> {
             let mut sum = 0;
             for i in o {
                 sum += i;
@@ -142,23 +142,16 @@ mod tests {
             out
         }
 
-        let a = &mut agg;
         let q = &mut paper_query;
 
-        let mut handler = PureHandler::new(a);
+        let wh = PureHandler::new(Box::new(agg));
         struct PaperHandler;
-        impl ReactorHandle<u64> for PaperHandler {
-            fn q(&mut self, o: &u64) -> bool {
+        impl Handler<u64> for PaperHandler {
+            fn query(&mut self, o: &u64) -> bool {
                 *o > 5 && *o < 20
             }
-            fn a(&mut self, o: &HashSet<&u64>) -> HashSet<u64> {
-                let mut sum = 0;
-                for &&i in o {
-                    sum += i;
-                }
-                let mut out = HashSet::new();
-                out.insert(sum);
-                out
+            fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {
+                wh
             }
         }
 
@@ -186,13 +179,13 @@ mod tests {
     #[test]
     pub fn paper_non_agg_example() {
         struct PaperHandler;
-        impl ReactorHandle<u64> for PaperHandler {
-            fn q(&mut self, o: &u64) -> bool {
+        impl Handler<u64> for PaperHandler {
+            fn query(&mut self, o: &u64) -> bool {
                 *o == 1 || *o == 2 || *o == 3
             }
-            fn a(&mut self, o: &HashSet<&u64>) -> HashSet<u64> {
+            fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {
                 let mut results = HashSet::new();
-                for &&i in o {
+                for &i in o {
                     match i {
                         1 => {
                             results.insert(2);

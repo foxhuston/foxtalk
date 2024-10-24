@@ -1,38 +1,32 @@
 use reactor::triples_reactor::serde::FoxTalkSerializable;
-use reactor::utils::ReactorHandle;
-use std::path::{Path, PathBuf};
 
-fn linked_lib_path(filename: &str) -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("tests/test_libs/out");
-    path.push(filename);
-    let new_path = path.clone();
-    let path_str = new_path.to_str().unwrap();
-    let owned_path = path_str;
-    PathBuf::from(owned_path)
-}
-//
 #[cfg(test)]
 mod tests {
     use reactor::reactor::Reactor;
-    use reactor::triples_reactor::ffi::HandlerRegistry;
     use reactor::triples_reactor::{Tuple, TupleNoun};
-    use reactor::utils::ReactorHandler;
-    use crate::linked_lib_path;
+
+    use std::path::PathBuf;
+    use reactor::reactor_handler::ReactorHandler;
+    use reactor::triples_reactor::ffi::DynamicHandler;
+
+    fn linked_lib_path(filename: &str) -> PathBuf {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/test_libs/out");
+        path.push(filename);
+        let new_path = path.clone();
+        let path_str = new_path.to_str().unwrap();
+        let owned_path = path_str;
+        PathBuf::from(owned_path)
+    }
 
     #[test]
     fn ffi_loads_a_library() {
-        let mut registry: HandlerRegistry = HandlerRegistry::new();
-
-        let lib  = registry.create_handler(linked_lib_path("husky_handler.so").as_path());
-        // registry.handlers.insert("husky_handler.so".to_string(), &lib);
-
-
-        let handler = ReactorHandler::new(Box::new(lib));
-
-        let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
         let mut reactor: Reactor<Tuple> = Reactor::new();
-        reactor.add_handler(handler);
+        let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
+
+        let handler = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
+        reactor.add_handler(ReactorHandler::new(Box::new(handler)));
+        
         reactor.tick();
         reactor.insert(tuple);
         reactor.tick();
