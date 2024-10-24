@@ -1,6 +1,6 @@
 // mod fox_experiments;
 pub mod reactor_handler;
-mod non_aggregating_handler;
+mod utils;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
