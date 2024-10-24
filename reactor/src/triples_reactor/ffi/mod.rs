@@ -2,7 +2,7 @@ pub mod libreactor;
 
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::serde::tuple::*;
-use crate::triples_reactor::Tuple;
+use crate::triples_reactor::{Tuple, TupleNoun};
 use crate::utils::ReactorHandle;
 use libloading;
 use std::collections::{HashMap, HashSet};
@@ -23,7 +23,7 @@ pub struct FoxTalkHandlerLib<'a> {
 //         todo!()
 //     }
 // }
-impl<'a> ReactorHandle<Tuple> for FoxTalkHandlerLib<'a> {
+impl<'a> ReactorHandle<Tuple> for &mut FoxTalkHandlerLib<'a> {
     fn q(&mut self, o: &Tuple) -> bool {
         o.write_to_buffer(self.buffer, 0);
         (self.matches)()
@@ -44,7 +44,7 @@ impl<'a> ReactorHandle<Tuple> for FoxTalkHandlerLib<'a> {
 // TODO: Check this with a memory profiler
 pub struct HandlerRegistry<'a> {
     pub libs: HashMap<String, libloading::Library>,
-    pub handlers: HashMap<String, &'a FoxTalkHandlerLib<'a>>
+    pub handlers: HashMap<String, FoxTalkHandlerLib<'a>>
 }
 
 impl<'a> HandlerRegistry<'a> {
@@ -55,35 +55,51 @@ impl<'a> HandlerRegistry<'a> {
         }
     }
 
-    pub fn create_handler(&'a mut self, path: &Path) -> FoxTalkHandlerLib<'a> {
-        todo!()
+    pub fn create_handler(&'a mut self, path: &Path) -> &'a mut FoxTalkHandlerLib {
 
-        // let name = path.iter().last().unwrap().to_str().unwrap().to_string();
-        //
-        // unsafe { self.libs.insert(name.clone(), libloading::Library::new(path).unwrap()) };
-        // let lib = self.libs.get(&name).unwrap();
-        // let init: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"init").unwrap() };
-        // let free_tuple_nouns: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"free_tuple_nouns").unwrap() };
-        // let matches: libloading::Symbol<extern "C" fn() -> bool> = unsafe { lib.get(b"matches").unwrap() };
-        // let handle: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"handle").unwrap() };
-        // let teardown: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"teardown").unwrap() };
-        //
-        // let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
-        // init();
-        // let i = FoxTalkHandlerLib {
-        //     init,
-        //     free_tuple_nouns,
-        //     matches,
-        //     handle,
-        //     teardown,
-        //     buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
-        // };
-        //
-        // self.handlers.insert(name, i);
+        let name = path.iter().last().unwrap().to_str().unwrap().to_string();
+
+        unsafe { self.libs.insert(name.clone(), libloading::Library::new(path).unwrap()) };
+        let lib = self.libs.get(&name).unwrap();
+        let init: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"init").unwrap() };
+        let free_tuple_nouns: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"free_tuple_nouns").unwrap() };
+        let matches: libloading::Symbol<extern "C" fn() -> bool> = unsafe { lib.get(b"matches").unwrap() };
+        let handle: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"handle").unwrap() };
+        let teardown: libloading::Symbol<extern "C" fn() -> ()> = unsafe { lib.get(b"teardown").unwrap() };
+
+        let buffer: libloading::Symbol<*mut c_char> = unsafe { lib.get(b"_foxtalk_ipc_buffer").unwrap() };
+        init();
+        let i = FoxTalkHandlerLib {
+            init,
+            free_tuple_nouns,
+            matches,
+            handle,
+            teardown,
+            buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
+        };
         
-        
+        self.handlers.insert(name.clone(), i);
+        self.handlers.get_mut(&name).unwrap()
     }
-    pub fn insert_handler(&'a mut self, name: String, lib: &'a FoxTalkHandlerLib<'a>) {
-        self.handlers.insert(name, lib);
-    }   
+}
+
+impl<'a> ReactorHandle<Tuple> for HandlerRegistry<'a> {
+    fn q(&mut self, Tuple(nouns): &Tuple) -> bool {
+        // Prefix: <path, "is a", "handler", ...>
+        if nouns.len() < 3 { return false; }
+
+        if let TupleNoun::Symbol(path_name) = &nouns[0] {
+            if let TupleNoun::Symbol(pred) = &nouns[1] {
+                if let TupleNoun::Symbol(obj) = &nouns[2] {
+                    return pred == "is a" && obj == "handler"
+                }
+            }
+        }
+        false
+    }
+
+    fn a(&mut self, o: &HashSet<&Tuple>) -> HashSet<Tuple> {
+
+        todo!()
+    }
 }
