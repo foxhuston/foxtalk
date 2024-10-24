@@ -1,5 +1,6 @@
 pub mod serde;
 pub mod ffi;
+mod handler_handler;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]

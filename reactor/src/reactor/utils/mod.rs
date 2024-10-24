@@ -1,2 +1,1 @@
-mod handler_handler;
 mod non_aggregating_handler;
