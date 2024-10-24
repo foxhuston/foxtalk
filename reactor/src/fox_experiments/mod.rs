@@ -1,10 +1,10 @@
 mod reactor_handler;
+mod dload_handler;
+
 pub use reactor_handler::*;
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-
-
 
 // Deciding explicitly that we _copy_ o's into their
 // respective input sets.
@@ -118,7 +118,7 @@ mod tests {
     pub fn paper_agg_example() {
         struct PaperHandler;
         impl Handler<u64> for PaperHandler {
-            fn query(&self, o: &u64) -> bool {
+            fn query(&mut self, o: &u64) -> bool {
                 *o > 5 && *o < 20
             }
             fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {
@@ -157,7 +157,7 @@ mod tests {
     pub fn paper_non_agg_example() {
         struct PaperHandler;
         impl Handler<u64> for PaperHandler {
-            fn query(&self, o: &u64) -> bool {
+            fn query(&mut self, o: &u64) -> bool {
                 *o == 1 || *o == 2 || *o == 3
             }
             fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {

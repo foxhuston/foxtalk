@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 pub trait Handler<O>
 {
-    fn query(&self, o: &O) -> bool;
+    fn query(&mut self, o: &O) -> bool;
     fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
 }
 
@@ -30,7 +30,7 @@ impl<O: Eq + Hash> ReactorHandler<O> {
         Self::new_with_bootstrap_output(qh, HashSet::new())
     }
 
-    pub fn query(&self, o: &O) -> bool {
+    pub fn query(&mut self, o: &O) -> bool {
         self.qa.query(o)
     }
 

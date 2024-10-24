@@ -46,18 +46,17 @@ where
         let mut count_tuples: FoxtalkSize = 0;
 
         let mut current_position = (start_position) + size_of::<FoxtalkSize>();
-        let mut pos_after_tuple = current_position;
         for t in self {
             count_tuples += 1;
             
             let ret_position = t.write_to_buffer(write_to, current_position);
-            pos_after_tuple = ret_position.pos
+            current_position = ret_position.pos
         }
         
         let num_tuples_bytes: [u8; size_of::<FoxtalkSize>()] = count_tuples.to_ne_bytes();
-        write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
+        write_to[start_position.. start_position + size_of::<FoxtalkSize>()].copy_from_slice(&num_tuples_bytes);
         
-        ReturnPosition { pos: pos_after_tuple }
+        ReturnPosition { pos: current_position }
     }
 }
 
