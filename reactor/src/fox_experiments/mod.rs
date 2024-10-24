@@ -1,5 +1,6 @@
 mod reactor_handler;
 mod dload_handler;
+mod non_aggregating_handler;
 
 pub use reactor_handler::*;
 
@@ -151,69 +152,5 @@ mod tests {
         assert_eq!(reactor.handlers.get(0).unwrap().I.contains(&10), true);
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
-    }
-
-    #[test]
-    pub fn paper_non_agg_example() {
-        struct PaperHandler;
-        impl Handler<u64> for PaperHandler {
-            fn query(&mut self, o: &u64) -> bool {
-                *o == 1 || *o == 2 || *o == 3
-            }
-            fn handle(&mut self, o: &HashSet<u64>) -> HashSet<u64> {
-                let mut results = HashSet::new();
-                for &i in o {
-                    match i {
-                        1 => {
-                            results.insert(2);
-                            results.insert(3);
-                        }
-                        2 => {
-                            results.insert(5);
-                        }
-                        _ => {}
-                    }
-                }
-                results
-            }
-        }
-
-        let mut reactor = Reactor::new();
-        let handler = ReactorHandler::new(Box::new(PaperHandler));
-        reactor.add_handler(handler);
-
-        reactor.tick();
-        // So if we call: 𝗂𝗇𝗌𝖾𝗋𝗍(𝔇0, 𝑜1), then...
-        reactor.insert(1);
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1]));
-        assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
-        assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
-
-        reactor.tick();
-        assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
-        assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
-        assert_eq!(reactor.ref_counts.get(&2).unwrap(), &1);
-        assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
-
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3]));
-        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
-
-        reactor.tick();
-        assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
-        assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
-        assert_eq!(reactor.ref_counts.get(&2).unwrap(), &1);
-        assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
-        assert_eq!(reactor.ref_counts.get(&5).unwrap(), &1);
-
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, false);
-        assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
-        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
-        // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
-
     }
 }
