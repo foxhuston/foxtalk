@@ -1,4 +1,7 @@
-use crate::triples_reactor::serde::{parse_tuples, FoxTalkSerializable};
+pub mod libreactor;
+
+use crate::triples_reactor::serde::*;
+use crate::triples_reactor::serde::tuple::*;
 use crate::triples_reactor::Tuple;
 use crate::utils::ReactorHandle;
 use libloading;
@@ -29,9 +32,9 @@ impl<'a> ReactorHandle<Tuple> for FoxTalkHandlerLib<'a> {
     // This assumes this is always aggregating handlers right now
     fn a(&mut self, o: &HashSet<&Tuple>) -> HashSet<Tuple> {
         let to_write: Vec<&Tuple> = o.iter().map(|x| *x).collect();
-        to_write.write_to_buffer(self.buffer, 0);
+        to_write.into_iter().write_to_buffer(self.buffer, 0);
         (self.handle)();
-        let res = parse_tuples(self.buffer);
+        let (res, _) = Vec::<Tuple>::read_from_buffer(self.buffer, 0);
         HashSet::from_iter(res)
     }
 }
