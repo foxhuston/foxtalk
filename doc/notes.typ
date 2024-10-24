@@ -17,7 +17,7 @@
 #set page("us-letter")
 #set text(size: 10pt)
 #set heading(numbering: "1.1")
-#set math.equation(numbering: "(1)")
+// #set math.equation(numbering: "(1)")
 #set enum(numbering: "1.a.")
 
 #let fox(m) = {text(fill: orange)[#emoji.fox #m]}
@@ -31,6 +31,12 @@
 #let Claim(it) = figure(kind: "claim", supplement: "Claim")[
   #align(left, [*Claim #context counter(figure.where(kind: "claim")).display():* #it])
 ]
+
+#let Def(it) = figure(kind: "definition", supplement: "Definition")[#box(width: 100%, [
+  #align(left, [
+    *Definition #context counter(figure.where(kind: "definition")).display():*])
+    #it
+])]
 
 ///// TITLE ////////////////////////////////////////////////////////////////////
 #context text(24pt)[
@@ -66,16 +72,6 @@
 )
 
 #let Database   = {$upright(sans("D"))$}
-#let Aggregator = {$angle.l q, a angle.r$}
-#let Handler    = {$angle.l q, h angle.r$}
-#let Boot       = {$upright(sans("boot"))$}
-
-#let term(t)    = {$upright(sans(#t))$}
-#let claim      = term("claim")
-#let when       = term("when")
-#let next       = term("next")
-#let sstep      = {$-->^(Handler)$}
-#let made       = {$==>^"gen"$}
 
 = #fox[Todo]
 - Redo #(sym.section)2. The Denotation section is good, but all the definitions are out of date.
@@ -86,7 +82,7 @@
 
 = Introduction
 
-I came across Dynamicland @dynamicland recently, and was pretty enamoured with it---although I'll confess to being pretty enamoured with many of the things Brett Victor and co. come up with. There are a lot of interesting pieces to this system, but this particular document is a collection of my thoughts around trying to understand the core semantics of their programming language, Realtalk. It took some thinking, but after relentlessly paring down what I think the central tenant of this system could be, I've come up with something that I think is simple, yet elegant.
+I came across Dynamicland @dynamicland recently, and was pretty enamoured with it---although I'll confess to being pretty enamoured with many of the things Brett Victor and co. come up with. There are a lot of interesting pieces to this system, but this particular document is a collection of my thoughts around trying to understand the core semantics of their programming language, Realtalk. It took some thinking, but after relentlessly paring down what I think the central tenant of this system could be, I've come up with something that I think is simple and elegant.
 
 As an outline, in @denotational-semantics, I'll write out what I think are a reasonable denotational semantics of the system, and in @algorithm, I'll write out an algorithm to actually implement these sementics along with thoughts about the tradeoffs it makes. Finally, in @implementation, I'll write out some details about our choices actually implementing the system.
 
@@ -101,51 +97,89 @@ or as a `when` clause, e.g.
   End
 ```
 
-This, at first, felt like some kind of graph database, but that didn't really capture the actual semantics of what it seemed like to work with the system. It has, from what I've seen, this feeling of "facts in resonance." That is, the database would have the fact that `"lexi" is "cool"` only as long as `"lexi" is a "husky"` is present in the database. If the first claim is removed, then any claim that was generated from it will also be removed---this has the feel of dependent pairs to me: if there is no witness, there can't be anything that follows. This has a ripple effect throughout the system: from the previous example, there may have been `When` clauses that matched on "things that are cool," and anything _those_ generated would also need to be cleaned up.
+This, at first, felt like some kind of graph database, but that didn't really capture the actual semantics of what it seemed like to work with the system. It has, from what I've seen, this feeling of "facts in resonance." That is, the database would have the fact that `"lexi" is "cool"` only as long as `"lexi" is a "husky"` is present in the database. If the first claim is removed, then any claim that was generated from it will also be removed. #footnote[Incidentally, this has the feel of dependent pairs to me: if there is no witness, there can't be anything that follows.] This has a ripple effect throughout the system: from the previous example, there may have been `When` clauses that matched on "things that are cool," and anything _those_ generated would also need to be cleaned up.
 
 == Denotationally<denotational-semantics>
-Distilling all of this, it suggests a fairly elegant model of the state of the database over steps. In order to write this, I'll first need to define some terms:
+
+#let matches = math.class("relation",
+  math.attach(sym.harpoon, t: [?])
+)
+
+#let isa = math.class("relation", $" ":" "$)
+
+Distilling all of this, it suggests a set-theoretic model of the state of the database over steps. In order to write this, I'll first need to define some terms:
 
 #table(
-  columns: (auto, auto),
+  columns: (0.5fr, 1fr),
   stroke: none,
   align: (right, left),
-  [$Database$], [The abstract database. This contains:],
-  [$o$], [An abstract object that can be in $Database.$]
+  [$Database$], [The abstract database. This contains many:],
+  [$o$], [An abstract object that can be in $Database.$],
+  [$q$], [An abstract _query_, along with a relation],
+  [$matches isa q times o$], [The _matches_ relation, between queries and objects.],
+  [$h isa {o} -> {o}$], [A _handler function_ that takes as input a set of (input) objects, and returns a set of (claimed) objects.],
+  [$<< q, h >>$], [A _handler_: a pair containing a query and an associated handler function.],
+  [$H$], [The set of handlers.]
 )
 
 
+Then, to find the state of the database at the $i$th step:
 
-To find the state of the database at the $i$th step:
-
-$ Database_0       & = { Boot } \
-  Database_(i + 1) & = union.big_(Aggregator in Database_(i)(q_a)) a(Database_(i)(q)) $<set-theory-db>
+#Def[
+$ Database_0       & = {} \
+  Database_(i + 1) & = union.big_(<< q, h >> in H) h({ o | o in Database_(i) and q matches o}) $
+]<def-abstract-db>
 
 // This whole system has the feeling of "facts in resonance;" that is, something exists in the database only so long as _something_ is asserting its existence. Deletions fall out of this system naturally: if some handler $h$ is asserting some (unique #footnote[If one or more other handlers were also asserting $t$, then the fact that $h$ stopped wouldn't mean anything for $Database_(i+1)$, since it is the union of _all_ of the outputs of all of the handlers.]) object $t$ on step $i$, and then it does not on step $i + 1$, then $t in.not Database_(i+1)$. Furthermore, on timestep $i+1$, any other handler that was depending on $t$ will have a new query result (lacking $t$), and it will recompute its output, which will possibly result in fewer tuples still. In this way, deletions ripple across steps, until the system comes to a new equilibrium.
 
-This is also the intended output-behavior of everything else that follows. That is, at the end of the $i$th step, whatever algorithm we come up with should produce a set equivalent to $Database_(i)$.
+This is also the intended output-behavior of everything else that follows. That is, at the end of the $i$th step, whatever algorithm we come up with should produce a set equivalent to $Database_(i)$---although hopefully much more efficiently!
 
-= An Incremental #next <algorithm>
+== Example: A Logical-Clock Handler
+#let timeobj(t) = {$mono("time" ) #t$}
+#let inc = $mono("inc")$
+
+For this example, let's set up some objects and queries, which are strings defined by the following grammar: $
+  e &::= timeobj(n) \
+  q &::= timeobj(n) | timeobj("_")
+$
+And $n in NN$. The query objects $q$ match either an exact time object (e.g. $timeobj(0), timeobj(42)$) or _any_ time object ($timeobj("_")$).
+
+To allow our example to actually do something, let's define an operation #inc on $e$ such that $
+  inc(timeobj(n)) = timeobj((n+1)).
+$
+
+Finally, let $h(O) = { inc(o) | o in O}.$
+If we set up our database so that $Database_0 = {timeobj(0)}$ and $H = {<< timeobj("_"), h>>}$, then by @def-abstract-db, we would expect $
+  D_(1) &= union.big_(<< q',h' >> in H) h'({o | o in D_(0) and q' matches o}) \
+    &= h({o | o in {timeobj(0)} and q matches o}) \
+    &= h({timeobj(0)}) \
+    &= {inc(o) | o in {timeobj(0)}} \
+    &= {inc(timeobj(0))} \
+    &= {timeobj(1)}
+
+$
+
+Note that @def-abstract-db takes care of the removal of the previous time object, and indeed sets up an "oscillating" handler response---since our example handler matches on the kinds of objects it produces, there will always be a new state of the database in $D_(i+1)$. This does not need to be the case, and in fact, is probably usually not! Most of the time, I expect these to operate more like stages in a pipeline, but it's important to note that this behavior is available, should programmers want it.
+
+
+= An Incremental Algorithm <algorithm>
+#fox[Reviewed up to here #emoji.sparkles]
 
 I think our actual goals for a performant algorithm are as follows:
 
 1. Be able to know if $o$ matches $q$ as quickly as possible.
 2. Run the handlers as little as possible.
-3. Preserve the set-union semantics from @set-theory-db.
+3. Preserve the set-union semantics from @def-abstract-db.
 
-Given those goals, I think that we would want an algorithm that did some kind of "forward-querying"---that is, when some object $o$ is inserted, figure out what handlers will need to run on the next tick.
+I'll punt on the first goal, here, and claim that our algorithm, Reactor, can operate efficiently without actually knowing what the objects $o$ are, or how the queries $q$ work. Given the other two goals, I think that we would want an algorithm that does some kind of "forward-querying," for lack of a better term. The most straightforward thing to do would be to implement @def-abstract-db more or less directly: that is, at each step, for each handler, run its query on the database, call the handler functions on the result set, and then union all of those sets together to form the new database.
+
+This would not be very efficient. Instead, I'll start with the... let's say _definitional observation_ that:
 
 #Claim[The only time a handler needs to rerun is when its input changes.]<when-changed>
 
-Let's set up an example: we can write a simple clock handler:
+We would expect that in most cases during a running system, inserting or removing a fact wouldn't effect _every_ handler registered in the system; so we should expect performance gains if we can figure out exactly which handlers were effected at each step.
 
-#let timeobj(t) = {$mono("time" = #t)$}
-
-$ angle.l timeobj(\_)," " lambda(r) -> claim(timeobj(r + 1)) angle.r $
-
-I have made _many_ leaps, here, but the gist is that this handler wants to find all objects in the db that look like $timeobj(\_)$, where the underscore matches any value, and the handler-function of that tuple claims there is a new object that says that "time is $r + 1$."
-
-Looking back at @set-theory-db, we should expect that if, say, $timeobj(10) in Database_(i)$, then $timeobj(10) in.not Database_(i+1) and timeobj(11) in Database_(i+1)$, since the time-handler would no longer be asserting the previous object, and would have generated a new one. From a practical standpoint, if #Database is some kind of storage system, we need to _remove_ #timeobj(10) and _insert_ #timeobj(11) during the processing of this particular handler.
+Furthermore, to simplify writing these handlers, Reactor needs to be able to minimize the calls to handlers while _removing_ objects as well. That is, if the removal doesn't affect the input set of some $h$, it doesn't need to be called (by @when-changed).
 
 Anyways, back to @when-changed, it would be good if we had a way to---on insertion---know what handlers will need to run on the _next_ tick of the system. That is, if $o$ is new in $D_(i)$, then we know that in $D_(i+1)$, any handler that has a query $q$ that matches $o$ will need to be re-run#footnote[And just for that specific $o$ in the case of non-aggregating handlers.].
 
@@ -158,11 +192,9 @@ Changes are just a remove followed by an insert (as in the example), and we need
 #let aggtriple = {$angle.l q, a, I, O angle.r$}
 #let aggtriplen(n) = {$angle.l q_(#n), a_(#n), I_(#n), O_(#n) angle.r$}
 
-Let's take a first-pass at this, only using aggregators. First, let $sdb = angle.l allAggs, A angle.r$ where $allAggs$ is the set of all aggregators with their current inputs and outputs---that is, tuples of $aggtriple$, where $I$ is the set of values that $q$ matches, and $O$ is the set of values that $a(Database(q))$ would match. $A$ is the set of aggregators that need to run. (Note that $sdb_0 = angle.l {Boot}, {Boot} angle.r$).
+Let's take a first-pass at this, only using aggregators. First, let $sdb = angle.l allAggs, A angle.r$ where $allAggs$ is the set of all aggregators with their current inputs and outputs---that is, tuples of $aggtriple$, where $I$ is the set of values that $q$ matches, and $O$ is the set of values that $a(Database(q))$ would match. $A$ is the set of aggregators that need to run. (Note that $sdb_0 = angle.l {"Boot"}, {"Boot"} angle.r$).
 
-#let matches = math.class("relation", math.accent(sym.tilde, "?"))
-
-I'll write the relation $q matches o$ to mean that the query $q$ matches the object $o$. #text(fill: luma(50%))[(TODO: this is pretty rough, but I just needed something. I could also be using $sigma_(phi)$ from relational algebra, and maybe saying something like $o in sigma_(phi)(Database)$? $phi$ is the same as $q$ in this case.)]
+I'll write the relation $q matches o$ to mean that the query $q$ matches the object $o$.
 
 Things we can take advantage of:
 - If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
