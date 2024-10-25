@@ -3,6 +3,7 @@ use crate::triples_reactor::TupleNoun::U64;
 pub mod serde;
 pub mod ffi;
 mod handler_handler;
+mod dynamic_loading_triples_reactor;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]

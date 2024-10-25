@@ -7,7 +7,7 @@ mod tests {
     use reactor::triples_reactor::{Tuple, TupleNoun};
 
     use std::path::PathBuf;
-    use reactor::triples_reactor::ffi::DynamicHandler;
+    use reactor::triples_reactor::ffi::dynamic_handler::DynamicHandler;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

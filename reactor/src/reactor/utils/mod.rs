@@ -1,1 +1,1 @@
-mod non_aggregating_handler;
+pub mod non_aggregating_handler;
