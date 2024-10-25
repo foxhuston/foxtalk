@@ -10,7 +10,7 @@ pub trait Handler<O>
 #[allow(non_snake_case)]
 pub(super) struct ReactorHandler<O: Eq + Hash>
 {
-    pub(super) qa: Box<dyn Handler<O>>,
+    qa: Box<dyn Handler<O>>,
     pub(super) I: HashSet<O>,
     pub(super) O: HashSet<O>,
     pub(super) dirty: bool,

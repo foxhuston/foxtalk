@@ -15,14 +15,12 @@ use crate::reactor::reactor_handler::Handler;
  */
 
 
-pub struct Reactor<O>
-    where O: Eq + Hash + Clone + Sized + Debug {
+pub struct Reactor<O: Eq + Hash> {
     pub handlers: Vec<ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>
 }
 
-impl<O> Reactor<O>
-where O: Eq + Hash + Clone + Sized + Debug  {
+impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
     pub fn new() -> Self {
         Reactor {
             handlers: Vec::new(),
@@ -37,10 +35,9 @@ where O: Eq + Hash + Clone + Sized + Debug  {
             self.insert(output.clone());
         }
 
-        let qa = &mut handler.qa;
-        let all_outputs = self.ref_counts.keys().collect::<HashSet<&O>>();
+        let all_outputs: HashSet<&O> = self.ref_counts.keys().collect();
         for output in all_outputs {
-            if qa.query(output) {
+            if handler.query(output) {
                 handler.I.insert(output.clone());
             }
         }
@@ -61,18 +58,17 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 
             for handler in self.handlers.iter_mut() {
 
-                let qa = &mut handler.qa;
-                if qa.query(&input) && !handler.I.contains(&input) {
+                if handler.query(&input) && !handler.I.contains(&input) {
                     handler.I.insert(input.clone());
                     handler.dirty = true;
                 }
             }
-            self.ref_counts.insert(input.clone(), 1);
+            self.ref_counts.insert(input, 1);
         }
     }
 
     pub fn remove(&mut self, input: O) {
-        println!("adding o: {:?}", input);
+        println!("removing o: {:?}", input);
         if self.ref_counts.contains_key(&input) {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count -= 1;
@@ -90,35 +86,42 @@ where O: Eq + Hash + Clone + Sized + Debug  {
 
     pub fn tick(&mut self) {
         println!("tick tick tick");
-        let mut need_to_insert_total = HashSet::new();
-        let mut need_to_remove_total = HashSet::new();
+        let mut need_to_insert_total = Vec::new();
+        let mut need_to_remove_total = Vec::new();
         for handler in self.handlers.iter_mut() {
             if handler.dirty {
-                let qa = &mut handler.qa;
-                let input = &handler.I;
-                if !input.is_empty() {
-                    let new_output = qa.handle(input);
+                // let qa = &mut handler.qa;
+                // let input = &handler.I;
 
-                    let need_to_insert = new_output.difference(&handler.O).cloned().collect::<HashSet<O>>();
-                    for i in need_to_insert.iter() {
-                        need_to_insert_total.insert(i.clone());
-                    }
-                    let need_to_remove = handler.O.difference(&new_output).cloned().collect::<HashSet<O>>();
-                    for i in need_to_remove.iter() {
-                        need_to_remove_total.insert(i.clone());
-                    }
-                    handler.O = new_output;
+                // TODO: THIS HAS A BUG
+                // Example: Agg handler counting number of numbers and adding that count in output set
+                // then all the inputs it cares about get removed
+                // if !input.is_empty() {
+                let new_output = handler.handle();
+
+                let need_to_insert: HashSet<O> = new_output.difference(&handler.O).cloned().collect();
+                let need_to_remove: HashSet<O> = handler.O.difference(&new_output).cloned().collect();
+
+                for i in need_to_insert.into_iter() {
+                    need_to_insert_total.push(i);
                 }
+
+                for i in need_to_remove.into_iter() {
+                    need_to_remove_total.push(i);
+                }
+                handler.O = new_output;
+                // }
                 handler.dirty = false;
 
             }
+
         }
 
-        for i in need_to_insert_total.iter() {
-            self.insert(i.clone());
+        for i in need_to_insert_total.into_iter() {
+            self.insert(i);
         }
-        for i in need_to_remove_total.iter() {
-            self.remove(i.clone());
+        for i in need_to_remove_total.into_iter() {
+            self.remove(i);
         }
     }
 

@@ -1,3 +1,5 @@
+use crate::triples_reactor::TupleNoun::U64;
+
 pub mod serde;
 pub mod ffi;
 mod handler_handler;
@@ -5,6 +7,23 @@ mod handler_handler;
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct Tuple(pub Vec<TupleNoun>);
+
+impl Tuple {
+    // #[cfg(test)]
+    pub fn triple_from_strs(s: &str, p: &str, o: &str) -> Self {
+        Tuple(vec![
+            TupleNoun::Symbol(s.to_string()),
+            TupleNoun::Symbol(p.to_string()),
+            TupleNoun::Symbol(o.to_string())])
+    }
+
+    // #[cfg(test)]
+    pub fn triple_from_ssu(s: &str, p: &str, o: u64) -> Self {
+        Tuple(vec![TupleNoun::Symbol(s.to_string()),
+                   TupleNoun::Symbol(p.to_string()),
+                   TupleNoun::U64(o)])
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum TupleNoun {
@@ -16,6 +35,4 @@ pub enum TupleNoun {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

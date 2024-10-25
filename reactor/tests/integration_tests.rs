@@ -2,6 +2,7 @@ use reactor::triples_reactor::serde::FoxTalkSerializable;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use reactor::reactor::Reactor;
     use reactor::triples_reactor::{Tuple, TupleNoun};
 
@@ -38,18 +39,20 @@ mod tests {
     #[test]
     fn clock_tick_works() {
         let mut reactor: Reactor<Tuple> = Reactor::new();
-        let tuple = Tuple(vec![TupleNoun::Symbol("clock".to_string()), TupleNoun::Symbol("is at".to_string()), TupleNoun::U64(0)]);
+        let tuple = Tuple(vec![TupleNoun::Symbol("clock".to_string()), TupleNoun::Symbol("is at".to_string()), TupleNoun::U64(10)]);
 
         let handler = unsafe { DynamicHandler::new(linked_lib_path("clock_handler.so").as_path()) };
-        reactor.insert(tuple);
-        reactor.add_handler(Box::new(handler));
+        reactor.add_handler_with_bootstrap_output(Box::new(handler), HashSet::from([tuple]));
         reactor.tick();
         reactor.tick();
 
+        assert_eq!(reactor.ref_counts.len(), 1);
         let Tuple(nouns) = reactor.ref_counts.iter().last().unwrap().0;
         assert_eq!(nouns[0], TupleNoun::Symbol("clock".to_string()));
-        assert_eq!(nouns[0], TupleNoun::Symbol("is at".to_string()));
-        assert_eq!(nouns[0], TupleNoun::U64(2));
+        assert_eq!(nouns[1], TupleNoun::Symbol("is at".to_string()));
+        assert_eq!(nouns[2], TupleNoun::U64(12));
+
+        let should_not_exist_1 = Tuple::triple_from_ssu("clock", "is at", 10);
 
         // assert_eq!(cnt, &1);
     }

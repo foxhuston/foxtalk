@@ -285,14 +285,13 @@ public:
 
     template<typename T>
     bool matches(size_t i, T to_match) const {
-        if(nouns_.size() < i) return false;
-
-        if(std::holds_alternative<T>(nouns_[i].data)) {
-            std::optional<T> maybe_value = std::get<T>(nouns_[i].data);
-            return maybe_value.has_value() && maybe_value.value() == to_match;
-        } else {
-            return false;
+        auto v = at<T>(i);
+        if (v.has_value())
+        {
+            return v.value() == to_match;
         }
+
+        return false;
     }
 
     //// SERIALIZATION / DESERIALIZATION /////

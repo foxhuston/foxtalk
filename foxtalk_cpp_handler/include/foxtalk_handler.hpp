@@ -56,11 +56,11 @@ public:
 //#define FOXTALK_HANDLER_MATCHES(T, inp) bool T::matches(const Tuple& inp)
 
 #define FOXTALK_FFI_HANDLER_REG(T) static T* T ## _instance = nullptr; \
-    void init() { T ## _instance = new T(); } \
-    void free_tuple_nouns() { T ## _instance ->ffi_free_tuple_nouns(_foxtalk_ipc_buffer); } \
-    bool matches() { return T ## _instance ->ffi_matches(_foxtalk_ipc_buffer); } \
-    void handle() { T ## _instance ->ffi_handle(_foxtalk_ipc_buffer); } \
-    void teardown() { delete T ## _instance; } \
+    void init() { try { T ## _instance = new T(); } catch(...) { std::cerr << "CRASH in init()" << std::endl; } } \
+    void free_tuple_nouns() { try { T ## _instance ->ffi_free_tuple_nouns(_foxtalk_ipc_buffer); } catch(...) { std::cerr << "CRASH in free_tuple_nouns()" << std::endl; }} \
+    bool matches() { try { return T ## _instance ->ffi_matches(_foxtalk_ipc_buffer);} catch(...) { std::cerr << "CRASH in matches()" << std::endl; } } \
+    void handle() { try { T ## _instance ->ffi_handle(_foxtalk_ipc_buffer);} catch(...) { std::cerr << "CRASH in handle()" << std::endl; } } \
+    void teardown() { try { delete T ## _instance; } catch(...) { std::cerr << "CRASH in init()" << std::endl; } } \
 
 //#define FOXTALK_FFI_HANDLER(T, qr) \
 //    FOXTALK_HANDLER_DEF(T, qr);    \

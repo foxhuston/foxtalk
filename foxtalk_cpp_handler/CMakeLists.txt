@@ -27,7 +27,8 @@ target_link_libraries(tuple_test gtest_main)
 include_directories(include/)
 add_executable(handler_test handler_tests.cpp debug_utils.cpp
         include/foxtalk_handler.hpp
-        include/foxtalk_handler.hpp)
+        include/foxtalk_handler.hpp
+        example_handlers/example_tests.cpp)
 target_link_libraries(handler_test gtest_main)
 
 ##### EXAMPLE HANDLERS #####

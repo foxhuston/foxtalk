@@ -86,7 +86,7 @@ pub mod test {
     }
 
     #[test]
-    fn ffi_loads_a_library() {
+    fn dynamic_lib_loaded_twice_acts_correctly() {
         // let lib  = registry.create_handler(linked_lib_path("husky_handler.so").as_path());
         // registry.handlers.insert("husky_handler.so".to_string(), &lib);
         let mut reactor: Reactor<Tuple> = Reactor::new();
@@ -100,6 +100,6 @@ pub mod test {
 
         let expected_tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is".to_string()), TupleNoun::Symbol("cool".to_string())]);
         let cnt = reactor.ref_counts.get(&expected_tuple).unwrap();
-        assert_eq!(cnt, &1);
+        assert_eq!(cnt, &2);
     }
 }
