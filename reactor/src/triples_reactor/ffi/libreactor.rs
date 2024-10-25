@@ -41,15 +41,19 @@ pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, bu
     (*reactor_ptr).reactor.remove(t);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
-    let path = Path::new(path.to_str().unwrap());
-    let dload_handler = DynamicHandler::new(path);
-    (*reactor_ptr).reactor.add_handler(Box::new(dload_handler))
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn remove_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) { }
+// N.B. [Fox]: The way to actually interact with the handlers is to just insert tuples, and use
+//             the machinery found in dynamic_loading_triples_reactor, rather than trying to
+//             interface with these things directly from an outside user.
+//
+// #[no_mangle]
+// pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
+//     let path = Path::new(path.to_str().unwrap());
+//     let dload_handler = DynamicHandler::new(path);
+//     (*reactor_ptr).reactor.add_handler(Box::new(dload_handler));
+// }
+//
+// #[no_mangle]
+// pub unsafe extern "C" fn remove_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) { }
 
 #[no_mangle]
 pub unsafe extern "C" fn tick(reactor_ptr: *mut DynamicLibFfiReactor) {

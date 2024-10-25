@@ -91,13 +91,13 @@ mod test {
 
         let mut reactor = Reactor::new();
         let handler = Box::new(NonAggregatingAdapter::new(Box::new(PaperHandler)));
-        reactor.add_handler(handler);
+        let hid = reactor.add_handler(handler);
 
         reactor.tick();
         // So if we call: 𝗂𝗇𝗌𝖾𝗋𝗍(𝔇0, 𝑜1), then...
         reactor.insert(1);
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1]));
+        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, true);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1]));
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
         assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
 
@@ -107,10 +107,10 @@ mod test {
         assert_eq!(reactor.ref_counts.get(&2).unwrap(), &1);
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
 
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3]));
+        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, true);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
+        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
 
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
@@ -119,11 +119,11 @@ mod test {
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
         assert_eq!(reactor.ref_counts.get(&5).unwrap(), &1);
 
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, false);
-        assert_eq!(reactor.handlers.get(0).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
+        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, false);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
-        assert_eq!(reactor.handlers.get(0).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
+        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
     }
 }

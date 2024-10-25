@@ -2,7 +2,7 @@
 pub mod reactor_handler;
 pub mod utils;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use reactor_handler::ReactorHandler;
@@ -14,21 +14,26 @@ use crate::reactor::reactor_handler::Handler;
  * TupleReactor (specifically) watches its own database (somehow) for tuples that describe handlers
  */
 
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[repr(transparent)]
+pub struct ReactorHandlerId(u64);
 
 pub struct Reactor<O: Eq + Hash> {
-    pub handlers: Vec<ReactorHandler<O>>,
-    pub ref_counts: HashMap<O, u64>
+    pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
+    pub ref_counts: HashMap<O, u64>,
+    current_handler_id: u64
 }
 
 impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
     pub fn new() -> Self {
         Reactor {
-            handlers: Vec::new(),
-            ref_counts: HashMap::new()
+            handlers: HashMap::new(),
+            ref_counts: HashMap::new(),
+            current_handler_id: 0
         }
     }
 
-    pub fn add_handler_with_bootstrap_output(&mut self, handler: Box<dyn Handler<O>>, O: HashSet<O>) {
+    pub fn add_handler_with_bootstrap_output(&mut self, handler: Box<dyn Handler<O>>, O: HashSet<O>) -> ReactorHandlerId {
         let mut handler = ReactorHandler::new_with_bootstrap_output(handler, O);
 
         for output in &handler.O {
@@ -42,11 +47,25 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
             }
         }
         handler.dirty = true;
-        self.handlers.push(handler);
+        
+        let id = ReactorHandlerId(self.current_handler_id);
+        self.current_handler_id += 1;
+        self.handlers.insert(id.clone(), handler);
+        
+        id
     }
 
-    pub fn add_handler(&mut self, handler: Box<dyn Handler<O>>) {
+    pub fn add_handler(&mut self, handler: Box<dyn Handler<O>>) -> ReactorHandlerId {
         self.add_handler_with_bootstrap_output(handler, HashSet::new())
+    }
+    
+    pub fn remove_handler(&mut self, handler_id: ReactorHandlerId) {
+        println!("Removing handler {:?}", handler_id);
+        if let Some(handler) = self.handlers.remove(&handler_id) {
+            for output in handler.O {
+                self.remove(output);
+            }
+        }
     }
 
     pub fn insert(&mut self, input: O) {
@@ -56,7 +75,7 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
             *count += 1;
         } else {
 
-            for handler in self.handlers.iter_mut() {
+            for (_, handler) in self.handlers.iter_mut() {
 
                 if handler.query(&input) && !handler.I.contains(&input) {
                     handler.I.insert(input.clone());
@@ -74,7 +93,7 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
             *count -= 1;
             if *count == 0 {
                 self.ref_counts.remove(&input);
-                for handler in self.handlers.iter_mut() {
+                for (_, handler) in self.handlers.iter_mut() {
                     if handler.I.contains(&input) {
                         handler.I.remove(&input);
                         handler.dirty = true;
@@ -88,7 +107,7 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
         println!("tick tick tick");
         let mut need_to_insert_total = Vec::new();
         let mut need_to_remove_total = Vec::new();
-        for handler in self.handlers.iter_mut() {
+        for (_, handler) in self.handlers.iter_mut() {
             if handler.dirty {
                 // let qa = &mut handler.qa;
                 // let input = &handler.I;
@@ -154,7 +173,7 @@ mod tests {
 
         let mut reactor = Reactor::new();
         let handler = Box::new(PaperHandler);
-        reactor.add_handler(handler);
+        let hid = reactor.add_handler(handler);
 
         reactor.tick();
         reactor.insert(3);
@@ -165,10 +184,10 @@ mod tests {
         assert_eq!(reactor.ref_counts.get(&7).is_some(), true);
         assert_eq!(reactor.ref_counts.get(&7).unwrap(), &2);
 
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, false);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, false);
         reactor.insert(10);
-        assert_eq!(reactor.handlers.get(0).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(0).unwrap().I.contains(&10), true);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, true);
+        assert_eq!(reactor.handlers.get(&hid).unwrap().I.contains(&10), true);
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
     }
