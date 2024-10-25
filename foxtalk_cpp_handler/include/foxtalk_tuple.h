@@ -283,6 +283,18 @@ public:
         }
     }
 
+    template<typename T>
+    bool matches(size_t i, T to_match) const {
+        if(nouns_.size() < i) return false;
+
+        if(std::holds_alternative<T>(nouns_[i].data)) {
+            std::optional<T> maybe_value = std::get<T>(nouns_[i].data);
+            return maybe_value.has_value() && maybe_value.value() == to_match;
+        } else {
+            return false;
+        }
+    }
+
     //// SERIALIZATION / DESERIALIZATION /////
     size_t write_to_buffer(uint8_t *buffer, size_t start_position) const {
         return write_vec_to_buffer(buffer, start_position, nouns_);

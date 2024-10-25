@@ -34,6 +34,25 @@ mod tests {
         let cnt = reactor.ref_counts.get(&expected_tuple).unwrap();
         assert_eq!(cnt, &1);
     }
+
+    #[test]
+    fn clock_tick_works() {
+        let mut reactor: Reactor<Tuple> = Reactor::new();
+        let tuple = Tuple(vec![TupleNoun::Symbol("clock".to_string()), TupleNoun::Symbol("is at".to_string()), TupleNoun::U64(0)]);
+
+        let handler = unsafe { DynamicHandler::new(linked_lib_path("clock_handler.so").as_path()) };
+        reactor.insert(tuple);
+        reactor.add_handler(Box::new(handler));
+        reactor.tick();
+        reactor.tick();
+
+        let Tuple(nouns) = reactor.ref_counts.iter().last().unwrap().0;
+        assert_eq!(nouns[0], TupleNoun::Symbol("clock".to_string()));
+        assert_eq!(nouns[0], TupleNoun::Symbol("is at".to_string()));
+        assert_eq!(nouns[0], TupleNoun::U64(2));
+
+        // assert_eq!(cnt, &1);
+    }
 }
 
 //
