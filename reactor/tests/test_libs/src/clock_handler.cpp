@@ -19,6 +19,7 @@ protected:
             claim(Tuple {std::vector{TupleNoun("clock") , TupleNoun("is at"), TupleNoun(subj.value() + 1) } });
         } else {
             throw std::runtime_error("Expected queryResults[0][2] to be a uint64_t! I GUESS IT WASN'T.");
+
         }
     }
 };

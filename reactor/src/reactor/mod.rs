@@ -18,18 +18,27 @@ use std::hash::Hash;
 #[repr(transparent)]
 pub struct ReactorHandlerId(u64);
 
+pub trait GeneratesHandler where Self: Eq + Hash + Sized {
+    fn mkHandler(&self) -> Option<Box<dyn Handler<Self>>> { None }
+}
 
-pub struct Reactor<O: Eq + Hash> {
+impl GeneratesHandler for u64 { }
+
+
+pub struct Reactor<O: Eq + Hash + GeneratesHandler> {
     pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>,
+    
+    generated_handlers: HashMap<O, ReactorHandlerId>,
     current_handler_id: u64
 }
 
-impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
+impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
     pub fn new( ) -> Self {
         Reactor {
             handlers: HashMap::new(),
             ref_counts: HashMap::new(),
+            generated_handlers: HashMap::new(),
             current_handler_id: 0
         }
     }
@@ -75,9 +84,12 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count += 1;
         } else {
-
+            if let Some(h) = input.mkHandler() {
+                let hid = self.add_handler(h);
+                self.generated_handlers.insert(input.clone(), hid);
+            }
+            
             for (_, handler) in self.handlers.iter_mut() {
-
                 if handler.query(&input) && !handler.I.contains(&input) {
                     handler.I.insert(input.clone());
                     handler.dirty = true;
@@ -93,6 +105,10 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count -= 1;
             if *count == 0 {
+                if let Some(hid) = self.generated_handlers.remove(&input) {
+                    self.remove_handler(hid);
+                }
+                
                 self.ref_counts.remove(&input);
                 for (_, handler) in self.handlers.iter_mut() {
                     if handler.I.contains(&input) {

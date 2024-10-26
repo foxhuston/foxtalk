@@ -1,7 +1,7 @@
 use crate::reactor::reactor_handler::Handler;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
-use libloading::os::unix::{Library, Symbol};
+use libloading::os::unix::{Library, Symbol, RTLD_LOCAL, RTLD_NOW};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_char;
@@ -13,7 +13,6 @@ use std::slice;
 
 #[derive(Debug)]
 pub struct DynamicHandler {
-    name: String,
     lib: Library,
     init: Symbol<extern "C" fn() -> ()>,
     free_tuple_nouns: Symbol<extern "C" fn() -> ()>,
@@ -23,23 +22,10 @@ pub struct DynamicHandler {
     buffer: Symbol<*mut u8>,
 }
 
-impl PartialEq for DynamicHandler {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl Eq for DynamicHandler{}
-
-impl Hash for DynamicHandler {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-    }
-}
-
 impl DynamicHandler {
     pub unsafe fn new(path: &Path) -> Self {
-        let lib = Library::new(path).unwrap();
+        // Magic 0x08 number is DEEPBIND for dlopen.
+        let lib = Library::open(Some(path), RTLD_NOW | RTLD_LOCAL | 0x08).unwrap();
 
         let init: Symbol<extern "C" fn() -> ()> = lib.get(b"init").unwrap();
         let free_tuple_nouns: Symbol<extern "C" fn() -> ()> = lib.get(b"free_tuple_nouns").unwrap();
@@ -48,16 +34,10 @@ impl DynamicHandler {
         let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"teardown").unwrap();
         let buffer: Symbol<*mut u8> = lib.get(b"_foxtalk_ipc_buffer").unwrap();
 
-        let name = path.file_name()
-            .map(|t| t.to_str())
-            .flatten()
-            .map(|t| t.to_string())
-            .unwrap();
-
         init();
 
         DynamicHandler {
-            name, lib, init, free_tuple_nouns, matches, handle, teardown,
+            lib, init, free_tuple_nouns, matches, handle, teardown,
             buffer
         }
     }
