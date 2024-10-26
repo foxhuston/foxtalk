@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.25)
 project(reactor)
 
 set(CMAKE_CXX_STANDARD 26)
