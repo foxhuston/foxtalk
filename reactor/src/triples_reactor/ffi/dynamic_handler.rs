@@ -1,23 +1,43 @@
-
-use std::collections::HashSet;
-use std::ffi::c_char;
-use std::path::Path;
-use libloading::os::unix::{Library, Symbol};
 use crate::reactor::reactor_handler::Handler;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
+use libloading::os::unix::{Library, Symbol};
+use std::cell::RefCell;
+use std::collections::HashSet;
+use std::ffi::c_char;
+use std::hash::Hash;
+use std::path::Path;
+use std::ptr::slice_from_raw_parts_mut;
+use std::rc::Rc;
+use std::slice;
 
-pub struct DynamicHandler<'a> {
+#[derive(Debug)]
+pub struct DynamicHandler {
+    name: String,
     lib: Library,
     init: Symbol<extern "C" fn() -> ()>,
     free_tuple_nouns: Symbol<extern "C" fn() -> ()>,
     matches: Symbol<extern "C" fn() -> bool>,
     handle: Symbol<extern "C" fn() -> ()>,
     teardown: Symbol<extern "C" fn() -> ()>,
-    buffer: &'a mut [u8],
+    buffer: Symbol<*mut u8>,
 }
 
-impl DynamicHandler<'_> {
+impl PartialEq for DynamicHandler {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl Eq for DynamicHandler{}
+
+impl Hash for DynamicHandler {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
+impl DynamicHandler {
     pub unsafe fn new(path: &Path) -> Self {
         let lib = Library::new(path).unwrap();
 
@@ -26,31 +46,41 @@ impl DynamicHandler<'_> {
         let matches: Symbol<extern "C" fn() -> bool> = lib.get(b"matches").unwrap();
         let handle: Symbol<extern "C" fn() -> ()> = lib.get(b"handle").unwrap();
         let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"teardown").unwrap();
-        let buffer: Symbol<*mut c_char> = lib.get(b"_foxtalk_ipc_buffer").unwrap();
+        let buffer: Symbol<*mut u8> = lib.get(b"_foxtalk_ipc_buffer").unwrap();
+
+        let name = path.file_name()
+            .map(|t| t.to_str())
+            .flatten()
+            .map(|t| t.to_string())
+            .unwrap();
 
         init();
+
         DynamicHandler {
-            lib, init, free_tuple_nouns, matches, handle, teardown,
-            buffer: unsafe { std::slice::from_raw_parts_mut(*buffer as *mut u8, 10_000_000) }
+            name, lib, init, free_tuple_nouns, matches, handle, teardown,
+            buffer
         }
     }
 }
 
-impl Handler<Tuple> for DynamicHandler<'_> {
+impl Handler<Tuple> for DynamicHandler {
     fn query(&mut self, o: &Tuple) -> bool {
-        o.write_to_buffer(self.buffer, 0);
+        let buffer = unsafe { slice::from_raw_parts_mut(*self.buffer, 10_000_000) };
+        o.write_to_buffer(buffer, 0);
         (&self.matches)()
     }
 
     fn handle(&mut self, input: &HashSet<Tuple>) -> HashSet<Tuple> {
-        input.into_iter().write_to_buffer(self.buffer, 0);
+
+        let buffer = unsafe { slice::from_raw_parts_mut(*self.buffer, 10_000_000) };
+        input.into_iter().write_to_buffer(buffer, 0);
         (self.handle)();
-        let (res, _) = Vec::<Tuple>::read_from_buffer(self.buffer, 0);
+        let (res, _) = Vec::<Tuple>::read_from_buffer(buffer, 0);
         HashSet::from_iter(res)
     }
 }
 
-impl Drop for DynamicHandler<'_> {
+impl Drop for DynamicHandler {
     fn drop(&mut self) {
         println!("Dropping DynamicHandler");
     }
@@ -60,9 +90,9 @@ impl Drop for DynamicHandler<'_> {
 pub mod test {
     use super::*;
 
-    use std::path::PathBuf;
     use crate::reactor::Reactor;
     use crate::triples_reactor::TupleNoun;
+    use std::path::PathBuf;
 
     pub fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

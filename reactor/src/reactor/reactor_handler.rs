@@ -8,7 +8,7 @@ pub trait Handler<O>
 }
 
 #[allow(non_snake_case)]
-pub(super) struct ReactorHandler<O: Eq + Hash>
+pub struct ReactorHandler<O: Eq + Hash>
 {
     qa: Box<dyn Handler<O>>,
     pub(super) I: HashSet<O>,

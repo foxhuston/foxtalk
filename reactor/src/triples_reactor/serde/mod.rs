@@ -4,9 +4,7 @@ mod tuple_noun;
 use std::collections::HashSet;
 use std::hash::Hash;
 use byteorder::{ByteOrder, NativeEndian};
-use crate::triples_reactor::Tuple;
 
-pub use tuple_noun::*;
 
 #[repr(transparent)]
 #[derive(PartialEq, Eq, Debug)]
@@ -86,7 +84,7 @@ where
         let num_tuples = self.len() as FoxtalkSize;
 
         let num_tuples_bytes: [u8; size_of::<FoxtalkSize>()] = num_tuples.to_ne_bytes();
-        let mut current_position = (start_position) + size_of::<FoxtalkSize>();
+        let current_position = (start_position) + size_of::<FoxtalkSize>();
         write_to[start_position..current_position].copy_from_slice(&num_tuples_bytes);
         let mut pos_after_tuple = current_position;
         for t in self.iter() {
@@ -118,7 +116,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::triples_reactor::TupleNoun;
+    use crate::triples_reactor::{Tuple, TupleNoun};
     use super::*;
 
     #[test]

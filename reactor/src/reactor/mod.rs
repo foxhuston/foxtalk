@@ -2,11 +2,11 @@
 pub mod reactor_handler;
 pub mod utils;
 
-use std::collections::{hash_map, HashMap, HashSet};
+use crate::reactor::reactor_handler::Handler;
+use reactor_handler::ReactorHandler;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
-use reactor_handler::ReactorHandler;
-use crate::reactor::reactor_handler::Handler;
 /*
  * Reactor has handlers.
  * These handlers live _at most_ as long as Reactor.
@@ -18,6 +18,7 @@ use crate::reactor::reactor_handler::Handler;
 #[repr(transparent)]
 pub struct ReactorHandlerId(u64);
 
+
 pub struct Reactor<O: Eq + Hash> {
     pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>,
@@ -25,7 +26,7 @@ pub struct Reactor<O: Eq + Hash> {
 }
 
 impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
-    pub fn new() -> Self {
+    pub fn new( ) -> Self {
         Reactor {
             handlers: HashMap::new(),
             ref_counts: HashMap::new(),
@@ -112,10 +113,6 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
                 // let qa = &mut handler.qa;
                 // let input = &handler.I;
 
-                // TODO: THIS HAS A BUG
-                // Example: Agg handler counting number of numbers and adding that count in output set
-                // then all the inputs it cares about get removed
-                // if !input.is_empty() {
                 let new_output = handler.handle();
 
                 let need_to_insert: HashSet<O> = new_output.difference(&handler.O).cloned().collect();
@@ -129,7 +126,6 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
                     need_to_remove_total.push(i);
                 }
                 handler.O = new_output;
-                // }
                 handler.dirty = false;
 
             }
@@ -150,8 +146,8 @@ impl<O: Eq + Hash + Clone + Debug> Reactor<O> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
     use crate::reactor::reactor_handler::Handler;
+    use std::collections::HashSet;
 
     #[test]
     pub fn paper_agg_example() {

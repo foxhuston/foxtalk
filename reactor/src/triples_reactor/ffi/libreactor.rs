@@ -1,9 +1,7 @@
 use crate::reactor::Reactor;
-use crate::triples_reactor::ffi::dynamic_handler::DynamicHandler;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
-use std::ffi::{c_void, CStr};
-use std::path::*;
+use std::ffi::c_void;
 
 pub struct DynamicLibFfiReactor {
     reactor: Reactor<Tuple>

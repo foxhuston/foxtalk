@@ -26,7 +26,8 @@ fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: u
         }
         TupleNoun::I64(_) => {
             write_to[start_position] = I64_TYPE;
-        }
+        },
+        &TupleNoun::Handler(_) => panic!("Should never serialize a handler")
     }
     ReturnPosition { pos: start_position + size_of::<u8>() }
 }
@@ -75,6 +76,7 @@ impl FoxTalkSerializable for TupleNoun {
                 write_to[current_position.pos..e].copy_from_slice(&i64_bytes);
                 ReturnPosition { pos: e }
             }
+            TupleNoun::Handler(_) => panic!("Should never serialize a handler")
         }
     }
 }

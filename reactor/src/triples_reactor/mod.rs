@@ -1,8 +1,10 @@
-use crate::triples_reactor::TupleNoun::U64;
+use crate::triples_reactor::ffi::dynamic_handler::DynamicHandler;
+use std::rc::Rc;
 
 pub mod serde;
 pub mod ffi;
 mod dynamic_loading_triples_reactor;
+mod handler_handler;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
@@ -32,6 +34,7 @@ pub enum TupleNoun {
     CPtr(u64),      // 2
     U64(u64),       // 3
     I64(i64),       // 4
+    Handler(Rc<DynamicHandler>)
 }
 
 #[cfg(test)]
