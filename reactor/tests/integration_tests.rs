@@ -32,6 +32,7 @@ mod tests {
         reactor.tick();
 
         let expected_tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is".to_string()), TupleNoun::Symbol("cool".to_string())]);
+        assert!(reactor.ref_counts.get(&expected_tuple).is_some());
         let cnt = reactor.ref_counts.get(&expected_tuple).unwrap();
         assert_eq!(cnt, &1);
     }

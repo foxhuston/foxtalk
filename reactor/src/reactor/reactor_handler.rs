@@ -5,6 +5,8 @@ pub trait Handler<O>
 {
     fn query(&mut self, o: &O) -> bool;
     fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
+
+    fn free_o(&mut self, o: &O) -> () {}
 }
 
 #[allow(non_snake_case)]
@@ -37,5 +39,9 @@ impl<O: Eq + Hash> ReactorHandler<O> {
 
     pub fn handle(&mut self) -> HashSet<O> {
         self.qa.handle(&self.I)
+    }
+    
+    pub fn free_o(&mut self, o: &O) {
+        self.qa.free_o(o)
     }
 }

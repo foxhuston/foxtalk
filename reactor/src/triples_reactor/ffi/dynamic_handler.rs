@@ -2,20 +2,16 @@ use crate::reactor::reactor_handler::Handler;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
 use libloading::os::unix::{Library, Symbol, RTLD_LOCAL, RTLD_NOW};
-use std::cell::RefCell;
 use std::collections::HashSet;
-use std::ffi::c_char;
 use std::hash::Hash;
 use std::path::Path;
-use std::ptr::slice_from_raw_parts_mut;
-use std::rc::Rc;
 use std::slice;
 
 #[derive(Debug)]
 pub struct DynamicHandler {
     lib: Library,
     init: Symbol<extern "C" fn() -> ()>,
-    free_tuple_nouns: Symbol<extern "C" fn() -> ()>,
+    free_tuple: Symbol<extern "C" fn() -> ()>,
     matches: Symbol<extern "C" fn() -> bool>,
     handle: Symbol<extern "C" fn() -> ()>,
     teardown: Symbol<extern "C" fn() -> ()>,
@@ -28,7 +24,7 @@ impl DynamicHandler {
         let lib = Library::open(Some(path), RTLD_NOW | RTLD_LOCAL | 0x08).unwrap();
 
         let init: Symbol<extern "C" fn() -> ()> = lib.get(b"init").unwrap();
-        let free_tuple_nouns: Symbol<extern "C" fn() -> ()> = lib.get(b"free_tuple_nouns").unwrap();
+        let free_tuple: Symbol<extern "C" fn() -> ()> = lib.get(b"free_tuple").unwrap();
         let matches: Symbol<extern "C" fn() -> bool> = lib.get(b"matches").unwrap();
         let handle: Symbol<extern "C" fn() -> ()> = lib.get(b"handle").unwrap();
         let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"teardown").unwrap();
@@ -37,9 +33,20 @@ impl DynamicHandler {
         init();
 
         DynamicHandler {
-            lib, init, free_tuple_nouns, matches, handle, teardown,
-            buffer
+            lib,
+            init,
+            free_tuple,
+            matches,
+            handle,
+            teardown,
+            buffer,
         }
+    }
+}
+
+impl Drop for DynamicHandler {
+    fn drop(&mut self) {
+        (self.teardown)();
     }
 }
 
@@ -51,18 +58,16 @@ impl Handler<Tuple> for DynamicHandler {
     }
 
     fn handle(&mut self, input: &HashSet<Tuple>) -> HashSet<Tuple> {
-
         let buffer = unsafe { slice::from_raw_parts_mut(*self.buffer, 10_000_000) };
         input.into_iter().write_to_buffer(buffer, 0);
         (self.handle)();
         let (res, _) = Vec::<Tuple>::read_from_buffer(buffer, 0);
         HashSet::from_iter(res)
     }
-}
-
-impl Drop for DynamicHandler {
-    fn drop(&mut self) {
-        println!("Dropping DynamicHandler");
+    fn free_o(&mut self, o: &Tuple) -> () {
+        let buffer = unsafe { slice::from_raw_parts_mut(*self.buffer, 10_000_000) };
+        o.write_to_buffer(buffer, 0);
+        (&self.free_tuple)()
     }
 }
 
@@ -87,7 +92,8 @@ pub mod test {
     fn add_handler_to_reactor(reactor: &mut Reactor<Tuple>) {
         let handler = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
         {
-            let handler2 = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
+            let handler2 =
+                unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
             reactor.add_handler(Box::new(handler2));
         }
 
@@ -99,7 +105,11 @@ pub mod test {
         // let lib  = registry.create_handler(linked_lib_path("husky_handler.so").as_path());
         // registry.handlers.insert("husky_handler.so".to_string(), &lib);
         let mut reactor: Reactor<Tuple> = Reactor::new();
-        let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
+        let tuple = Tuple(vec![
+            TupleNoun::Symbol("lexi".to_string()),
+            TupleNoun::Symbol("is a".to_string()),
+            TupleNoun::Symbol("husky".to_string()),
+        ]);
 
         add_handler_to_reactor(&mut reactor);
 
@@ -107,7 +117,11 @@ pub mod test {
         reactor.insert(tuple);
         reactor.tick();
 
-        let expected_tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is".to_string()), TupleNoun::Symbol("cool".to_string())]);
+        let expected_tuple = Tuple(vec![
+            TupleNoun::Symbol("lexi".to_string()),
+            TupleNoun::Symbol("is".to_string()),
+            TupleNoun::Symbol("cool".to_string()),
+        ]);
         let cnt = reactor.ref_counts.get(&expected_tuple).unwrap();
         assert_eq!(cnt, &2);
     }

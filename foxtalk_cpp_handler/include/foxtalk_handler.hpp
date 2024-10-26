@@ -7,30 +7,35 @@
 
 #include "foxtalk_handler.h"
 
-class Handler {
+class Handler
+{
 protected:
-    void claim(Tuple&& n) { claims.push_back(std::move(n)); }
-    virtual void handle(const std::vector<Tuple>& queryResults) = 0;
-    virtual void free_tuple_nouns(const Tuple&) { }
+    void claim(Tuple &&n) { claims.push_back(std::move(n)); }
+    virtual void handle(const std::vector<Tuple> &queryResults) = 0;
+    virtual void free_tuple(const Tuple &) {}
 
 public:
-    std::vector<Tuple> claims {}; // should be private, but I need to test...
+    std::vector<Tuple> claims{}; // should be private, but I need to test...
 
-    virtual bool matches(const Tuple& n) = 0;
+    virtual bool matches(const Tuple &n) = 0;
 
-    bool ffi_matches(uint8_t *buffer) {
+    bool ffi_matches(uint8_t *buffer)
+    {
         auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
         return matches(t);
     }
 
-    bool ffi_free_tuple_nouns(uint8_t *buffer) {
+    bool ffi_free_tuple(uint8_t *buffer)
+    {
         auto [tuples_to_free, read_bytes] = read_vec_from_buffer<Tuple>(buffer, 0);
-        for(auto& t : tuples_to_free) {
-            free_tuple_nouns(t);
+        for (auto &t : tuples_to_free)
+        {
+            free_tuple(t);
         }
     }
 
-    void ffi_handle(uint8_t *buffer) {
+    void ffi_handle(uint8_t *buffer)
+    {
         // Initialize
         claims.clear();
 
@@ -45,27 +50,76 @@ public:
     }
 };
 
-
 // This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) { ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... }
 // It's pretty cool, but a bit unwieldy given that you can choose to do init/teardowns or not. Although perhaps I'm
 // not quite thinking about this correctly...?
 
-//#define FOXTALK_HANDLER_BOD(T, qr) void T::handle(const std::vector<Tuple>& qr)
-//#define FOXTALK_HANDLER_DEF(T, qr) class T : public Handler { virtual bool matches(const Tuple&); virtual void handle(const std::vector<Tuple>&); }
-//#define FOXTALK_HANDLER(T, qr) FOXTALK_HANDLER_DEF(T, qr); FOXTALK_HANDLER_BOD(T, qr)
-//#define FOXTALK_HANDLER_MATCHES(T, inp) bool T::matches(const Tuple& inp)
+// #define FOXTALK_HANDLER_BOD(T, qr) void T::handle(const std::vector<Tuple>& qr)
+// #define FOXTALK_HANDLER_DEF(T, qr) class T : public Handler { virtual bool matches(const Tuple&); virtual void handle(const std::vector<Tuple>&); }
+// #define FOXTALK_HANDLER(T, qr) FOXTALK_HANDLER_DEF(T, qr); FOXTALK_HANDLER_BOD(T, qr)
+// #define FOXTALK_HANDLER_MATCHES(T, inp) bool T::matches(const Tuple& inp)
 
-#define FOXTALK_FFI_HANDLER_REG(T) static T* T ## _instance = nullptr; \
-    void init() { try { T ## _instance = new T(); } catch(...) { std::cerr << "CRASH in init()" << std::endl; } } \
-    void free_tuple_nouns() { try { T ## _instance ->ffi_free_tuple_nouns(_foxtalk_ipc_buffer); } catch(...) { std::cerr << "CRASH in free_tuple_nouns()" << std::endl; }} \
-    bool matches() { try { return T ## _instance ->ffi_matches(_foxtalk_ipc_buffer);} catch(...) { std::cerr << "CRASH in matches()" << std::endl; } } \
-    void handle() { try { T ## _instance ->ffi_handle(_foxtalk_ipc_buffer);} catch(...) { std::cerr << "CRASH in handle()" << std::endl; } } \
-    void teardown() { try { delete T ## _instance; } catch(...) { std::cerr << "CRASH in init()" << std::endl; } } \
+#define FOXTALK_FFI_HANDLER_REG(T)                                 \
+    static T *T##_instance = nullptr;                              \
+    void init()                                                    \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            T##_instance = new T();                                \
+        }                                                          \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in init()" << std::endl;           \
+        }                                                          \
+    }                                                              \
+    void free_tuple()                                              \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            T##_instance->ffi_free_tuple(_foxtalk_ipc_buffer);     \
+        }                                                          \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in free_tuple()" << std::endl;     \
+        }                                                          \
+    }                                                              \
+    bool matches()                                                 \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            return T##_instance->ffi_matches(_foxtalk_ipc_buffer); \
+        }                                                          \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in matches()" << std::endl;        \
+        }                                                          \
+    }                                                              \
+    void handle()                                                  \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            T##_instance->ffi_handle(_foxtalk_ipc_buffer);         \
+        }                                                          \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in handle()" << std::endl;         \
+        }                                                          \
+    }                                                              \
+    void teardown()                                                \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            delete T##_instance;                                   \
+        }                                                          \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in init()" << std::endl;           \
+        }                                                          \
+    }
 
 //#define FOXTALK_FFI_HANDLER(T, qr) \
 //    FOXTALK_HANDLER_DEF(T, qr);    \
 //    FOXTALK_FFI_HANDLER_REG(T)     \
 //    FOXTALK_HANDLER_BOD(T, qr)
 
-
-#endif //REACTOR_FOXTALK_HANDLER_HPP
+#endif // REACTOR_FOXTALK_HANDLER_HPP

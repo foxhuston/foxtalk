@@ -4,22 +4,28 @@
 
 #include <foxtalk_handler.hpp>
 
-
-class HuskyHandler : public Handler {
+class HuskyHandler : public Handler
+{
 public:
-    bool matches(const Tuple &n) override {
-        return n.at<uint64_t>(0).has_value();
+    bool matches(const Tuple &n) override
+    {
+        return n.matches<std::string>(1, "is a") &&
+               n.matches<std::string>(2, "husky");
     }
 
 protected:
-    void handle(const std::vector<Tuple> &queryResults) override {
-        uint64_t sum = 0;
-
-        for (auto& i: queryResults)
+    void handle(const std::vector<Tuple> &queryResults) override
+    {
+        for (auto &i : queryResults)
         {
             auto subj = i.at<std::string>(0).value();
-            claim(Tuple {std::vector{TupleNoun(subj) , TupleNoun("is"), TupleNoun("cool") } });
+            claim(Tuple{std::vector{TupleNoun(subj), TupleNoun("is"), TupleNoun("cool")}});
         }
+    }
+
+    void free_tuple(const Tuple &o) override
+    {
+        std::cout << "free tuple in husky handler: " << o << std::endl;
     }
 };
 
