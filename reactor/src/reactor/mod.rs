@@ -19,7 +19,7 @@ use std::hash::Hash;
 pub struct ReactorHandlerId(u64);
 
 pub trait GeneratesHandler where Self: Eq + Hash + Sized {
-    fn mkHandler(&self) -> Option<Box<dyn Handler<Self>>> { None }
+    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
 }
 
 impl GeneratesHandler for u64 { }
@@ -43,6 +43,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
         }
     }
 
+    #[allow(non_snake_case)]
     pub fn add_handler_with_bootstrap_output(&mut self, handler: Box<dyn Handler<O>>, O: HashSet<O>) -> ReactorHandlerId {
         let mut handler = ReactorHandler::new_with_bootstrap_output(handler, O);
 
@@ -87,7 +88,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count += 1;
         } else {
-            if let Some(h) = input.mkHandler() {
+            if let Some(h) = input.mk_handler() {
                 let hid = self.add_handler(h);
                 self.generated_handlers.insert(input.clone(), hid);
             }

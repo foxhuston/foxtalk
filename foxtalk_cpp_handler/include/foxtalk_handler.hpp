@@ -92,6 +92,7 @@ public:
         catch (...)                                                \
         {                                                          \
             std::cerr << "CRASH in matches()" << std::endl;        \
+            return false;                                          \
         }                                                          \
     }                                                              \
     void handle()                                                  \
@@ -109,7 +110,8 @@ public:
     {                                                              \
         try                                                        \
         {                                                          \
-            delete T##_instance;                                   \
+            /*std::cout << "Tearing down instance..." << std::endl;*/  \
+            delete T##_instance;                               \
         }                                                          \
         catch (...)                                                \
         {                                                          \

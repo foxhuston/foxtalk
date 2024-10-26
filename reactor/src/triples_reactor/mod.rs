@@ -37,7 +37,7 @@ impl Tuple {
 }
 
 impl GeneratesHandler for Tuple {
-    fn mkHandler(&self) -> Option<Box<dyn Handler<Self>>> {
+    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> {
         if let Some(path) = self.is_handler_tuple() {
             Some(Box::new(unsafe { DynamicHandler::new(Path::new(&path)) }))
         } else {
@@ -58,7 +58,7 @@ pub enum TupleNoun {
 #[cfg(test)]
 pub mod tests {
     use crate::reactor::Reactor;
-    use crate::triples_reactor::ffi::dynamic_handler::test::linked_lib_path;
+    use crate::reactor::utils::test::linked_lib_path;
     use crate::triples_reactor::Tuple;
 
     #[test]
