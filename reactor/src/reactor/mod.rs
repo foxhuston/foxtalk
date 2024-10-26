@@ -110,6 +110,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
                 }
                 
                 self.ref_counts.remove(&input);
+                
                 for (_, handler) in self.handlers.iter_mut() {
                     if handler.I.contains(&input) {
                         handler.I.remove(&input);
@@ -151,6 +152,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
         for i in need_to_insert_total.into_iter() {
             self.insert(i);
         }
+            
         for i in need_to_remove_total.into_iter() {
             self.remove(i);
         }
