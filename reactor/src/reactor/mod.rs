@@ -71,19 +71,22 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
     }
     
     pub fn remove_handler(&mut self, handler_id: ReactorHandlerId) {
-        println!("Removing handler {:?}", handler_id);
+        // println!("Removing handler {:?}", handler_id);
         
         
         if let Some(handler) = self.handlers.get(&handler_id) {
             let output = handler.O.clone();
             for o in output {
+                // println!("Because of removing handler {:?}, removing o: {:?}", handler_id, o);
                 self.remove_with_hid(o, Some(handler_id.clone()));
             }
-        }
+        };
+        // println!("Removing handler {:?} from the reactor hashset", handler_id);
+        self.handlers.remove(&handler_id);
     }
 
     pub fn insert(&mut self, input: O) {
-        println!("adding o: {:?}", input);
+        // println!("adding o: {:?}", input);
         if self.ref_counts.contains_key(&input) {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count += 1;
@@ -108,7 +111,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
         self.remove_with_hid(input, None);
     }
     fn remove_with_hid(&mut self, input: O, maybe_hid: Option<ReactorHandlerId>) {
-        println!("removing o: {:?}", input);
+        // println!("removing o: {:?}", input);
         if self.ref_counts.contains_key(&input) {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count -= 1;
@@ -116,8 +119,9 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
                 if let Some(hid) = maybe_hid {
                     self.handlers.get_mut(&hid).unwrap().free_o(&input);
                 }
-                
+                // println!("Am I in the generated handlers list? {:?}", input);
                 if let Some(hid) = self.generated_handlers.remove(&input) {
+                    // println!("Yes!");
                     self.remove_handler(hid);
                 }
                 
@@ -131,10 +135,11 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
                 }
             }
         }
+        // println!("Done removing o: {:?}", input);
     }
 
     pub fn tick(&mut self) {
-        println!("tick tick tick");
+        // println!("tick tick tick");
         let mut need_to_insert_total = Vec::new();
         let mut need_to_remove_total = Vec::new();
         for (hid, handler) in self.handlers.iter_mut() {
@@ -175,9 +180,11 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
 
 impl<O: Eq + Hash + GeneratesHandler + Clone + Debug>  Drop for Reactor<O> {
     fn drop(&mut self) {
+        // println!("Dropping the reactor now!");
         let hids: Vec<ReactorHandlerId> = self.handlers.keys().cloned().collect();
         
         for hid in hids {
+            // println!("Dropping handler {:?} because we're dropping reactor!", hid);
             self.remove_handler(hid);
         }
     }

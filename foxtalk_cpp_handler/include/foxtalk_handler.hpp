@@ -5,6 +5,7 @@
 #ifndef REACTOR_FOXTALK_HANDLER_HPP
 #define REACTOR_FOXTALK_HANDLER_HPP
 
+#include <exception>
 #include "foxtalk_handler.h"
 
 class Handler
@@ -25,13 +26,11 @@ public:
         return matches(t);
     }
 
-    bool ffi_free_tuple(uint8_t *buffer)
+    void ffi_free_tuple(uint8_t *buffer)
     {
-        auto [tuples_to_free, read_bytes] = read_vec_from_buffer<Tuple>(buffer, 0);
-        for (auto &t : tuples_to_free)
-        {
-            free_tuple(t);
-        }
+        auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
+        free_tuple(t);
+
     }
 
     void ffi_handle(uint8_t *buffer)
@@ -67,20 +66,28 @@ public:
         {                                                          \
             T##_instance = new T();                                \
         }                                                          \
+        catch (std::exception const& e) \
+        {   \
+            std::cerr << "CRASH in init():" << e.what() << std::endl; \
+        } \
         catch (...)                                                \
         {                                                          \
             std::cerr << "CRASH in init()" << std::endl;           \
         }                                                          \
     }                                                              \
     void free_tuple()                                              \
-    {                                                              \
+    {         \
         try                                                        \
         {                                                          \
             T##_instance->ffi_free_tuple(_foxtalk_ipc_buffer);     \
         }                                                          \
+        catch (std::exception const& e)                                                \
+        {                                                          \
+            std::cerr << "CRASH in free_tuple():" << e.what() << std::endl;     \
+        }                                                          \
         catch (...)                                                \
         {                                                          \
-            std::cerr << "CRASH in free_tuple()" << std::endl;     \
+            std::cerr << "CRASH in free_tuple()" << std::endl;        \
         }                                                          \
     }                                                              \
     bool matches()                                                 \
@@ -89,6 +96,11 @@ public:
         {                                                          \
             return T##_instance->ffi_matches(_foxtalk_ipc_buffer); \
         }                                                          \
+        catch (std::exception const& e) \
+        {   \
+            std::cerr << "CRASH in matches():" << e.what() << std::endl; \
+            return false; \
+        } \
         catch (...)                                                \
         {                                                          \
             std::cerr << "CRASH in matches()" << std::endl;        \
@@ -101,6 +113,10 @@ public:
         {                                                          \
             T##_instance->ffi_handle(_foxtalk_ipc_buffer);         \
         }                                                          \
+        catch (std::exception const& e) \
+        {   \
+            std::cerr << "CRASH in handle():" << e.what() << std::endl; \
+        } \
         catch (...)                                                \
         {                                                          \
             std::cerr << "CRASH in handle()" << std::endl;         \
@@ -110,12 +126,15 @@ public:
     {                                                              \
         try                                                        \
         {                                                          \
-            /*std::cout << "Tearing down instance..." << std::endl;*/  \
             delete T##_instance;                               \
         }                                                          \
+        catch (std::exception const& e) \
+        {   \
+            std::cerr << "CRASH in teardown():" << e.what() << std::endl; \
+        } \
         catch (...)                                                \
         {                                                          \
-            std::cerr << "CRASH in init()" << std::endl;           \
+            std::cerr << "CRASH in teardown()" << std::endl;           \
         }                                                          \
     }
 

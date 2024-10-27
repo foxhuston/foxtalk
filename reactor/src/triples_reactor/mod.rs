@@ -67,12 +67,10 @@ pub mod tests {
 
         let handler_tup = Tuple::triple_from_strs(linked_lib_path("husky_handler.so").to_str().unwrap(), "is a", "handler");
         let expected_tuple = Tuple::triple_from_strs("lexi", "is", "cool");
-
         reactor.insert(Tuple::triple_from_strs("lexi", "is a", "husky"));
         reactor.tick();
 
         assert_eq!(reactor.ref_counts.get(&expected_tuple), None);
-
         reactor.insert(handler_tup.clone());
         reactor.tick();
         reactor.tick();
@@ -82,7 +80,9 @@ pub mod tests {
 
         reactor.remove(handler_tup.clone());
         reactor.tick();
-
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
         assert_eq!(reactor.ref_counts.get(&expected_tuple), None);
         println!("Test end (Should have seen \"Dropping DynamicHandler\" before this...)");
     }
