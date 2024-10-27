@@ -12,7 +12,6 @@ public:
         return n.matches<std::string>(1, "is a") &&
                n.matches<std::string>(2, "husky");
     }
-
 protected:
     void handle(const std::vector<Tuple> &queryResults) override
     {

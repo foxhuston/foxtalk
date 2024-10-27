@@ -18,14 +18,17 @@ use std::hash::Hash;
 #[repr(transparent)]
 pub struct ReactorHandlerId(u64);
 
+
 pub trait GeneratesHandler where Self: Eq + Hash + Sized {
     fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
 }
 
 impl GeneratesHandler for u64 { }
 
+pub trait ReactorData where Self: Eq + Hash + Clone + Debug + Send + GeneratesHandler {}
+impl ReactorData for u64{ }
 
-pub struct Reactor<O: Eq + Hash + GeneratesHandler + Clone + Debug> {
+pub struct Reactor<O: ReactorData> {
     pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
     pub ref_counts: HashMap<O, u64>,
     
@@ -33,7 +36,7 @@ pub struct Reactor<O: Eq + Hash + GeneratesHandler + Clone + Debug> {
     current_handler_id: u64
 }
 
-impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
+impl<O: ReactorData> Reactor<O> {
     pub fn new( ) -> Self {
         Reactor {
             handlers: HashMap::new(),
@@ -73,7 +76,7 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
     pub fn remove_handler(&mut self, handler_id: ReactorHandlerId) {
         // println!("Removing handler {:?}", handler_id);
         
-        
+
         if let Some(handler) = self.handlers.get(&handler_id) {
             let output = handler.O.clone();
             for o in output {
@@ -178,11 +181,11 @@ impl<O: Eq + Hash + GeneratesHandler + Clone + Debug> Reactor<O> {
 
 }
 
-impl<O: Eq + Hash + GeneratesHandler + Clone + Debug>  Drop for Reactor<O> {
+impl<O: ReactorData>  Drop for Reactor<O> {
     fn drop(&mut self) {
         // println!("Dropping the reactor now!");
         let hids: Vec<ReactorHandlerId> = self.handlers.keys().cloned().collect();
-        
+
         for hid in hids {
             // println!("Dropping handler {:?} because we're dropping reactor!", hid);
             self.remove_handler(hid);

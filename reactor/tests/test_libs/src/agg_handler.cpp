@@ -4,7 +4,6 @@
 
 #include <foxtalk_handler.hpp>
 
-
 class AggHandler : public Handler {
 public:
     bool matches(const Tuple &n) override {

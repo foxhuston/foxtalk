@@ -1,7 +1,7 @@
 use crate::reactor::Reactor;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void};
 
 pub struct DynamicLibFfiReactor {
     reactor: Reactor<Tuple>
@@ -28,14 +28,16 @@ pub unsafe extern "C" fn free_reactor(reactor: *mut c_void) -> () {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn add_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: &[u8]) {
-    let (t, _) = Tuple::read_from_buffer(buff, 0);
+pub unsafe extern "C" fn add_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
+    let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
+    let (t, _) = Tuple::read_from_buffer(buffer, 0);
     (*reactor_ptr).reactor.insert(t);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: &[u8]) {
-    let (t, _) = Tuple::read_from_buffer(buff, 0);
+pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
+    let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
+    let (t, _) = Tuple::read_from_buffer(buffer, 0);
     (*reactor_ptr).reactor.remove(t);
 }
 

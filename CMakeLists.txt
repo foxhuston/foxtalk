@@ -43,11 +43,11 @@ endfunction()
 
 ##### DYNAMIC LIBS #############################################################
 
-#add_library(image_proc SHARED src/CvProcessor.cpp)
-#add_library(dot_sandbox SHARED src/foxtalk_handlers/CvDotSandbox.cpp
-#        src/VImage.h
-#        src/VulkUtils.h
-#        src/VBuffer.h)
+add_library(image_proc SHARED src/CvProcessor.cpp)
+add_library(dot_sandbox SHARED src/foxtalk_handlers/CvDotSandbox.cpp
+        src/VImage.h
+        src/VulkUtils.h
+        src/VBuffer.h)
 
 ##### UTILS ####################################################################
 
@@ -66,7 +66,7 @@ target_link_libraries(pdf-identify argparse podofo)
 
 ################################################################################
 
-add_subdirectory(c_reactor/lib)
+add_subdirectory(foxtalk_cpp_handler)
 
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 
@@ -74,9 +74,7 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall")
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${FREETYPE_INCLUDE_DIRS}
-        c_reactor/
-        c_reactor/lib
-        c_reactor/vendor/gc-8.2.4/include # TODO: Get rid of this
+        foxtalk_cpp_handler
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")

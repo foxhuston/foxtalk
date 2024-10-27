@@ -1,4 +1,3 @@
-use reactor::triples_reactor::serde::FoxTalkSerializable;
 
 #[cfg(test)]
 mod tests {
@@ -52,10 +51,6 @@ mod tests {
         assert_eq!(nouns[0], TupleNoun::Symbol("clock".to_string()));
         assert_eq!(nouns[1], TupleNoun::Symbol("is at".to_string()));
         assert_eq!(nouns[2], TupleNoun::U64(12));
-
-        let should_not_exist_1 = Tuple::triple_from_ssu("clock", "is at", 10);
-
-        // assert_eq!(cnt, &1);
     }
 }
 

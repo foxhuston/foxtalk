@@ -1,6 +1,8 @@
+use crate::reactor::ReactorData;
 use crate::triples_reactor::serde::*;
 use crate::triples_reactor::{Tuple, TupleNoun};
 
+impl ReactorData for Tuple {}
 impl FoxTalkSerializable for Tuple {
     fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         let Tuple(nouns) = self;

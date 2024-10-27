@@ -3,20 +3,21 @@ use crate::triples_reactor::serde::*;
 use crate::triples_reactor::Tuple;
 use libloading::os::unix::{Library, Symbol, RTLD_LOCAL, RTLD_NOW};
 use std::collections::HashSet;
-use std::hash::Hash;
 use std::path::Path;
 use std::slice;
 
 #[derive(Debug)]
 pub struct DynamicHandler {
-    lib: Library,
-    init: Symbol<extern "C" fn() -> ()>,
+    _lib: Library,
+    _init: Symbol<extern "C" fn() -> ()>,
     free_tuple: Symbol<extern "C" fn() -> ()>,
     matches: Symbol<extern "C" fn() -> bool>,
     handle: Symbol<extern "C" fn() -> ()>,
     teardown: Symbol<extern "C" fn() -> ()>,
     buffer: Symbol<*mut u8>,
 }
+
+unsafe impl Send for DynamicHandler{}
 
 impl DynamicHandler {
     pub unsafe fn new(path: &Path) -> Self {
@@ -33,8 +34,8 @@ impl DynamicHandler {
         init();
 
         DynamicHandler {
-            lib,
-            init,
+            _lib: lib,
+            _init: init,
             free_tuple,
             matches,
             handle,

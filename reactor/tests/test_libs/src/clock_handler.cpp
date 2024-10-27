@@ -12,9 +12,11 @@ public:
             n.matches<std::string>(0, "clock") &&
             n.matches<std::string>(1, "is at");
     }
-
 protected:
     void handle(const std::vector<Tuple> &queryResults) override {
+        if (queryResults.size() == 0) {
+            return;
+        }
         if (auto subj = queryResults[0].at<uint64_t>(2)) {
             claim(Tuple {std::vector{TupleNoun("clock") , TupleNoun("is at"), TupleNoun(subj.value() + 1) } });
         } else {

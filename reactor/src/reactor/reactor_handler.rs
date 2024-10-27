@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::hash::Hash;
 
-pub trait Handler<O>
+pub trait Handler<O> where Self: Send
 {
     fn query(&mut self, o: &O) -> bool;
     fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;

@@ -1,18 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use crate::reactor::reactor_handler::Handler;
+use crate::reactor::ReactorData;
 
-pub trait NonAggregatingHandler<O> {
+pub trait NonAggregatingHandler<O: ReactorData> {
     fn query(&mut self, o: &O) -> bool;
     fn handle(&mut self, input: O) -> HashSet<O>;
 }
 
-pub struct NonAggregatingAdapter<O> {
+pub struct NonAggregatingAdapter<O: ReactorData> {
     h: Box<dyn NonAggregatingHandler<O>>,
     sideband: HashMap<O, HashSet<O>>
 }
 
-impl<O: Eq + Hash> NonAggregatingAdapter<O> {
+
+
+impl<O: ReactorData> NonAggregatingAdapter<O> {
     pub fn new(h: Box<dyn NonAggregatingHandler<O>>) -> Self {
         Self {
             h, sideband: HashMap::new()
@@ -30,7 +32,9 @@ impl<O: Eq + Hash> NonAggregatingAdapter<O> {
     }
 }
 
-impl<O: Eq + Hash + Clone> Handler<O> for NonAggregatingAdapter<O> {
+unsafe impl<O: ReactorData> Send for NonAggregatingAdapter<O> {}
+
+impl<O: ReactorData> Handler<O> for NonAggregatingAdapter<O> {
     fn query(&mut self, o: &O) -> bool {
         self.h.query(o)
     }
