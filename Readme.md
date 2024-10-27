@@ -12,3 +12,9 @@
     $ cd build
     $ cmake -GNinja ..
     $ ninja
+
+## ammy's Notes For Running This On A Macbook
+i'm basically just using devcontainers in vscode
+- `.devcontainer/devcontainer.json` is a tiny wrapper that slurps up `.devcontainer/Dockerfile`
+- so you should probably install Docker and the vscode dev container extension
+- i have not tested this anywhere else yet

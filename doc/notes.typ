@@ -517,6 +517,53 @@ Crucially, by allowing opaque sideband information, we can emulate the original 
 
 = Implementation<implementation>
 
+#figure(
+  scope: "parent",
+  caption: "Some Reactor Implementations Snippets",
+  placement: top
+)[
+```rust
+pub trait GeneratesHandler where Self: Eq + Hash + Sized {
+    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
+}
+
+pub trait Handler<O>
+{
+    fn query(&mut self, o: &O) -> bool;
+    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
+
+    fn free_o(&mut self, _o: &O) -> () {}
+}
+
+pub struct ReactorHandler<O: Eq + Hash>
+{
+    qa: Box<dyn Handler<O>>,
+    pub(super) I: HashSet<O>,
+    pub(super) O: HashSet<O>,
+    pub(super) dirty: bool,
+}
+
+
+pub struct Reactor<O: Eq + Hash + GeneratesHandler + Clone + Debug> {
+    pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
+    pub ref_counts: HashMap<O, u64>,
+    generated_handlers: HashMap<O, ReactorHandlerId>,
+    current_handler_id: u64
+}
+```
+]<reactor-struct>
+
+#let hid = {$mono("ReactorHandlerId")$}
+
+The Reactor proper is written in Rust#footnote[Which has caused Fox no end of brow-furrowed consternation.], and there are several implementation details to note. The main Reactor struct (called `Reactor<>` in @reactor-struct) has $R$, written `ref_counts`. However, $H$ is written not as a set of handlers, but instead as a map from $hid |-> a$, and has a second map $O |-> hid$. This is so we can support the _handler handler_.
+
+== The Handler Handler
+It has always been the intention that handlers are, themselves, described in the database. Ideally, we would have an actual handler, which would look for triples like $angle.l$_some path_, is a, handler$angle.r$, and then load those `.so` files and add them to the set. However, Rust hase _some opinions_ about recursively-referential structs, and allowing the handlers to directly mutate the Reactor that holds them seems like a bad idea anyways. So, while we logically have a handler that does this, in the implementation we just rolled this into the Reactor itself: since the reactor requires that `O` be a `GeneratesHandler`, on each insert it calls `mk_handler` and if that returns a `Some(h)`, it calls $insert_(a)(mono("h"))$ on itself with the returned handler.
+
+== Memory Management
+
+Also of note, the `Handler` implementation has a bonus function called `free_o`, which the Reactor implementation calls whenever calling remove would result in the ref-count reaching zero. After it has removed the object from all of the other handlers' input sets, it calls `free_o` on the object, allowing (one of #footnote[There's a strange thing that might happen where handlers $h_1$ and $h_2$ both generate $o$. In practice, if there was a resource that needed to be freed, it means that both of these would have somehow acquired and asserted an identical resource handle, pointer, etc. In this case, my claim is that it _cannot_ matter which of those does the clean-up, since they should both know what it is they're putting in the database. One could certainly write pathological handlers, but that seems like a concern for future-Fox.]) the handlers that generated it to clean it up. The intended use here is for resources we get from external systems, like objects from Vulkan or OpenCV.
+
 = Questions
 
 - How do we respond to events from the OS?
