@@ -20,6 +20,11 @@ pub struct DynamicHandler {
 unsafe impl Send for DynamicHandler{}
 
 impl DynamicHandler {
+    pub fn get_bootstrap_output(&self) -> HashSet<Tuple> {
+        let buffer = unsafe { slice::from_raw_parts_mut(*self.buffer, 10_000_000) };
+        let (res, _) = Vec::<Tuple>::read_from_buffer(buffer, 0);
+        HashSet::from_iter(res)
+    }
     pub unsafe fn new(path: &Path) -> Self {
         // Magic 0x08 number is DEEPBIND for dlopen.
         let lib = Library::open(Some(path), RTLD_NOW | RTLD_LOCAL | 0x08).unwrap();

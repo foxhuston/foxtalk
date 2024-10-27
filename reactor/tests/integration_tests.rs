@@ -1,12 +1,11 @@
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use reactor::reactor::Reactor;
     use reactor::triples_reactor::{Tuple, TupleNoun};
 
-    use std::path::PathBuf;
     use reactor::triples_reactor::ffi::dynamic_handler::DynamicHandler;
+    use std::path::PathBuf;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -39,10 +38,9 @@ mod tests {
     #[test]
     fn clock_tick_works() {
         let mut reactor: Reactor<Tuple> = Reactor::new();
-        let tuple = Tuple(vec![TupleNoun::Symbol("clock".to_string()), TupleNoun::Symbol("is at".to_string()), TupleNoun::U64(10)]);
-
         let handler = unsafe { DynamicHandler::new(linked_lib_path("clock_handler.so").as_path()) };
-        reactor.add_handler_with_bootstrap_output(Box::new(handler), HashSet::from([tuple]));
+        let output = handler.get_bootstrap_output();
+        reactor.add_handler_with_bootstrap_output(Box::new(handler), output);
         reactor.tick();
         reactor.tick();
 
@@ -50,7 +48,19 @@ mod tests {
         let Tuple(nouns) = reactor.ref_counts.iter().last().unwrap().0;
         assert_eq!(nouns[0], TupleNoun::Symbol("clock".to_string()));
         assert_eq!(nouns[1], TupleNoun::Symbol("is at".to_string()));
-        assert_eq!(nouns[2], TupleNoun::U64(12));
+        assert_eq!(nouns[2], TupleNoun::U64(2));
+
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+
+        assert_eq!(reactor.ref_counts.len(), 1);
+        let Tuple(nouns) = reactor.ref_counts.iter().last().unwrap().0;
+        assert_eq!(nouns[0], TupleNoun::Symbol("clock".to_string()));
+        assert_eq!(nouns[1], TupleNoun::Symbol("is at".to_string()));
+        assert_eq!(nouns[2], TupleNoun::U64(7));
     }
 }
 

@@ -14,6 +14,7 @@ protected:
     void claim(Tuple &&n) { claims.push_back(std::move(n)); }
     virtual void handle(const std::vector<Tuple> &queryResults) = 0;
     virtual void free_tuple(const Tuple &) {}
+    virtual void init() {}
 
 public:
     std::vector<Tuple> claims{}; // should be private, but I need to test...
@@ -31,6 +32,13 @@ public:
         auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
         free_tuple(t);
 
+    }
+
+    void ffi_init(uint8_t *buffer)
+    {
+        claims.clear();
+        init();
+        write_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 
     void ffi_handle(uint8_t *buffer)
@@ -65,6 +73,7 @@ public:
         try                                                        \
         {                                                          \
             T##_instance = new T();                                \
+            T##_instance->ffi_init(_foxtalk_ipc_buffer);           \
         }                                                          \
         catch (std::exception const& e) \
         {   \

@@ -275,9 +275,10 @@ public:
         if(std::holds_alternative<T>(nouns_[i].data)) {
             return { std::get<T>(nouns_[i].data) };
         } else {
-            std::cout << "WARNING: noun at " << i << " was not a " << typeid(T).name()
-                      << " (It had the foxtalk type id " << (size_t)nouns_[i].type << ")"
-                      << std::endl;
+            // This isn't really a warning... we use at<T>
+            // std::cout << "WARNING: noun at " << i << " was not a " << typeid(T).name()
+            //           << " (It had the foxtalk type id " << (size_t)nouns_[i].type << ")"
+            //           << std::endl;
 
             return std::nullopt;
         }
@@ -304,37 +305,6 @@ public:
         return std::pair<Tuple, size_t>(Tuple{std::move(nouns) }, read_bytes);
     }
 };
-
-//namespace std {
-//    template <>
-//    struct hash<TripleNoun> {
-//        size_t operator()(const TripleNoun& s) const noexcept
-//        {
-//            size_t hash_data = hash<TripleNoun::NounData>()(s.data);
-//            size_t hash_type = hash<TripleNoun::NounType>()(s.type);
-//            return hash_data ^ (hash_type << 1);
-//        }
-//    };
-//    template <>
-//    struct hash<Triple> {
-//        size_t p = 31; // prime number
-//        size_t operator()(const Triple& s) const noexcept
-//        {
-//            /*
-//             *
-//             * Algorithm shown by Joshua Bloch:
-//             *      int result = (int) (x ^ (x >>> 32));
-//                    result = 31 * result + (int) (y ^ (y >>> 32));
-//                    result = 31 * result + (int) (z ^ (z >>> 32));
-//                    return result;
-//             */
-//            size_t x = hash<TripleNoun>()(s.subject_);
-//            size_t y = hash<TripleNoun>()(s.predicate_);
-//            size_t z = hash<TripleNoun>()(s.object_);
-//            return z ^ (z << 1) + p * ((y ^ y << 1) + p * (x ^ x << 1));
-//        }
-//    };
-//}
 
 
 #endif //REACTOR_FOXTALK_TUPLE_H

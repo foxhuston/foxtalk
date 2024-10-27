@@ -12,8 +12,6 @@ pub struct NonAggregatingAdapter<O: ReactorData> {
     sideband: HashMap<O, HashSet<O>>
 }
 
-
-
 impl<O: ReactorData> NonAggregatingAdapter<O> {
     pub fn new(h: Box<dyn NonAggregatingHandler<O>>) -> Self {
         Self {

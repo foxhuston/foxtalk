@@ -26,11 +26,12 @@ fn main() {
                 let filepath = entry.path();
                 let filepath = filepath.to_str().unwrap();
 
-                
+
                 if filepath.ends_with(".cpp") {
                     let status = Command::new("clang++")
                         .args([
                             "-shared",
+                            "-g",
                             "-Ofast",
                             "-std=c++26",
                             "-I",

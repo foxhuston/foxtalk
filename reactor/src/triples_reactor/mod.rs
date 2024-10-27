@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use crate::reactor::reactor_handler::Handler;
 use crate::reactor::GeneratesHandler;
 use crate::triples_reactor::ffi::dynamic_handler::DynamicHandler;
@@ -12,7 +13,7 @@ pub struct Tuple(pub Vec<TupleNoun>);
 
 impl Tuple {
     // #[cfg(test)]
-    pub fn triple_from_strs(s: &str, p: &str, o: &str) -> Self {
+    pub fn triple_from_sss(s: &str, p: &str, o: &str) -> Self {
         Tuple(vec![
             TupleNoun::Symbol(s.to_string()),
             TupleNoun::Symbol(p.to_string()),
@@ -37,9 +38,11 @@ impl Tuple {
 }
 
 impl GeneratesHandler for Tuple {
-    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> {
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Handler<Tuple>>, HashSet<Tuple>)> {
         if let Some(path) = self.is_handler_tuple() {
-            Some(Box::new(unsafe { DynamicHandler::new(Path::new(&path)) }))
+            let handler = unsafe { DynamicHandler::new(Path::new(&path)) };
+            let bootstrapped_output = handler.get_bootstrap_output();
+            Some((Box::new(handler), bootstrapped_output))
         } else {
             None
         }
@@ -65,9 +68,9 @@ pub mod tests {
     pub fn it_should_add_and_remove_handlers() {
         let mut reactor = Reactor::new();
 
-        let handler_tup = Tuple::triple_from_strs(linked_lib_path("husky_handler.so").to_str().unwrap(), "is a", "handler");
-        let expected_tuple = Tuple::triple_from_strs("lexi", "is", "cool");
-        reactor.insert(Tuple::triple_from_strs("lexi", "is a", "husky"));
+        let handler_tup = Tuple::triple_from_sss(linked_lib_path("husky_handler.so").to_str().unwrap(), "is a", "handler");
+        let expected_tuple = Tuple::triple_from_sss("lexi", "is", "cool");
+        reactor.insert(Tuple::triple_from_sss("lexi", "is a", "husky"));
         reactor.tick();
 
         assert_eq!(reactor.ref_counts.get(&expected_tuple), None);

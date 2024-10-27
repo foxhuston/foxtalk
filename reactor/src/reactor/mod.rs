@@ -20,7 +20,7 @@ pub struct ReactorHandlerId(u64);
 
 
 pub trait GeneratesHandler where Self: Eq + Hash + Sized {
-    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Handler<Self>>, HashSet<Self>)> { None }
 }
 
 impl GeneratesHandler for u64 { }
@@ -94,8 +94,8 @@ impl<O: ReactorData> Reactor<O> {
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count += 1;
         } else {
-            if let Some(h) = input.mk_handler() {
-                let hid = self.add_handler(h);
+            if let Some((h, o)) = input.mk_handler_with_bootstrap_input() {
+                let hid = self.add_handler_with_bootstrap_output(h, o);
                 self.generated_handlers.insert(input.clone(), hid);
             }
             
