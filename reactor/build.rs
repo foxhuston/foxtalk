@@ -31,7 +31,7 @@ fn main() {
                     let status = Command::new("clang++")
                         .args([
                             "-shared",
-                            "-g",
+                            // "-g",
                             "-Ofast",
                             "-std=c++26",
                             "-I",

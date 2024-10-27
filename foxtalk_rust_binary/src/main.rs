@@ -5,6 +5,7 @@ use std::ffi::OsStr;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io, thread};
+use dotenv;
 
 struct FileWatchHandler{
     reactor: Arc<Mutex<Reactor<Tuple>>>,
@@ -71,9 +72,10 @@ impl FileWatchHandler {
 }
 
 fn main() {
+    dotenv::dotenv().ok();
 
     let path_from_env = std::env::var("WATCH_PATH");
-    let path = path_from_env.unwrap_or({
+    let path = path_from_env.unwrap_or_else(|_| {
         println!("Info: No WATCH_PATH environment variable set. What absolute path do you want to watch?");
         let mut input = String::new();
         match io::stdin().read_line(&mut input) {
@@ -86,10 +88,6 @@ fn main() {
     });
 
     let reactor: Arc<Mutex<Reactor<Tuple>>> = Arc::new(Mutex::new(Reactor::new()));
-    // {
-    //     let r = reactor.lock();
-    //     r.unwrap().insert(Tuple(vec![TupleNoun::Symbol("clock".to_string()), TupleNoun::Symbol("is at".to_string()), TupleNoun::U64(0)]));
-    // }
 
     let mut handler = FileWatchHandler::new(reactor.clone(), path.clone());
     
