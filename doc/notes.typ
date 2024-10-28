@@ -568,7 +568,7 @@ Also of note, the `Handler` implementation has a bonus function called `free_o`,
 = An Alternative Query Algorithm
 
 #figure(
-  scope: "parent",
+  // scope: "parent",
   caption: "Incremental Query Tree",
   placement: top
   )[
@@ -584,19 +584,20 @@ Also of note, the `Handler` implementation has a bonus function called `free_o`,
       spacing: (18mm, 10mm),
       node-stroke: luma(80%),
       node-corner-radius: 5pt,
+
       node((0.5,0), [`root`], name: <root>),
 
-      node(( 0.0, 0.5), [$$], name: <l1>),
-      node((-0.5, 1.0), [${H_(3), H_(4)^(bullet)}$], name: <l2>),
-      node((-1.0, 1.5), [${H_(1)}$], name: <l3>),
+      node((0.0, 0.5), [$$], name: <l1>),
+      node((0.0, 1.5), [$<< {H_(3)}, {H_(4)} >>$], name: <l2>),
+      node((0.0, 2.5), [$<< {H_(1)}, {} >>$], name: <l3>),
 
       node((1.0, 0.5), [$$], name: <r1>),
-      node((1.5, 1.0), [$$], name: <r2>),
-      node((2.0, 1.5), [${H_2}$], name: <r3>),
+      node((1.0, 1.5), [$$], name: <r2>),
+      node((1.0, 2.5), [$<< {H_2}, {} >>$], name: <r3>),
 
-      edge(<root>, <r1>, [`lexi`]),
-      edge(<r1>, <r2>, [`is a`]),
-      edge(<r2>, <r3>, [`husky`]),
+      edge(<root>, <r1>, [`lexi`], label-side: left),
+      edge(<r1>, <r2>, [`is a`], label-side: left),
+      edge(<r2>, <r3>, [`husky`], label-side: left),
 
       edge(<root>, <l1>, [$star$]),
       edge(<l1>, <l2>, [`is a`]),
@@ -621,7 +622,9 @@ For example: $
 #let prefixHandlers = {$sans("prefix_handlers")$}
 #let ns = {$serif("ns")$}
 
-So the idea shown in @fig-query-tree is this: adding a handler $H_n$, it presents a query tuple $Q_n$, which is used to construct a prefix-tree: the tuple is traversed over each $s_i$ (in order), and at each node, a new edge matching $s_i$ inserted into the tree. If there are no more items left in the tuple, then the handler (that registered the query) is attached to that node in a list of #handlers. If the last symbol in the tuple is $...$, it is instead added to that node's #prefixHandlers list.
+So the idea shown in @fig-query-tree is this: each node is a pair of $<< handlers, prefixHandlers >>$, where #handlers is a set of handlers, and #prefixHandlers is also a set of handlers, but represents the queries that match on tuples of any length (longer than whatever their other specifiers are).
+
+When adding a handler $H_n$, it presents a query tuple $Q_n$, which is used to construct a prefix-tree: the tuple is traversed over each $s_i$ (in order), and at each node, a new edge matching $s_i$ inserted into the tree. If there are no more items left in the tuple, then the handler (that registered the query) is attached to that node in a list of #handlers. If the last symbol in the tuple is $...$, it is instead added to that node's #prefixHandlers list.
 
 Then, querying is a tree-traversal, with at most two branches per node: one for the literal symbol, and a second if that node has a $star$ edge.
 
