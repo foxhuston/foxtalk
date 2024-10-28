@@ -607,7 +607,18 @@ Also of note, the `Handler` implementation has a bonus function called `free_o`,
 
 What if we could incrementally construct a full query-graph, such that following each tuple-noun from left-to-right would end at a handler that cared about them? Then the query parser could still do the final bindings, but updating the input sets would be a tree traversal, rather than an $O(n)$ operation on handlers.
 
-First, let the objects in the database be tuples of symbols $s in S$ of any length, written $<< s_1, s_2, ... s_n >>$ for some $n in NN$. There is also an equivalence relation on the elements of $S$, written $s = s$. Next, let _query tuples_ be tuples constructed from a new set of objects, which is just $Q = S union { star, ... }$. The equivalence relation on $Q$ is the same as on $S$, except that $star$ is equivalent to any $s in S$. The ellipsis matches any number of symbols (including 0) at and beyond that point in the tuple.
+First, let the objects in the database be tuples of symbols $s in S$, constructed according to the grammar$
+  T &::= << O >> | << >>\
+  O &::= s | s, O
+$
+
+
+There must be an equivalence relation on the elements of $S$, written $s = s$. Next, let _query tuples_ $Q$ be tuples constructed from the following grammar:$
+  Q &::= << O, ... >> | << O >> | << >>  \
+  O &::= star | s | s, O
+$
+
+The equivalence relation on $Q$ is the same as on $S$, except that $star$ is equivalent to any $s in S$. The ellipsis matches zero or more symbols starting from that point in the tuple. These must appear once at the end of a query tuple, or not at all.
 
 For example: $
   << "lexi", "is a", "husky" >> &matches << "lexi", star, "husky" >> \
