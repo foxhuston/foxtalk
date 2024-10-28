@@ -1,6 +1,7 @@
 #import "@preview/lovelace:0.3.0": *
 #import "@preview/curryst:0.3.0": rule, proof-tree
 #import "@preview/quick-maths:0.1.0": shorthands
+#import "@preview/fletcher:0.5.2" as fletcher: diagram, node, edge
 
 #show "FoxTalk": smallcaps
 #show "Reactor": smallcaps
@@ -562,7 +563,83 @@ It has always been the intention that handlers are, themselves, described in the
 
 == Memory Management
 
-Also of note, the `Handler` implementation has a bonus function called `free_o`, which the Reactor implementation calls whenever calling remove would result in the ref-count reaching zero. After it has removed the object from all of the other handlers' input sets, it calls `free_o` on the object, allowing (one of #footnote[There's a strange thing that might happen where handlers $h_1$ and $h_2$ both generate $o$. In practice, if there was a resource that needed to be freed, it means that both of these would have somehow acquired and asserted an identical resource handle, pointer, etc. In this case, my claim is that it _cannot_ matter which of those does the clean-up, since they should both know what it is they're putting in the database. One could certainly write pathological handlers, but that seems like a concern for future-Fox.]) the handlers that generated it to clean it up. The intended use here is for resources we get from external systems, like objects from Vulkan or OpenCV.
+Also of note, the `Handler` implementation has a bonus function called `free_o`, which the Reactor implementation calls whenever calling remove would result in the ref-count reaching zero. After it has removed the object from all of the other handlers' input sets, it calls `free_o` on the object, allowing (one of)#footnote[There's a strange thing that might happen where handlers $h_1$ and $h_2$ both generate $o$. In practice, if there was a resource that needed to be freed, it means that both of these would have somehow acquired and asserted an identical resource handle, pointer, etc. In this case, my claim is that it _cannot_ matter which of those does the clean-up, since they should both know what it is they're putting in the database. One could certainly write pathological handlers, but that seems like a concern for future-Fox.] the handlers that generated it to clean it up. The intended use here is for resources we get from external systems, like objects from Vulkan or OpenCV.
+
+= An Alternative Query Algorithm
+
+#figure(
+  scope: "parent",
+  caption: "Incremental Query Tree",
+  placement: top
+  )[
+    #grid(
+      columns: (1fr, 1fr),
+      gutter: 20pt,
+      align: (col, row) => { if(calc.rem(col, 2) == 0) { right } else { left } },
+      [$Q_(1) = << star, "is a", "husky" >>$], [$Q_(2) = << "lexi", "is a", "husky" >>$],
+      [$Q_(3) = << star, "is a" >>$], [$Q_(4) = << star, "is a", ... >>$]
+    )
+    #v(12pt)
+    #diagram(
+      spacing: (18mm, 10mm),
+      node-stroke: luma(80%),
+      node-corner-radius: 5pt,
+      node((0.5,0), [`root`], name: <root>),
+
+      node(( 0.0, 0.5), [$$], name: <l1>),
+      node((-0.5, 1.0), [${H_(3), H_(4)^(bullet)}$], name: <l2>),
+      node((-1.0, 1.5), [${H_(1)}$], name: <l3>),
+
+      node((1.0, 0.5), [$$], name: <r1>),
+      node((1.5, 1.0), [$$], name: <r2>),
+      node((2.0, 1.5), [${H_2}$], name: <r3>),
+
+      edge(<root>, <r1>, [`lexi`]),
+      edge(<r1>, <r2>, [`is a`]),
+      edge(<r2>, <r3>, [`husky`]),
+
+      edge(<root>, <l1>, [$star$]),
+      edge(<l1>, <l2>, [`is a`]),
+      edge(<l2>, <l3>, [`husky`]),
+    )
+  ]<fig-query-tree>
+
+What if we could incrementally construct a full query-graph, such that following each tuple-noun from left-to-right would end at a handler that cared about them? Then the query parser could still do the final bindings, but updating the input sets would be a tree traversal, rather than an $O(n)$ operation on handlers.
+
+First, let the objects in the database be tuples of symbols $s in S$ of any length, written $<< s_1, s_2, ... s_n >>$ for some $n in NN$. There is also an equivalence relation on the elements of $S$, written $s = s$. Next, let _query tuples_ be tuples constructed from a new set of objects, which is just $Q = S union { star, ... }$. The equivalence relation on $Q$ is the same as on $S$, except that $star$ is equivalent to any $s in S$. The ellipsis matches any number of symbols (including 0) at and beyond that point in the tuple.
+
+For example: $
+  << "lexi", "is a", "husky" >> &matches << "lexi", star, "husky" >> \
+  << "lexi", "is a", "husky" >> &matches << "lexi", star, star >> \
+  << "lexi", "is a", "husky" >> &matches << "lexi", ... >> \
+  << "lexi", "is a", "husky" >> &matches << "lexi", star, "husky", ... >> \
+  << "lexi", "is a", "husky" >> &cancel(matches) << star, "is a", "labrador" >>. \
+  $
+
+#let indexNode = {$sans("index_node")$}
+#let handlers = {$sans("handlers")$}
+#let prefixHandlers = {$sans("prefix_handlers")$}
+#let ns = {$serif("ns")$}
+
+So the idea shown in @fig-query-tree is this: adding a handler $H_n$, it presents a query tuple $Q_n$, which is used to construct a prefix-tree: the tuple is traversed over each $s_i$ (in order), and at each node, a new edge matching $s_i$ inserted into the tree. If there are no more items left in the tuple, then the handler (that registered the query) is attached to that node in a list of #handlers. If the last symbol in the tuple is $...$, it is instead added to that node's #prefixHandlers list.
+
+Then, querying is a tree-traversal, with at most two branches per node: one for the literal symbol, and a second if that node has a $star$ edge.
+
+
+
+#pseudocode-list(booktabs: true, title: [query])[
+  + *function* $q([], indexNode) =$ $indexNode"."handlers$
+  + *function* $q([n, ns...], indexNode)$ =
+    + *let* a = *if* $n in indexNode$ *then*
+      - $q(ns, indexNode"."n)$
+    - *else* $nothing$.
+
+    + *let* b = *if* $star in indexNode$ *then*
+      - $q(ns, indexNode.$star$)$
+    - *else* $nothing$.
+
+    + *return* $a union b union indexNode"."prefixHandlers$
+]
 
 = Questions
 
