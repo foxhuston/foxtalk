@@ -22,6 +22,7 @@
 #set enum(numbering: "1.a.")
 
 #let fox(m) = {text(fill: orange)[#emoji.fox #m]}
+#let lexi(m) = {text(fill: purple)[#emoji.dog.guide #m]}
 
 // `otf-stix` is in the AUR...
 #show math.equation: set text(font: "Stix Two Math")
@@ -200,28 +201,34 @@ I'll write the relation $q matches o$ to mean that the query $q$ matches the obj
 Things we can take advantage of:
 - If $q matches o$ in step $i$, then $q matches o$ in step $i + 1$.
 
-== Algorithm
+== Definitions
 
 #let object = $upright(sans(o))$
 #let Objects = $upright(sans(O))$
-#let Aggregator = {$<< q, a, S, I, O >>$}
+#let QueryEngine = $Q$
+#let ProgramInfo = {$<< S, I, O >>$}
+#let Program = fox("AHHH")
+#let program = {$p$}
+#let Aggregator = {fox[AGGs DEPRECATED]}
 #let Handler = text(fill: red)[HANDLER]
+
 // #let Handler = {$<< q, a, I, M, O >>$}
 #let dirty(new: false, ..h) = {
   let bod = h.pos().join(", ")
   $#bod^#if new { text(fill: red)[$bullet$]} else {$bullet$}$
 }
 // SDB Destructured
-#let sdbd = {$angle.l A, R angle.r$}
+#let sdbd = {$angle.l P, Q, R angle.r$}
 
 / Objects: are things that the database operates on. Individuals are written #object, and a set of objects are written #Objects.
-/ Queries: match (or do not match) objects, written #box[$q matches object$].
-/ Aggregators: Written $Aggregator$, where $q$ is a query, $a$ is a function from $Objects times S -> Objects times S$, $S$ is an opaque _sideband_ object, $I$ is the set of _input_ objects, and $O$ is the set of _output_ objects.
-// / Handlers: Written $Handler$, where $h : object -> Objects$, and $M$ is a set of $angle.l object, object angle.r$ pairs, mapping objects in $I$ to objects in $O$.
+/ Query Engine: written #QueryEngine, #fox[has operations to efficiently find programs that will respond to a given object.]
+/ Queries: written $q$, are an abstract query that the Query Engine can process. Queries _match_ or do not match objects.
+/ Programs: written $p$, are functions from $O times S -> O times S$, where where $S$ is an opaque _sideband_ object.
+/ Program Info: Written $ProgramInfo$, $I$ is the set of _input_ objects, and $O$ is the set of _output_ objects.
 / Dirty: handlers are written $dirty(angle.l - angle.r)$.
-/ The Database: is written $sdb = sdbd$, where $A$ is the set of registered aggregators, $H$ is the set of registered handlers, and $R$ the _refcount_ map of $object times NN$.
-
-Also note that, given some variable that represents a tuple, I will use $a.q$ to e.g. refer to the "$q$" field of $a$.
+/ The Database: is written $sdb = sdbd$, where $P$ is the _program map_, $Q$ is the Query Engine, and $R$ is the _refcount map_.
+/ Program Map: Maps are sets of pairs of keys and values, like ${<<k, v>>}$, which we read "the key $k$ maps to the value $v$." The Program Map uses $p$'s as its keys, and triples of $<< S, I, O >>$ as its values, so we would write it like ${<< p, <<S, I, O>>}$. This is pretty noisy, so instead we'll use $|->$, as in: ${p |-> << S, I, O >>}$. For some map $M$, I will write $M(k)$ as the partial function that returns the value (from $M$) for the key $k$. #fox[Messy definition...]
+/ Refcount Map: are maps from objects to natural numbers, written ${o |-> NN}$.
 
 
 #let insert = "insert"
@@ -236,66 +243,84 @@ Also note that, given some variable that represents a tuple, I will use $a.q$ to
 #let tick = "tick"
 #show "tick": r => $upright(sans(#r))$
 
+#let query = "query"
+#show "query": r => $upright(sans(#r))$
+
+The Query Engine provides several (abstract) operations: $
+  insert_(q):& QueryEngine -> q times program -> QueryEngine \
+  remove_(q):& QueryEngine -> program -> QueryEngine \
+  query_(q): & QueryEngine -> o -> {program}
+$
+
+== Reactor
+
+#let keys = {$upright("keys")$}
+#let values = {$upright("values")$}
+
+#let mupdate = "mupdate"
+#show "mupdate": r => $upright(sans(#r))$
+
+
 #pseudocode-list(booktabs: true, title: [$insert: sdb -> object -> sdb$])[
+  + *function* $mupdate(M, k, v'):$
+    + *let* $"kvp" = { <<k', v>> | exists <<k', v>> in M. k = k' }$
+    + *return* $(M without "kvp") union {<<k, v'>>}$
+
+  - \
+
   + *function* $insert(sdbd, o)$:
-    + *let* $A' = nothing, R' = R$
+    + *let* $P' = P, R' = R$
     + *if* $<< o, n >> in R$ (where $n$ is any natural number):
       + $R' := (R' without {<< o, n >>}) union {<< o, n + 1 >>}$
       + *return* $<<A, H, R'>>$
     + *else*:
-      + *for each* $Aggregator in A$:
-        + *if* $o in.not I and q matches o$:
-          + $A' := A' union dirty(<< q\, a\, S\, I union {o}\, O >>)$
-        + *else*
-          + $A' := A' union Aggregator$
+      + *let* $P_q = query_(q)(Q, o)$
+      + *for each* $program in P_q$:
+          + *let* $<< S, I, O >> = P(p)$
+          + $P' := mupdate(P', p, dirty(<< S\, I union {o}\, O >>))$
 
-      + *return* $<< A', R union {<<o, 1>>} >>$
+      + *return* $<< P', Q, R union {<<o, 1>>} >>$
 ]
 
 Addition simply increments the refcount in $sdb$ and, for each handler that matches (and that doesn't already have $o$ in its input set), it adds $o$ to that handler's input set and marks it dirty. Removals are a bit more complex:
 
 #pseudocode-list(booktabs: true, title: [$remove: sdb -> sdb$])[
   + *function* $remove(sdbd, o)$:
-    + *let* $A' = A$
-    + *let* $R' = R$
+    + *let* $R' = R, P' = P, Q' = Q$
     + *if* $<<o, n>> in R'$:
       + *if* $n > 1$:
         + $R' := (R' without {<<o, n>>}) union {<<o, n-1>>}$
       + *else*
         + $R' := R' without {<<o, n>>}$
-        + $<< A', R' >> := remove_(a)(<< A', R' >>, o)$
-    + *return* $<<A', R'>>$
+        + $<< P', Q', R' >> := remove_(a)(<< P, Q, R' >>, o)$
+    + *return* $<<P', Q', R'>>$
 ]
 
+/*
 Next, we write the removal function on a specific aggregator:
 
 #pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> object -> sdb$])[
   + *function* $remove_(a)(sdbd, o)$:
-    + *let* $A' = nothing$
-    + *for each* $Aggregator in A$:
-      + *if* $o in I$:
-        + $A' := A' union {dirty(<<q\, a\, S\, I without {o}\, O>>)}$
-      + *else*:
-        + $A' := A' union Aggregator$
+    + *let* $P' = P$
+    + *for each* $p in query_(q)(Q, o)$:
+      + *let* $<< S, I, O >> = P(p)$
+      + $P' := mupdate(P, p, dirty(<< S\, I without {o}\, O>>))$
 
-
-    + *return* $<< A', R >>$
+    + *return* $<< P', Q, R >>$
 ]
 
 Next, we have to write the tick function, that actually processes everything that happened with adds and removes.
 
 #pseudocode-list(booktabs: true, title: [$tick: sdb -> sdb$])[
-    + *function* $swap_(a)(sdbd, a, a')$:
-      + *return* $<< (A without {a}) union {a'}, R>>$
-    - \
   + *function* $tick(sdbd)$:
-    + *let* $sdb' = sdbd$
-    + *for each* $dirty(Aggregator) in A$:
-      + $<< O', S' >> = a(I, S)$
+    + *let* $sdb' = <<P, Q, R>>$
+    + *for each* $p |-> dirty(ProgramInfo) in P$:
+      + $<< O', S' >> = p(I, S)$
       + $"Ins" = O' without O$
       + $"Rem" = O without O'$
-      + #line-label(<tick-swap>) $sdb' := swap_(a)(sdb', dirty(Aggregator),$
-      + $"                     " <<q, a, S', I, O' >>)$
+      + *let* $<< P', Q', R' >> = sdb'$
+      + #line-label(<tick-swap>) $P' := mupdate(P', p, << S', I, O' >>)$
+      + $sdb' := <<P', Q', R'>>$
       + *for each* $o in "Ins"$:
         + $sdb' := insert(sdb', o)$
       + *for each* $o in "Rem"$:
@@ -303,7 +328,17 @@ Next, we have to write the tick function, that actually processes everything tha
     + #line-label(<tick-return>) *return* $sdb'$
 ]
 
+
+== Query Engine
+
+#pseudocode-list(booktabs: true, title: [$insert_q: Q -> << q, S, P >> -> Q$])[
+
+]
+
+
 Finally, we need a way to insert and remove aggregators themselves.
+
+
 
 #pseudocode-list(booktabs: true, title: [$insert_a: sdb -> << q, a, S, O >> -> sdb$])[
   + *function* $insert_(a)(sdbd, << q, A, S, O >>)$:
@@ -328,8 +363,10 @@ This is by far the slowest operation in this entire system, but adding and remov
       + $<< A', R' >> := remove(<< A', R' >>, o)$
 
     + *return* $<< A', R' >>$
-]
+]*/
 
+= Examples
+#fox[Set up a really simple "examples" query engine that works just like the original algorithm did: where it just loops over every $p$ and calls the query.]
 
 == Example: Aggregator
 #set math.equation(numbering: none)
@@ -407,17 +444,17 @@ $ dbc &= insert_(a)(sdb_0, << q, a, {}, {#T(1)}) \
   << #T(1), 1 >>
 ). $
 
-Note that `t1` shows up in the input set, because we union the initial output set into $cal(O)$ on @ins-world-o, and $q$ will match `t1` on @ins-world-i. Next, calling tick will yield $
+Note that `t1` shows up in the input set, because we union the initial output set into $cal(O)$ on #fox[ins-world-o], and $q$ will match `t1` on #fox[ins-world-i]. Next, calling tick will yield $
   dbcc' &= dbstate(
     <<q, a, {}, {#T(1)}, {New(#T(2))} ;
     << #T(1), 1 >>, New(<< #T(2), 1 >>)
   )
-$ after @tick-swap, and $
+$ after #fox[tick-swap], and $
   dbc &= dbstate(
     <<q, a, {}, {Removed, New(#T(2))}, {#T(2)} ;
     Removed, << #T(2), 1 >>
   )
-$ after @tick-return. Each tick, the cycle will repeat, with $a$ always deriving the next `t`. With this handler in place, any number of other handlers can depend on the output---that is, have their queries match objects like `t(n)`, and they will be updated every tick with the new time value. In this way, a single handler can drive any number of other handlers that need to run every tick.
+$ after #fox[tick-return]. Each tick, the cycle will repeat, with $a$ always deriving the next `t`. With this handler in place, any number of other handlers can depend on the output---that is, have their queries match objects like `t(n)`, and they will be updated every tick with the new time value. In this way, a single handler can drive any number of other handlers that need to run every tick.
 
 == Example: Non-Aggregating Handlers
 #db_counter.update(0)
@@ -516,56 +553,7 @@ Next, let's say we want to remove $o_1$, so we
 
 Crucially, by allowing opaque sideband information, we can emulate the original case of two separate handler cases, while keeping the actual Reactor functions small and focused.
 
-= Implementation<implementation>
-
-#figure(
-  scope: "parent",
-  caption: "Some Reactor Implementations Snippets",
-  placement: top
-)[
-```rust
-pub trait GeneratesHandler where Self: Eq + Hash + Sized {
-    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
-}
-
-pub trait Handler<O>
-{
-    fn query(&mut self, o: &O) -> bool;
-    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
-
-    fn free_o(&mut self, _o: &O) -> () {}
-}
-
-pub struct ReactorHandler<O: Eq + Hash>
-{
-    qa: Box<dyn Handler<O>>,
-    pub(super) I: HashSet<O>,
-    pub(super) O: HashSet<O>,
-    pub(super) dirty: bool,
-}
-
-
-pub struct Reactor<O: Eq + Hash + GeneratesHandler + Clone + Debug> {
-    pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
-    pub ref_counts: HashMap<O, u64>,
-    generated_handlers: HashMap<O, ReactorHandlerId>,
-    current_handler_id: u64
-}
-```
-]<reactor-struct>
-
-#let hid = {$mono("ReactorHandlerId")$}
-
-The Reactor proper is written in Rust#footnote[Which has caused Fox no end of brow-furrowed consternation.], and there are several implementation details to note. The main Reactor struct (called `Reactor<>` in @reactor-struct) has $R$, written `ref_counts`. However, $H$ is written not as a set of handlers, but instead as a map from $hid |-> a$, and has a second map $O |-> hid$. This is so we can support the _handler handler_.
-
-== The Handler Handler
-It has always been the intention that handlers are, themselves, described in the database. Ideally, we would have an actual handler, which would look for triples like $angle.l$_some path_, is a, handler$angle.r$, and then load those `.so` files and add them to the set. However, Rust hase _some opinions_ about recursively-referential structs, and allowing the handlers to directly mutate the Reactor that holds them seems like a bad idea anyways. So, while we logically have a handler that does this, in the implementation we just rolled this into the Reactor itself: since the reactor requires that `O` be a `GeneratesHandler`, on each insert it calls `mk_handler` and if that returns a `Some(h)`, it calls $insert_(a)(mono("h"))$ on itself with the returned handler.
-
-== Memory Management
-
-Also of note, the `Handler` implementation has a bonus function called `free_o`, which the Reactor implementation calls whenever calling remove would result in the ref-count reaching zero. After it has removed the object from all of the other handlers' input sets, it calls `free_o` on the object, allowing (one of)#footnote[There's a strange thing that might happen where handlers $h_1$ and $h_2$ both generate $o$. In practice, if there was a resource that needed to be freed, it means that both of these would have somehow acquired and asserted an identical resource handle, pointer, etc. In this case, my claim is that it _cannot_ matter which of those does the clean-up, since they should both know what it is they're putting in the database. One could certainly write pathological handlers, but that seems like a concern for future-Fox.] the handlers that generated it to clean it up. The intended use here is for resources we get from external systems, like objects from Vulkan or OpenCV.
-
-= An Alternative Query Algorithm
+= A Fast, Prefix Query Algorithm
 
 #figure(
   // scope: "parent",
@@ -588,12 +576,12 @@ Also of note, the `Handler` implementation has a bonus function called `free_o`,
       node((0.5,0), [`root`], name: <root>),
 
       node((0.0, 0.5), [$$], name: <l1>),
-      node((0.0, 1.5), [$<< {H_(3)}, {H_(4)} >>$], name: <l2>),
-      node((0.0, 2.5), [$<< {H_(1)}, {} >>$], name: <l3>),
+      node((0.0, 1.5), [$<< {P_(3)}, {P_(4)} >>$], name: <l2>),
+      node((0.0, 2.5), [$<< {P_(1)}, {} >>$], name: <l3>),
 
       node((1.0, 0.5), [$$], name: <r1>),
       node((1.0, 1.5), [$$], name: <r2>),
-      node((1.0, 2.5), [$<< {H_2}, {} >>$], name: <r3>),
+      node((1.0, 2.5), [$<< {P_2}, {} >>$], name: <r3>),
 
       edge(<root>, <r1>, [`lexi`], label-side: left),
       edge(<r1>, <r2>, [`is a`], label-side: left),
@@ -655,9 +643,66 @@ Then, querying is a tree-traversal, with at most two branches per node: one for 
     + *return* $a union b union indexNode"."prefixHandlers$
 ]
 
-= Questions
+
+= A Runtime-Modifiable Reactor
+#fox[In the actual implementation, we allow special tuple forms that will cause the reactor to insert or remove handlers in itself. This section should be the final form of the abstract model, where $Q$ might mutate within insert and remove.]
+
+= Implementation<implementation>
+
+#figure(
+  scope: "parent",
+  caption: "Some Reactor Implementations Snippets",
+  placement: top
+)[
+```rust
+pub trait GeneratesHandler where Self: Eq + Hash + Sized {
+    fn mk_handler(&self) -> Option<Box<dyn Handler<Self>>> { None }
+}
+
+pub trait Handler<O>
+{
+
+    fn query(&mut self, o: &O) -> bool;
+    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O>;
+
+    fn free_o(&mut self, _o: &O) -> () {}
+}
+
+pub struct ReactorHandler<O: Eq + Hash>
+{
+    qa: Box<dyn Handler<O>>,
+    pub(super) I: HashSet<O>,
+    pub(super) O: HashSet<O>,
+    pub(super) dirty: bool,
+}
+
+
+pub struct Reactor<O: Eq + Hash + GeneratesHandler + Clone + Debug> {
+    pub handlers: HashMap<ReactorHandlerId, ReactorHandler<O>>,
+    pub ref_counts: HashMap<O, u64>,
+    generated_handlers: HashMap<O, ReactorHandlerId>,
+    current_handler_id: u64
+}
+```
+]<reactor-struct>
+
+#let hid = {$mono("ReactorHandlerId")$}
+
+The Reactor proper is written in Rust#footnote[Which has caused Fox no end of brow-furrowed consternation.], and there are several implementation details to note. The main Reactor struct (called `Reactor<>` in @reactor-struct) has $R$, written `ref_counts`. However, $H$ is written not as a set of handlers, but instead as a map from $hid |-> a$, and has a second map $O |-> hid$. This is so we can support the _handler handler_.
+
+#lexi[The Rust `Handler<O>` trait takes in `&mut self` as a parameter, which is the $S$ sideband object discussed in  (wherever above)]
+
+== The Handler Handler
+It has always been the intention that handlers are, themselves, described in the database. Ideally, we would have an actual handler, which would look for triples like $angle.l$_some path_, is a, handler$angle.r$, and then load those `.so` files and add them to the set. However, Rust hase _some opinions_ about recursively-referential structs, and allowing the handlers to directly mutate the Reactor that holds them seems like a bad idea anyways. So, while we logically have a handler that does this, in the implementation we just rolled this into the Reactor itself: since the reactor requires that `O` be a `GeneratesHandler`, on each insert it calls `mk_handler` and if that returns a `Some(h)`, it calls $insert_(a)(mono("h"))$ on itself with the returned handler.
+
+== Memory Management
+
+Also of note, the `Handler` implementation has a bonus function called `free_o`, which the Reactor implementation calls whenever calling remove would result in the ref-count reaching zero. After it has removed the object from all of the other handlers' input sets, it calls `free_o` on the object, allowing (one of)#footnote[There's a strange thing that might happen where handlers $h_1$ and $h_2$ both generate $o$. In practice, if there was a resource that needed to be freed, it means that both of these would have somehow acquired and asserted an identical resource handle, pointer, etc. In this case, my claim is that it _cannot_ matter which of those does the clean-up, since they should both know what it is they're putting in the database. One could certainly write pathological handlers, but that seems like a concern for future-Fox.] the handlers that generated it to clean it up. The intended use here is for resources we get from external systems, like objects from Vulkan or OpenCV.
+
+
+= Questions / Further Research
 
 - How do we respond to events from the OS?
 - How do we do negative matches? That is, I want to be able to express "`/dev/video0` is a camera $and not$(`/dev/video0` is calibrated.)" (That is, that second triple does not yet exist in the database.)
 
-#bibliography("./bib.yml")
+#bibliography("./main.bib")

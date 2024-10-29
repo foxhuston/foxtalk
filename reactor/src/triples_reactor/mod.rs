@@ -14,6 +14,12 @@ pub struct Tuple(pub Vec<TupleNoun>);
 
 impl Tuple {
     // #[cfg(test)]
+    pub fn triple_from_strs(s: &[&str]) -> Self {
+        Tuple(
+            s.iter().map(|s| TupleNoun::from_str(s)).collect()
+        )
+    }
+
     pub fn triple_from_sss(s: &str, p: &str, o: &str) -> Self {
         Tuple(vec![
             TupleNoun::Symbol(s.to_string()),
@@ -53,10 +59,21 @@ impl GeneratesHandler for Tuple {
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum TupleNoun {
     Query,          // 0
+    Prefix,         // 5 TODO: Should we renumber?
     Symbol(String), // 1
     CPtr(u64),      // 2
     U64(u64),       // 3
     I64(i64),       // 4
+}
+
+impl TupleNoun {
+    pub fn from_str(s: &str) -> TupleNoun {
+        match s {
+            "*" => { TupleNoun::Query },
+            "..." => { TupleNoun::Prefix },
+            s => TupleNoun::Symbol(s.to_string()),
+        }
+    }
 }
 
 #[cfg(test)]

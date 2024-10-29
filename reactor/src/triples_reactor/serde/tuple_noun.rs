@@ -5,6 +5,7 @@ use crate::triples_reactor::serde::{read_foxtalk_size, FoxTalkDeserializable, Fo
 use crate::triples_reactor::TupleNoun;
 
 const QUERY_TYPE: u8 = 0;
+const PREFIX_TYPE: u8 = 5;
 const SYMBOL_TYPE: u8 = 1;
 const CPTR_TYPE: u8 = 2;
 const U64_TYPE: u8 = 3;
@@ -14,6 +15,9 @@ fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: u
     match noun {
         TupleNoun::Query => {
             write_to[start_position] = QUERY_TYPE;
+        }
+        TupleNoun::Prefix => {
+            write_to[start_position] = PREFIX_TYPE;
         }
         TupleNoun::Symbol(_) => {
             write_to[start_position] = SYMBOL_TYPE;
@@ -36,6 +40,9 @@ impl FoxTalkSerializable for TupleNoun {
     fn write_to_buffer(&self, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
         match self {
             TupleNoun::Query => {
+                write_type_to_buffer(self, write_to, start_position)
+            }
+            TupleNoun::Prefix => {
                 write_type_to_buffer(self, write_to, start_position)
             }
             TupleNoun::Symbol(value) => {

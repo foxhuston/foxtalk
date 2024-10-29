@@ -1,69 +1,171 @@
 use crate::reactor::query_engine::QueryEngine;
 use crate::triples_reactor::{Tuple, TupleNoun};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::fmt::{Debug, Write};
 
-struct TripleQueryEngine<P>{
-    flat_node_tree: Vec<TripleQueryNode<P>>
+struct TripleQueryEngine<P> {
+    flat_node_tree: Vec<TripleQueryNode<P>>,
 }
 
-impl<P> TripleQueryEngine<P> {
+impl<P: PartialEq> TripleQueryEngine<P> {
     pub fn new() -> Self {
         TripleQueryEngine {
             flat_node_tree: vec![TripleQueryNode::new()]
         }
     }
+
+    fn mk_node(&mut self) -> usize {
+        self.flat_node_tree.push(TripleQueryNode::new());
+        self.flat_node_tree.len() - 1
+    }
+
+    fn get_children(&self, id: usize) -> &HashMap<TupleNoun, usize> {
+        &self.flat_node_tree.get(id).unwrap().children
+    }
 }
 
-struct TripleQueryNode<P>{
+struct TripleQueryNode<P> {
     children: HashMap<TupleNoun, usize>,
     pub matched_prefix_programs: Vec<P>,
     pub matched_exact_programs: Vec<P>,
 }
 
-impl<P> TripleQueryNode<P> {
-    pub fn new() -> Self {
-        TripleQueryNode {
-            children: HashMap::new(),
-            matched_prefix_programs: Vec::new(),
-            matched_exact_programs: Vec::new()
+
+impl<O: Debug> Debug for TripleQueryEngine<O> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut work_queue: VecDeque<(usize, Vec<String>)> = VecDeque::new();
+        work_queue.push_back((0, vec![]));
+
+        while let Some((np, path)) = work_queue.pop_back() {
+            let node = self.flat_node_tree.get(np).unwrap();
+
+            writeln!(f, "{}: <{:?}, {:?}>", path.join(" / "), node.matched_prefix_programs, node.matched_exact_programs);
+
+            if let node_children = &self.flat_node_tree.get(np).unwrap().children {
+                for (noun, &child) in node_children {
+                    work_queue.push_back((child, [path.clone(), vec![format!("{noun:?}")]].concat()))
+                }
+            }
         }
+
+        Ok(())
     }
 }
 
 
-impl<P> QueryEngine<Tuple, P, Tuple> for TripleQueryEngine<P> {
-    fn insert_program_for_query(&mut self, Tuple(nouns): Tuple, p: P) -> () {
-        let mut current_node = &mut self.flat_node_tree[0];
-        for n in nouns {
-            let child_index = match current_node.children.get(&n) {
-                // Some(i) => *i,
-                // None => {
-                //     let new_node = TripleQueryNode::new();
-                //     self.flat_node_tree.push(new_node);
-                //     let new_index = self.flat_node_tree.len() - 1;
-                //     current_node.children.insert(n, new_index);
-                //     new_index
-                // }
-            };
-            current_node = &mut self.flat_node_tree[child_index];
+impl<P: PartialEq> TripleQueryNode<P> {
+    pub fn new() -> Self {
+        TripleQueryNode {
+            children: HashMap::new(),
+            matched_prefix_programs: Vec::new(),
+            matched_exact_programs: Vec::new(),
         }
     }
 
-    fn remove_program(&mut self, p: P) -> () {
-        todo!()
+    pub fn remove_from_prefix_programs(&mut self, p: P) {
+        self.matched_prefix_programs.retain(|v| *v != p)
+    }
+    pub fn remove_from_exact_programs(&mut self, p: P) {
+        self.matched_exact_programs.retain(|v| *v != p)
+    }
+}
+
+
+impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Tuple> for TripleQueryEngine<P> {
+    fn insert_program_for_query(&mut self, Tuple(nouns): Tuple, p: P) -> () {
+        let mut current_node_id: usize = 0;
+
+        for n in nouns {
+            match n {
+                TupleNoun::Prefix => {
+                    // Write to prefix set and quit.
+                    self.flat_node_tree.get_mut(current_node_id).unwrap().matched_prefix_programs.push(p);
+                    return;
+                }
+
+                n => {
+                    let next = self.get_children(current_node_id).get(&n);
+                    match next {
+                        Some(&next_id) => { current_node_id = next_id }
+                        None => {
+                            let next_node_id = self.mk_node();
+                            self.flat_node_tree.get_mut(current_node_id).unwrap().children.insert(n, next_node_id);
+                            current_node_id = next_node_id;
+                        }
+                    }
+                }
+            }
+        }
+
+        self.flat_node_tree.get_mut(current_node_id).unwrap().matched_exact_programs.push(p);
+    }
+
+    fn remove_program(&mut self, Tuple(nouns): Tuple, p: P) -> () {
+        let mut current_node_id: usize = 0;
+
+        for n in nouns {
+            match n {
+                TupleNoun::Prefix => {
+                    // Write to prefix set and quit.
+                    self.flat_node_tree.get_mut(current_node_id).unwrap().remove_from_prefix_programs(p);
+                    return;
+                }
+
+                n => {
+                    let next = self.get_children(current_node_id).get(&n);
+                    match next {
+                        Some(&next_id) => { current_node_id = next_id }
+                        None => { break; }
+                    }
+                }
+            }
+        }
+
+        self.flat_node_tree.get_mut(current_node_id).unwrap().remove_from_exact_programs(p);
     }
 
     fn query(&mut self, Tuple(nouns): Tuple) -> Vec<P> {
-        
-        let mut output_programs = Vec::new();
-        
-        for n in nouns {
-            // start at root
-            // if root has noun branch that matches n, go down that branch
-            // AND also always go down the ? branch
+        let mut output_programs: Vec<P> = Vec::new();
+
+        let mut work_queue: VecDeque<(usize, &[TupleNoun])> = VecDeque::new();
+        work_queue.push_back((0, &nouns));
+
+        while let Some(np) = work_queue.pop_front() {
+            println!("Work Queue Popped: {np:?}");
+            match np {
+                (current_node_id, [n, nouns @ ..]) => {
+                    println!("Match: {current_node_id:?} n = {n:?}, nouns = {nouns:?}");
+                    // 1. Add all prefix matchers at this point.
+                    for p in self.flat_node_tree[current_node_id].matched_prefix_programs.iter() {
+                        println!("Adding prefix matches!");
+                        output_programs.push(p.clone())
+                    }
+
+                    // 2. If there's a `Query` branch, add it to nodes-to-check
+                    if let Some(&wildcard_id) = self.get_children(current_node_id).get(&TupleNoun::Query) {
+                        println!("Adding wildcard children!");
+                        work_queue.push_back((wildcard_id, nouns))
+                    }
+
+                    // 3. Continue down the "exact" branch
+                    if let Some(&exact_id) = self.get_children(current_node_id).get(n) {
+                        println!("Adding exact children!");
+                        work_queue.push_back((exact_id, nouns))
+                    }
+                }
+
+                (current_node_id, &[]) => {
+                    for p in self.flat_node_tree[current_node_id].matched_exact_programs.iter() {
+                        output_programs.push(p.clone())
+                    }
+
+                    for p in self.flat_node_tree[current_node_id].matched_prefix_programs.iter() {
+                        output_programs.push(p.clone())
+                    }
+                }
+            }
         }
-        
-        
+
         output_programs
     }
 }
@@ -71,13 +173,105 @@ impl<P> QueryEngine<Tuple, P, Tuple> for TripleQueryEngine<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    pub fn paper_example_1() {
+        // Q: <lexi, is a, husky>
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a", "husky"]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![1]);
+    }
+
     #[test]
     pub fn paper_example_2() {
         // Q: <lexi, is a, husky>
         let mut engine = TripleQueryEngine::new();
-        engine.insert_program_for_query(Tuple::triple_from_sss("lexi", "is a", "husky"), 1);
-        
-        let actual = engine.query(Tuple::triple_from_sss("lexi", "is a", "husky"));
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
+    }
+
+    #[test]
+    pub fn paper_example_3() {
+        // Q: <*, is a>
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a"]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![]);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a"]));
+        assert_eq!(actual, vec![1]);
+    }
+
+    #[test]
+    pub fn paper_example_4() {
+        // Q: <lexi, is a, husky>
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a", "..."]), 1);
+
+        println!("{engine:?}");
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![1]);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a", "husky"]));
+        assert_eq!(actual, vec![1]);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a"]));
+        assert_eq!(actual, vec![1]);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a", "pretty", "husky"]));
+        assert_eq!(actual, vec![1]);
+
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box"]));
+        assert_eq!(actual, vec![]);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["box", "is"]));
+        assert_eq!(actual, vec![]);
+    }
+
+    #[test]
+    pub fn all_four_queries() {
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a", "husky"]), 1);
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]), 2);
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a"]), 3);
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a", "..."]), 4);
+
+        println!("{engine:?}");
+
+        assert_eq!(
+            engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"])),
+            vec![1, 2, 4]
+        );
+    }
+
+    #[test]
+    pub fn anything_about_lexi() {
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "..."]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![1]);
+    }
+
+
+    #[test]
+    pub fn removes_anything_about_lexi() {
+        let mut engine = TripleQueryEngine::new();
+        engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "..."]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![1]);
+
+        engine.remove_program(Tuple::triple_from_strs(&["lexi", "..."]), 1);
+
+        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![]);
     }
 }
