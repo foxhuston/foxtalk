@@ -2,7 +2,7 @@ use walkdir::WalkDir;
 
 pub fn regenerate_compiler_commands() {
     let root_build_folder = std::env::var("SO_PATH").unwrap();
-    let dirs = WalkDir::new(root_build_folder.clone());commands
+    let dirs = WalkDir::new(root_build_folder.clone());
     let mut commands = Vec::new();
 
     for entry in dirs.into_iter().filter_map(|e| e.ok()) {

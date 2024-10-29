@@ -1,10 +1,9 @@
-use std::fmt::{Debug, Formatter};
 use crate::recursive_inotify::FileWatcherHandlers;
 use reactor::reactor::Reactor;
 use reactor::triples_reactor::{Tuple, TupleNoun};
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
-use crate::cpp_handler_builder::CppFileBuilder;
 
 pub struct ReactorAddingSoHandler {
     reactor: Arc<Mutex<Reactor<Tuple>>>
@@ -73,9 +72,9 @@ impl ReactorAddingSoHandler {
                 }
             }).flatten()
     }
-    
+
     fn get_handler_tuple(&self, full_path: String) -> Option<Tuple> {
         ReactorAddingSoHandler::make_handler_tuple(Some(full_path))
     }
-    
+
 }

@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter, Pointer};
+use std::fmt::{Debug, Formatter};
 use crate::recursive_inotify::FileWatcherHandlers;
 use std::process::Command;
 use std::fs;
@@ -21,9 +21,9 @@ impl Debug for CppFileBuilder {
 }
 
 impl FileWatcherHandlers for CppFileBuilder {
-    fn on_create(&self, full_path: String, file_name: String, extension: String) -> () {
+    fn on_create(&self, full_path: String, _: String, extension: String) -> () {
         if extension == "cpp" {
-            
+
             let output_so_path = full_path.replace(&self.base_cpp_path, &self.so_path).rsplit_once(".").unwrap().0.to_string();
             let parent_so_path = output_so_path.rsplit_once("/").unwrap().0.to_string();
             fs::create_dir_all(parent_so_path.clone()).unwrap();
