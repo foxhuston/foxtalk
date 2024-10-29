@@ -3,4 +3,6 @@ build
 cmake-build-*
 .cache/
 .idea/
-.vscode/
+.vscode/*
+
+!foxtalk_handlers/.vscode/
