@@ -64,15 +64,17 @@ fn main() {
             cnt = 0;
             current_time = new_time;
         }
-        if tps.len() >= 60 {
+        if tps.len() >= 10 {
             // println!("num ticks per second in the last 10 seconds: {:?}", tps);
             let ticks = tps.iter().sum::<u64>();
             let ticks_per_sec = ticks / tps.len() as u64;
             let k_ticks_per_sec = ticks_per_sec / 1000;
             let ticks_per_frame = ticks_per_sec / 120;
             println!("Avg ticks per sec: {:?}k || @120fps: {:?} ticks per frame || ticks: {:?}", k_ticks_per_sec, ticks_per_frame, ticks);
+            println!("==vvvvv===Current counts===vvvvv==");
+            println!("{:?}", reactor_guard.ref_counts);
             tps.clear();
         }
-        thread::sleep(std::time::Duration::from_millis(20));
+        thread::sleep(std::time::Duration::from_millis(4));
     }
 }
