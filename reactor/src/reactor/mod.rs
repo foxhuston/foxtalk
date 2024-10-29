@@ -1,6 +1,8 @@
 // mod fox_experiments;
 pub mod reactor_handler;
 pub mod utils;
+pub mod query_engine;
+pub mod reactor_program;
 
 use crate::reactor::reactor_handler::Handler;
 use reactor_handler::ReactorHandler;
@@ -22,6 +24,8 @@ pub struct ReactorHandlerId(u64);
 pub trait GeneratesHandler where Self: Eq + Hash + Sized {
     fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Handler<Self>>, HashSet<Self>)> { None }
 }
+
+
 
 impl GeneratesHandler for u64 { }
 

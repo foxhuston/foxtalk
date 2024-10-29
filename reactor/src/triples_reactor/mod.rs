@@ -6,6 +6,7 @@ use std::path::Path;
 
 pub mod serde;
 pub mod ffi;
+mod triple_query_engine;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
