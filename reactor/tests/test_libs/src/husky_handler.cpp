@@ -10,7 +10,7 @@ class HuskyHandler : public Handler
 protected:
     void init() override
     {
-        claim(Tuple{std::vector{TupleNoun(), TupleNoun("is a"), TupleNoun("husky")}});
+        claim(Tuple{std::vector{TupleNoun::query(), TupleNoun("is a"), TupleNoun("husky")}});
     }
     void handle(const std::vector<Tuple>& queryResults) override
     {

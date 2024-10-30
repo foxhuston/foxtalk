@@ -131,25 +131,25 @@ impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Tuple> for TripleQueryEngine<P>
         work_queue.push_back((0, &nouns));
 
         while let Some(np) = work_queue.pop_front() {
-            println!("Work Queue Popped: {np:?}");
+            // println!("Work Queue Popped: {np:?}");
             match np {
                 (current_node_id, [n, nouns @ ..]) => {
-                    println!("Match: {current_node_id:?} n = {n:?}, nouns = {nouns:?}");
+                    // println!("Match: {current_node_id:?} n = {n:?}, nouns = {nouns:?}");
                     // 1. Add all prefix matchers at this point.
                     for p in self.flat_node_tree[current_node_id].matched_prefix_programs.iter() {
-                        println!("Adding prefix matches!");
+                        // println!("Adding prefix matches!");
                         output_programs.push(p.clone())
                     }
 
                     // 2. If there's a `Query` branch, add it to nodes-to-check
                     if let Some(&wildcard_id) = self.get_children(current_node_id).get(&TupleNoun::Query) {
-                        println!("Adding wildcard children!");
+                        // println!("Adding wildcard children!");
                         work_queue.push_back((wildcard_id, nouns))
                     }
 
                     // 3. Continue down the "exact" branch
                     if let Some(&exact_id) = self.get_children(current_node_id).get(n) {
-                        println!("Adding exact children!");
+                        // println!("Adding exact children!");
                         work_queue.push_back((exact_id, nouns))
                     }
                 }

@@ -65,9 +65,10 @@ impl<O: ReactorData<Q>, Q> Program<O, Q> for NonAggregatingAdapter<O, Q> {
 mod test {
     use super::*;
 
-    use crate::reactor::query_engine::{QueryEngine, SimpleQuery, SimpleQueryEngine};
+    use crate::reactor::query_engine::QueryEngine;
     use crate::reactor::Reactor;
     use std::collections::HashSet;
+    use crate::test::{SimpleQuery, SimpleQueryEngine};
 
     #[test]
     pub fn paper_non_agg_example() {

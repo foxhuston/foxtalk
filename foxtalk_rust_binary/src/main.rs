@@ -1,16 +1,17 @@
 use crate::reactor_adding_so_handler::ReactorAddingSoHandler;
+use crate::recursive_inotify::RecursiveFileWatcher;
 use dotenv;
-use reactor::reactor::Reactor;
+use reactor::reactor::{Reactor, ReactorProgramId};
+use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
 use reactor::triples_reactor::Tuple;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
-use crate::recursive_inotify::RecursiveFileWatcher;
 
+mod commands_json_creator;
 mod cpp_handler_builder;
 mod reactor_adding_so_handler;
 mod recursive_inotify;
-mod commands_json_creator;
 
 fn main() {
     dotenv::dotenv().ok();
@@ -36,7 +37,9 @@ fn main() {
         fs::create_dir_all(cpp_path.clone()).unwrap();
     }
 
-    let reactor: Arc<Mutex<Reactor<Tuple>>> = Arc::new(Mutex::new(Reactor::new()));
+    let query_engine = TripleQueryEngine::new();
+    let reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
+        Arc::new(Mutex::new(Reactor::new(query_engine)));
     let so_handler = ReactorAddingSoHandler::new(reactor.clone(), so_path.clone());
     let cpp_handler = cpp_handler_builder::CppFileBuilder {
         base_cpp_path: cpp_path.clone(),
@@ -44,9 +47,15 @@ fn main() {
         include_path: handler_path.clone(),
     };
 
-    let cpp_watcher = Arc::new(RecursiveFileWatcher::new(cpp_path.clone(), Arc::new(cpp_handler)));
+    let cpp_watcher = Arc::new(RecursiveFileWatcher::new(
+        cpp_path.clone(),
+        Arc::new(cpp_handler),
+    ));
     RecursiveFileWatcher::watch(cpp_watcher);
-    let so_watcher = Arc::new(RecursiveFileWatcher::new(so_path.clone(), Arc::new(so_handler)));
+    let so_watcher = Arc::new(RecursiveFileWatcher::new(
+        so_path.clone(),
+        Arc::new(so_handler),
+    ));
     RecursiveFileWatcher::watch(so_watcher);
 
     let mut cnt = 0;
@@ -70,9 +79,12 @@ fn main() {
             let ticks_per_sec = ticks / tps.len() as u64;
             let k_ticks_per_sec = ticks_per_sec / 1000;
             let ticks_per_frame = ticks_per_sec / 120;
-            println!("Avg ticks per sec: {:?}k || @120fps: {:?} ticks per frame || ticks: {:?}", k_ticks_per_sec, ticks_per_frame, ticks);
-            println!("==vvvvv===Current counts===vvvvv==");
-            println!("{:?}", reactor_guard.ref_counts);
+            println!(
+                "Avg ticks per sec: {:?}k || @120fps: {:?} ticks per frame || ticks: {:?}",
+                k_ticks_per_sec, ticks_per_frame, ticks
+            );
+            // println!("==vvvvv===Current counts===vvvvv==");
+            // println!("{:?}", reactor_guard.ref_counts);
             tps.clear();
         }
         thread::sleep(std::time::Duration::from_millis(4));

@@ -6,12 +6,6 @@
 
 class HuskyHandler : public Handler
 {
-public:
-    bool matches(const Tuple &n) override
-    {
-        return n.matches<std::string>(1, "is a") &&
-               n.matches<std::string>(2, "husky");
-    }
 protected:
     void handle(const std::vector<Tuple> &queryResults) override
     {
@@ -25,6 +19,14 @@ protected:
     void free_tuple(const Tuple &o) override
     {
         std::cout << "free tuple in husky handler: " << o << std::endl;
+    }
+
+    void init() override
+    {
+        claim(Tuple{std::vector{
+            TupleNoun::query(),
+            TupleNoun("is a"),
+            TupleNoun("husky")}});
     }
 };
 

@@ -24,7 +24,7 @@ mod tests {
         let mut reactor= Reactor::new(query_engine);
         let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
 
-        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("husky_handler.so").as_path()) };
+        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("husky_handler.so").as_path()) }.unwrap();
         reactor.add_program(Box::new(handler));
         
         reactor.tick();
@@ -42,7 +42,7 @@ mod tests {
 
         let query_engine = TripleQueryEngine::new();
         let mut reactor = Reactor::new(query_engine);
-        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("clock_handler.so").as_path()) };
+        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("clock_handler.so").as_path()) }.unwrap();
         let output = handler.get_bootstrap_output();
         reactor.add_program_with_bootstrap_output(Box::new(handler), output);
         reactor.tick();

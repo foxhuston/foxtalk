@@ -6,12 +6,6 @@
 
 class AggHandler : public Handler
 {
-public:
-    bool matches(const Tuple &n) override
-    {
-        return n.at<uint64_t>(0).has_value();
-    }
-
 protected:
     void handle(const std::vector<Tuple> &queryResults) override
     {
@@ -21,8 +15,16 @@ protected:
         {
             auto subj = i.at<uint64_t>(0).value();
             sum += subj;
-        }
+                }
         claim(Tuple{std::vector{TupleNoun("all number subjects"), TupleNoun("sum to"), TupleNoun(sum)}});
+    }
+
+    void init() override
+    {
+        claim(Tuple{std::vector{
+            TupleNoun("*"),
+            TupleNoun("is a"),
+            TupleNoun("number to sum")}});
     }
 };
 

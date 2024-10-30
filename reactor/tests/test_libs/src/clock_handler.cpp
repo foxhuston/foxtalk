@@ -24,7 +24,7 @@ protected:
         claim(Tuple {std::vector{
             TupleNoun("clock") ,
             TupleNoun("is at"),
-            TupleNoun()
+            TupleNoun::query()
         } });
     }
 

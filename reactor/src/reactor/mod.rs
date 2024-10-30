@@ -211,8 +211,8 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>>  Drop for Re
 
 #[cfg(test)]
 mod tests {
+    use crate::test::{SimpleQuery, SimpleQueryEngine};
     use super::*;
-    use crate::reactor::query_engine::{SimpleQuery, SimpleQueryEngine};
 
     #[test]
     pub fn paper_agg_example() {
@@ -244,7 +244,7 @@ mod tests {
             }
         }
 
-        let paper_query_engine: SimpleQueryEngine<ReactorProgramId, PaperQuery> = query_engine::SimpleQueryEngine::new();
+        let paper_query_engine: SimpleQueryEngine<ReactorProgramId, PaperQuery> = SimpleQueryEngine::new();
         let mut reactor = Reactor::new(paper_query_engine);
         let handler = Box::new(PaperHandler{});
         let hid = reactor.add_program(handler);

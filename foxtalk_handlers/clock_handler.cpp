@@ -21,16 +21,20 @@ protected:
         }
     }
 
-    bool matches(const Tuple &n) override
-    {
-        return n.at<uint64_t>(2).has_value() &&
-               n.matches<std::string>(0, "clock") &&
-               n.matches<std::string>(1, "is at");
-    }
-
     void init() override
     {
-        claim(Tuple{std::vector{TupleNoun("clock"), TupleNoun("is at"), TupleNoun(static_cast<uint64_t>(0))}});
+        claim(Tuple{std::vector{
+            TupleNoun("clock"),
+            TupleNoun("is at"),
+            TupleNoun::query()}});
+    }
+
+    void register_initial_tuples() override
+    {
+        claim(Tuple{std::vector{
+            TupleNoun("clock"),
+            TupleNoun("is at"),
+            TupleNoun(static_cast<uint64_t>(0))}});
     }
 };
 

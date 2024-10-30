@@ -47,9 +47,10 @@ impl Tuple {
 impl GeneratesProgram<Tuple> for Tuple {
     fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Tuple, Tuple>>, FxHashSet<Tuple>)> {
         if let Some(path) = self.is_handler_tuple() {
-            let handler = unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) };
-            let bootstrapped_output = handler.get_bootstrap_output();
-            Some((Box::new(handler), bootstrapped_output))
+            if let Some(handler) = unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) } {
+                let bootstrapped_output = handler.get_bootstrap_output();
+                Some((Box::new(handler), bootstrapped_output))   
+            } else { None }
         } else {
             None
         }
