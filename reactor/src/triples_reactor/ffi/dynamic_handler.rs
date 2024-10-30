@@ -39,8 +39,10 @@ impl DynamicallyLoadedProgram {
 
         init();
         let rust_buffer = unsafe { slice::from_raw_parts_mut(*buffer, 10_000_000) };
-        let (res, _) = Tuple::read_from_buffer(rust_buffer, 0);
-        println!("Got query: {:?}", res);
+        let tuples: Vec<Tuple> = Vec::<Tuple>::read_from_buffer(rust_buffer, 0).0;
+        let query_expect_msg = format!("Query not loaded into the buffer after calling init on {:?}", path);
+        let query = tuples.first().expect(query_expect_msg.as_str()).to_owned();
+        println!("Got query: {:?}", &query); 
         register_initial_tuples();
 
         DynamicallyLoadedProgram {
@@ -51,7 +53,7 @@ impl DynamicallyLoadedProgram {
             handle,
             teardown,
             buffer,
-            query: res
+            query
         }
     }
 }
