@@ -28,9 +28,9 @@ extern "C"
     ///// USER MUST IMPLEMENT /////
 
     // from the <q, a, S, I, O> in the paper...
-    void init();
+    void init(); // Q tuple is in the buffer after this
     void free_tuple();
-    bool matches(); // this is q
+    void register_initial_tuples(); // initial O in the buffer after this
     void handle();  // this is a
     void teardown();
 }

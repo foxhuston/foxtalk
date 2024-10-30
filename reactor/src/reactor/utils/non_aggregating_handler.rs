@@ -1,45 +1,45 @@
-use std::collections::{HashMap, HashSet};
-use crate::reactor::reactor_handler::Handler;
+use crate::reactor::reactor_program::Program;
 use crate::reactor::ReactorData;
+use rustc_hash::{FxHashMap, FxHashSet};
 
-pub trait NonAggregatingHandler<O: ReactorData> {
-    fn query(&mut self, o: &O) -> bool;
-    fn handle(&mut self, input: O) -> HashSet<O>;
+pub trait NonAggregatingProgram<O: ReactorData<Q>, Q> {
+    fn query(&self) -> Q;
+    fn handle(&mut self, input: O) -> FxHashSet<O>;
 }
 
-pub struct NonAggregatingAdapter<O: ReactorData> {
-    h: Box<dyn NonAggregatingHandler<O>>,
-    sideband: HashMap<O, HashSet<O>>
+pub struct NonAggregatingAdapter<O: ReactorData<Q>, Q> {
+    h: Box<dyn NonAggregatingProgram<O, Q>>,
+    sideband: FxHashMap<O, FxHashSet<O>>
 }
 
-impl<O: ReactorData> NonAggregatingAdapter<O> {
-    pub fn new(h: Box<dyn NonAggregatingHandler<O>>) -> Self {
+impl<O: ReactorData<Q>, Q> NonAggregatingAdapter<O, Q> {
+    pub fn new(h: Box<dyn NonAggregatingProgram<O, Q>>) -> Self {
         Self {
-            h, sideband: HashMap::new()
+            h, sideband: FxHashMap::default()
         }
     }
 
-    fn insert_into_sideband(&mut self, new_values: HashMap<O, HashSet<O>>) {
+    fn insert_into_sideband(&mut self, new_values: FxHashMap<O, FxHashSet<O>>) {
         self.sideband.extend(new_values)
     }
 
-    fn remove_from_sideband(&mut self, to_remove: HashSet<O>) {
+    fn remove_from_sideband(&mut self, to_remove: FxHashSet<O>) {
         for i in to_remove {
             self.sideband.remove(&i);
         }
     }
 }
 
-unsafe impl<O: ReactorData> Send for NonAggregatingAdapter<O> {}
+unsafe impl<O: ReactorData<Q>, Q> Send for NonAggregatingAdapter<O, Q> {}
 
-impl<O: ReactorData> Handler<O> for NonAggregatingAdapter<O> {
-    fn query(&mut self, o: &O) -> bool {
-        self.h.query(o)
+impl<O: ReactorData<Q>, Q> Program<O, Q> for NonAggregatingAdapter<O, Q> {
+    fn query(&mut self) -> Q {
+        self.h.query()
     }
 
-    fn handle(&mut self, input: &HashSet<O>) -> HashSet<O> {
-        let mut newly_inserted: HashMap<O, HashSet<O>> = HashMap::new();
-        let mut need_to_remove = HashSet::new();
+    fn handle(&mut self, input: &FxHashSet<O>) -> FxHashSet<O> {
+        let mut newly_inserted: FxHashMap<O, FxHashSet<O>> = FxHashMap::default();
+        let mut need_to_remove = FxHashSet::default();
 
         for i in input {
             if !self.sideband.contains_key(&i) {
@@ -65,18 +65,20 @@ impl<O: ReactorData> Handler<O> for NonAggregatingAdapter<O> {
 mod test {
     use super::*;
 
-    use std::collections::HashSet;
+    use crate::reactor::query_engine::{QueryEngine, SimpleQuery, SimpleQueryEngine};
     use crate::reactor::Reactor;
+    use std::collections::HashSet;
 
     #[test]
     pub fn paper_non_agg_example() {
         struct PaperHandler;
-        impl NonAggregatingHandler<u64> for PaperHandler {
-            fn query(&mut self, o: &u64) -> bool {
-                *o == 1 || *o == 2 || *o == 3
+        impl ReactorData<NonAggPaperQuery> for u64{}
+        impl NonAggregatingProgram<u64, NonAggPaperQuery> for PaperHandler {
+            fn query(&self) -> NonAggPaperQuery {
+                NonAggPaperQuery{}
             }
-            fn handle(&mut self, o: u64) -> HashSet<u64> {
-                let mut results = HashSet::new();
+            fn handle(&mut self, o: u64) -> FxHashSet<u64> {
+                let mut results = FxHashSet::default();
                 match o {
                     1 => {
                         results.insert(2);
@@ -91,15 +93,28 @@ mod test {
             }
         }
 
-        let mut reactor = Reactor::new();
+        #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+        struct NonAggPaperQuery{}
+        impl SimpleQuery<u64> for NonAggPaperQuery {
+            fn query(&self, o: &u64) -> bool {
+                *o == 1 || *o == 2 || *o == 3
+            }
+        }
+
+        let paper_query_engine = SimpleQueryEngine::new();
+
+        let mut reactor = Reactor::new(paper_query_engine);
+
         let handler = Box::new(NonAggregatingAdapter::new(Box::new(PaperHandler)));
-        let hid = reactor.add_handler(handler);
+        let hid = reactor.add_program(handler);
+
+        reactor.query_engine.insert_program_for_query(NonAggPaperQuery{}, hid.clone());
 
         reactor.tick();
         // So if we call: 𝗂𝗇𝗌𝖾𝗋𝗍(𝔇0, 𝑜1), then...
         reactor.insert(1);
-        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1]));
+        assert_eq!(reactor.program_map.get(&hid).unwrap().dirty, true);
+        assert_eq!(reactor.program_map.get(&hid).unwrap().I, HashSet::from_iter(vec![1]));
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
         assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
 
@@ -109,10 +124,10 @@ mod test {
         assert_eq!(reactor.ref_counts.get(&2).unwrap(), &1);
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
 
-        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, true);
-        assert_eq!(reactor.handlers.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3]));
+        assert_eq!(reactor.program_map.get(&hid).unwrap().dirty, true);
+        assert_eq!(reactor.program_map.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
-        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
+        assert_eq!(reactor.program_map.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
 
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&1).is_some(), true);
@@ -121,11 +136,11 @@ mod test {
         assert_eq!(reactor.ref_counts.get(&3).unwrap(), &1);
         assert_eq!(reactor.ref_counts.get(&5).unwrap(), &1);
 
-        assert_eq!(reactor.handlers.get(&hid).unwrap().dirty, false);
-        assert_eq!(reactor.handlers.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
+        assert_eq!(reactor.program_map.get(&hid).unwrap().dirty, false);
+        assert_eq!(reactor.program_map.get(&hid).unwrap().O, HashSet::from_iter(vec![2, 3, 5]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&1).unwrap(), &HashSet::from_iter(vec![2, 3]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&2).unwrap(), &HashSet::from_iter(vec![5]));
         // assert_eq!(reactor.handlers.get(0).unwrap().S.get(&3).unwrap().is_empty(), true);
-        assert_eq!(reactor.handlers.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
+        assert_eq!(reactor.program_map.get(&hid).unwrap().I, HashSet::from_iter(vec![1, 2, 3]));
     }
 }

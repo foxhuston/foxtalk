@@ -1,12 +1,12 @@
-use std::collections::HashSet;
-use crate::reactor::reactor_handler::Handler;
-use crate::reactor::GeneratesHandler;
-use crate::triples_reactor::ffi::dynamic_handler::DynamicHandler;
+use crate::reactor::GeneratesProgram;
+use crate::triples_reactor::ffi::dynamic_handler::DynamicallyLoadedProgram;
 use std::path::Path;
+use rustc_hash::FxHashSet;
+use crate::reactor::reactor_program::Program;
 
 pub mod serde;
 pub mod ffi;
-mod triple_query_engine;
+pub mod triple_query_engine;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(transparent)]
@@ -44,10 +44,10 @@ impl Tuple {
 
 }
 
-impl GeneratesHandler for Tuple {
-    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Handler<Tuple>>, HashSet<Tuple>)> {
+impl GeneratesProgram<Tuple> for Tuple {
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Tuple, Tuple>>, FxHashSet<Tuple>)> {
         if let Some(path) = self.is_handler_tuple() {
-            let handler = unsafe { DynamicHandler::new(Path::new(&path)) };
+            let handler = unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) };
             let bootstrapped_output = handler.get_bootstrap_output();
             Some((Box::new(handler), bootstrapped_output))
         } else {
@@ -80,11 +80,13 @@ impl TupleNoun {
 pub mod tests {
     use crate::reactor::Reactor;
     use crate::reactor::utils::test::linked_lib_path;
+    use crate::triples_reactor::triple_query_engine::TripleQueryEngine;
     use crate::triples_reactor::Tuple;
 
     #[test]
     pub fn it_should_add_and_remove_handlers() {
-        let mut reactor = Reactor::new();
+        let query_engine = TripleQueryEngine::new();
+        let mut reactor = Reactor::new(query_engine);
 
         let handler_tup = Tuple::triple_from_sss(linked_lib_path("husky_handler.so").to_str().unwrap(), "is a", "handler");
         let expected_tuple = Tuple::triple_from_sss("lexi", "is", "cool");

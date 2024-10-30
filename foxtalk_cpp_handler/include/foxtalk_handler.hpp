@@ -14,18 +14,12 @@ protected:
     void claim(Tuple &&n) { claims.push_back(std::move(n)); }
     virtual void handle(const std::vector<Tuple> &queryResults) = 0;
     virtual void free_tuple(const Tuple &) {}
-    virtual void init() {}
+    virtual void init() = 0;
 
 public:
     std::vector<Tuple> claims{}; // should be private, but I need to test...
 
-    virtual bool matches(const Tuple &n) = 0;
-
-    bool ffi_matches(uint8_t *buffer)
-    {
-        auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
-        return matches(t);
-    }
+    virtual void register_initial_tuples() {}
 
     void ffi_free_tuple(uint8_t *buffer)
     {
@@ -38,6 +32,13 @@ public:
     {
         claims.clear();
         init();
+        write_vec_to_buffer<Tuple>(buffer, 0, claims);
+    }
+
+    void ffi_register_init(uint8_t *buffer)
+    {
+        claims.clear();
+        register_initial_tuples();
         write_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 
@@ -99,23 +100,6 @@ public:
             std::cerr << "CRASH in free_tuple()" << std::endl;        \
         }                                                          \
     }                                                              \
-    bool matches()                                                 \
-    {                                                              \
-        try                                                        \
-        {                                                          \
-            return T##_instance->ffi_matches(_foxtalk_ipc_buffer); \
-        }                                                          \
-        catch (std::exception const& e) \
-        {   \
-            std::cerr << "CRASH in matches():" << e.what() << std::endl; \
-            return false; \
-        } \
-        catch (...)                                                \
-        {                                                          \
-            std::cerr << "CRASH in matches()" << std::endl;        \
-            return false;                                          \
-        }                                                          \
-    }                                                              \
     void handle()                                                  \
     {                                                              \
         try                                                        \
@@ -129,6 +113,21 @@ public:
         catch (...)                                                \
         {                                                          \
             std::cerr << "CRASH in handle()" << std::endl;         \
+        }                                                          \
+    }                                                              \
+    void register_initial_tuples()                                                  \
+    {                                                              \
+        try                                                        \
+        {                                                          \
+            T##_instance->ffi_register_init(_foxtalk_ipc_buffer);  \
+        }                                                          \
+        catch (std::exception const& e) \
+        {   \
+            std::cerr << "CRASH in register_init():" << e.what() << std::endl; \
+        } \
+        catch (...)                                                \
+        {                                                          \
+            std::cerr << "CRASH in register_init()" << std::endl;         \
         }                                                          \
     }                                                              \
     void teardown()                                                \

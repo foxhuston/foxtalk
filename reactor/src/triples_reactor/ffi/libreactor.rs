@@ -1,80 +1,80 @@
-use crate::reactor::Reactor;
-use crate::triples_reactor::serde::*;
-use crate::triples_reactor::Tuple;
-use std::ffi::{c_char, c_void};
-
-pub struct DynamicLibFfiReactor {
-    reactor: Reactor<Tuple>
-}
-
-impl DynamicLibFfiReactor {
-    pub fn new() -> Self {
-        DynamicLibFfiReactor {
-            reactor: Reactor::new()
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn mk_reactor() -> *mut c_void {
-    Box::into_raw(Box::new(DynamicLibFfiReactor::new())).cast()
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn free_reactor(reactor: *mut c_void) -> () {
-    let _: Box<DynamicLibFfiReactor> = unsafe {
-        Box::from_raw(reactor.cast())
-    };
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn add_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
-    let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
-    let (t, _) = Tuple::read_from_buffer(buffer, 0);
-    (*reactor_ptr).reactor.insert(t);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
-    let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
-    let (t, _) = Tuple::read_from_buffer(buffer, 0);
-    (*reactor_ptr).reactor.remove(t);
-}
-
-// N.B. [Fox]: The way to actually interact with the handlers is to just insert tuples, and use
-//             the machinery found in dynamic_loading_triples_reactor, rather than trying to
-//             interface with these things directly from an outside user.
-//
-// #[no_mangle]
-// pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
-//     let path = Path::new(path.to_str().unwrap());
-//     let dload_handler = DynamicHandler::new(path);
-//     (*reactor_ptr).reactor.add_handler(Box::new(dload_handler));
+// use crate::reactor::Reactor;
+// use crate::triples_reactor::serde::*;
+// use crate::triples_reactor::Tuple;
+// use std::ffi::{c_char, c_void};
+// 
+// pub struct DynamicLibFfiReactor {
+//     reactor: Reactor<Tuple>
 // }
-//
+// 
+// impl DynamicLibFfiReactor {
+//     pub fn new() -> Self {
+//         DynamicLibFfiReactor {
+//             reactor: Reactor::new()
+//         }
+//     }
+// }
+// 
 // #[no_mangle]
-// pub unsafe extern "C" fn remove_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) { }
-
-#[no_mangle]
-pub unsafe extern "C" fn tick(reactor_ptr: *mut DynamicLibFfiReactor) {
-    (*reactor_ptr).reactor.tick();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// pub extern "C" fn mk_reactor() -> *mut c_void {
+//     Box::into_raw(Box::new(DynamicLibFfiReactor::new())).cast()
+// }
+// 
+// #[no_mangle]
+// pub unsafe extern "C" fn free_reactor(reactor: *mut c_void) -> () {
+//     let _: Box<DynamicLibFfiReactor> = unsafe {
+//         Box::from_raw(reactor.cast())
+//     };
+// }
+// 
+// #[no_mangle]
+// pub unsafe extern "C" fn add_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
+//     let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
+//     let (t, _) = Tuple::read_from_buffer(buffer, 0);
+//     (*reactor_ptr).reactor.insert(t);
+// }
+// 
+// #[no_mangle]
+// pub unsafe extern "C" fn remove_tuple(reactor_ptr: *mut DynamicLibFfiReactor, buff: *mut c_char) {
+//     let buffer = std::slice::from_raw_parts(buff as *mut u8, 10_000_000);
+//     let (t, _) = Tuple::read_from_buffer(buffer, 0);
+//     (*reactor_ptr).reactor.remove(t);
+// }
+// 
+// // N.B. [Fox]: The way to actually interact with the handlers is to just insert tuples, and use
+// //             the machinery found in dynamic_loading_triples_reactor, rather than trying to
+// //             interface with these things directly from an outside user.
+// //
+// // #[no_mangle]
+// // pub unsafe extern "C" fn add_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) {
+// //     let path = Path::new(path.to_str().unwrap());
+// //     let dload_handler = DynamicHandler::new(path);
+// //     (*reactor_ptr).reactor.add_handler(Box::new(dload_handler));
+// // }
+// //
+// // #[no_mangle]
+// // pub unsafe extern "C" fn remove_handler(reactor_ptr: *mut DynamicLibFfiReactor, path: &CStr) { }
+// 
+// #[no_mangle]
+// pub unsafe extern "C" fn tick(reactor_ptr: *mut DynamicLibFfiReactor) {
+//     (*reactor_ptr).reactor.tick();
+// }
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 
+// 

@@ -1,9 +1,9 @@
 use crate::reactor::query_engine::QueryEngine;
 use crate::triples_reactor::{Tuple, TupleNoun};
 use std::collections::{HashMap, VecDeque};
-use std::fmt::{Debug, Write};
+use std::fmt::Debug;
 
-struct TripleQueryEngine<P> {
+pub struct TripleQueryEngine<P> {
     flat_node_tree: Vec<TripleQueryNode<P>>,
 }
 
@@ -39,13 +39,13 @@ impl<O: Debug> Debug for TripleQueryEngine<O> {
         while let Some((np, path)) = work_queue.pop_back() {
             let node = self.flat_node_tree.get(np).unwrap();
 
-            writeln!(f, "{}: <{:?}, {:?}>", path.join(" / "), node.matched_prefix_programs, node.matched_exact_programs);
+            let _ = writeln!(f, "{}: <{:?}, {:?}>", path.join(" / "), node.matched_prefix_programs, node.matched_exact_programs);
 
-            if let node_children = &self.flat_node_tree.get(np).unwrap().children {
-                for (noun, &child) in node_children {
-                    work_queue.push_back((child, [path.clone(), vec![format!("{noun:?}")]].concat()))
-                }
+            let node_children = &self.flat_node_tree.get(np).unwrap().children;
+            for (noun, &child) in node_children {
+                work_queue.push_back((child, [path.clone(), vec![format!("{noun:?}")]].concat()))
             }
+            
         }
 
         Ok(())
@@ -124,7 +124,7 @@ impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Tuple> for TripleQueryEngine<P>
         self.flat_node_tree.get_mut(current_node_id).unwrap().remove_from_exact_programs(p);
     }
 
-    fn query(&mut self, Tuple(nouns): Tuple) -> Vec<P> {
+    fn query(&mut self, Tuple(nouns): &Tuple) -> Vec<P> {
         let mut output_programs: Vec<P> = Vec::new();
 
         let mut work_queue: VecDeque<(usize, &[TupleNoun])> = VecDeque::new();
@@ -180,7 +180,7 @@ mod tests {
         let mut engine = TripleQueryEngine::new();
         engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a", "husky"]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
     }
 
@@ -190,7 +190,7 @@ mod tests {
         let mut engine = TripleQueryEngine::new();
         engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
     }
 
@@ -200,10 +200,10 @@ mod tests {
         let mut engine = TripleQueryEngine::new();
         engine.insert_program_for_query(Tuple::triple_from_strs(&["*", "is a"]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![]);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box", "is a"]));
         assert_eq!(actual, vec![1]);
     }
 
@@ -215,23 +215,23 @@ mod tests {
 
         println!("{engine:?}");
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box", "is a"]));
         assert_eq!(actual, vec![1]);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box", "is a", "pretty", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box", "is a", "pretty", "husky"]));
         assert_eq!(actual, vec![1]);
 
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box"]));
         assert_eq!(actual, vec![]);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["box", "is"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["box", "is"]));
         assert_eq!(actual, vec![]);
     }
 
@@ -246,8 +246,8 @@ mod tests {
         println!("{engine:?}");
 
         assert_eq!(
-            engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"])),
-            vec![1, 2, 4]
+            engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"])),
+            vec![4, 1, 2]
         );
     }
 
@@ -256,7 +256,7 @@ mod tests {
         let mut engine = TripleQueryEngine::new();
         engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "..."]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
     }
 
@@ -266,12 +266,12 @@ mod tests {
         let mut engine = TripleQueryEngine::new();
         engine.insert_program_for_query(Tuple::triple_from_strs(&["lexi", "..."]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![1]);
 
         engine.remove_program(Tuple::triple_from_strs(&["lexi", "..."]), 1);
 
-        let actual = engine.query(Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
         assert_eq!(actual, vec![]);
     }
 }

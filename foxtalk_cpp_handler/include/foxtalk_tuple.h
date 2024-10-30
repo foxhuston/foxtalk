@@ -91,6 +91,8 @@ struct TupleNoun {
 
     static TupleNoun query() { return TupleNoun{}; }
 
+    // static TupleNoun prefix() { return TupleNoun{ NounType::Prefix, std::monostate() }; }
+
     TupleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data) {
 //        std::cout << std::boolalpha
 //                  << "ND string? " << std::holds_alternative<std::string>(data)
@@ -108,6 +110,7 @@ struct TupleNoun {
         CPtr = 2,
         U64 = 3,
         I64 = 4,
+        Prefix = 5,
         MAX
     } type;
 
@@ -131,6 +134,9 @@ struct TupleNoun {
             case NounType::I64:
                 os << std::get<int64_t>(noun.data);
                 break;
+            case NounType::Prefix:
+                os << "Prefix";
+                break;
             case NounType::MAX:
                 os << "ERROR! TUPLE_NOUN TYPE WAS `MAX`!";
                 break;
@@ -151,6 +157,11 @@ struct TupleNoun {
                 return {
                         TupleNoun{std::monostate()},
                         buffer_position - start_position
+                };
+            case NounType::Prefix:
+                return {
+                    TupleNoun{std::monostate()},
+                    buffer_position - start_position
                 };
             case NounType::Symbol: {
                 auto [str_length, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, buffer_position);

@@ -19,14 +19,16 @@ protected:
             throw std::runtime_error("Expected queryResults[0][2] to be a uint64_t! I GUESS IT WASN'T.");
         }
     }
-
-    bool matches(const Tuple &n) override {
-        return n.at<uint64_t>(2).has_value() &&
-            n.matches<std::string>(0, "clock") &&
-            n.matches<std::string>(1, "is at");
+    void init() override
+    {
+        claim(Tuple {std::vector{
+            TupleNoun("clock") ,
+            TupleNoun("is at"),
+            TupleNoun()
+        } });
     }
 
-    void init() override
+    void register_initial_tuples() override
     {
         claim(Tuple {std::vector{
             TupleNoun("clock") ,

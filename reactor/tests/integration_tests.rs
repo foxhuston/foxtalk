@@ -4,7 +4,8 @@ mod tests {
     use reactor::reactor::Reactor;
     use reactor::triples_reactor::{Tuple, TupleNoun};
 
-    use reactor::triples_reactor::ffi::dynamic_handler::DynamicHandler;
+    use reactor::triples_reactor::ffi::dynamic_handler::DynamicallyLoadedProgram;
+    use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
     use std::path::PathBuf;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
@@ -19,11 +20,12 @@ mod tests {
 
     #[test]
     fn ffi_loads_a_library() {
-        let mut reactor: Reactor<Tuple> = Reactor::new();
+        let query_engine = TripleQueryEngine::new();
+        let mut reactor= Reactor::new(query_engine);
         let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
 
-        let handler = unsafe { DynamicHandler::new(linked_lib_path("husky_handler.so").as_path()) };
-        reactor.add_handler(Box::new(handler));
+        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("husky_handler.so").as_path()) };
+        reactor.add_program(Box::new(handler));
         
         reactor.tick();
         reactor.insert(tuple);
@@ -37,10 +39,12 @@ mod tests {
 
     #[test]
     fn clock_tick_works() {
-        let mut reactor: Reactor<Tuple> = Reactor::new();
-        let handler = unsafe { DynamicHandler::new(linked_lib_path("clock_handler.so").as_path()) };
+
+        let query_engine = TripleQueryEngine::new();
+        let mut reactor = Reactor::new(query_engine);
+        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("clock_handler.so").as_path()) };
         let output = handler.get_bootstrap_output();
-        reactor.add_handler_with_bootstrap_output(Box::new(handler), output);
+        reactor.add_program_with_bootstrap_output(Box::new(handler), output);
         reactor.tick();
         reactor.tick();
 
