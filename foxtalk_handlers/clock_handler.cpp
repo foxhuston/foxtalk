@@ -27,7 +27,7 @@ protected:
             TupleNoun("clock"),
             TupleNoun("is at"),
             TupleNoun::query()}});
-    }
+        }
 
     void register_initial_tuples() override
     {

@@ -6,3 +6,5 @@ cmake-build-*
 .vscode/*
 
 !foxtalk_handlers/.vscode/
+
+*/target/*

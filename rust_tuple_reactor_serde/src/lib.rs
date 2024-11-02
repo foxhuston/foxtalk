@@ -1,5 +1,5 @@
 pub mod tuple;
-mod tuple_noun;
+pub mod tuple_noun;
 
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -46,14 +46,14 @@ where
         let mut current_position = (start_position) + size_of::<FoxtalkSize>();
         for t in self {
             count_tuples += 1;
-            
+
             let ret_position = t.write_to_buffer(write_to, current_position);
             current_position = ret_position.pos
         }
-        
+
         let num_tuples_bytes: [u8; size_of::<FoxtalkSize>()] = count_tuples.to_ne_bytes();
         write_to[start_position.. start_position + size_of::<FoxtalkSize>()].copy_from_slice(&num_tuples_bytes);
-        
+
         ReturnPosition { pos: current_position }
     }
 }
@@ -116,7 +116,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::triples_reactor::{Tuple, TupleNoun};
+    use crate::tuple::Tuple;
+    use crate::tuple_noun::TupleNoun;
     use super::*;
 
     #[test]

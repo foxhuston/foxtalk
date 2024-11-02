@@ -33,12 +33,13 @@ impl FileWatcherHandlers for CppFileBuilder {
             fs::create_dir_all(parent_so_path.clone()).unwrap();
             let output_so_file = output_so_path.clone() + ".so";
             let output_json_file = output_so_path.clone() + ".json";
-            // println!("Compiling {:?} to {:?}", full_path, output_so_file);
+            println!("Compiling {:?} to {:?}", full_path, output_so_file);
             let status = Command::new("clang++")
                 .args([
+                    "-lvulkan",
                     "-shared",
                     // "-g",
-                    "-Ofast",
+                    "-O0",
                     "-std=c++26",
                     "-I",
                     self.include_path.as_str(),
@@ -54,7 +55,7 @@ impl FileWatcherHandlers for CppFileBuilder {
             if status.is_err() {
                 eprintln!("Error while compiling {:?}: {:?}", full_path, status);
             } else {
-                // println!("Compiled {:?} to {:?}", full_path, output_so_file);
+                println!("Compiled {:?} to {:?}", full_path, output_so_file);
             }
             commands_json_creator::regenerate_compiler_commands();
         }

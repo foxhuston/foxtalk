@@ -1,81 +1,36 @@
-use crate::reactor::GeneratesProgram;
+use crate::reactor::{GeneratesProgram, ReactorData};
 use crate::triples_reactor::ffi::dynamic_handler::DynamicallyLoadedProgram;
 use std::path::Path;
+use rust_tuple_reactor_serde::tuple::Tuple;
 use rustc_hash::FxHashSet;
 use crate::reactor::reactor_program::Program;
 
-pub mod serde;
 pub mod ffi;
 pub mod triple_query_engine;
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-#[repr(transparent)]
-pub struct Tuple(pub Vec<TupleNoun>);
-
-impl Tuple {
-    // #[cfg(test)]
-    pub fn triple_from_strs(s: &[&str]) -> Self {
-        Tuple(
-            s.iter().map(|s| TupleNoun::from_str(s)).collect()
-        )
-    }
-
-    pub fn triple_from_sss(s: &str, p: &str, o: &str) -> Self {
-        Tuple(vec![
-            TupleNoun::Symbol(s.to_string()),
-            TupleNoun::Symbol(p.to_string()),
-            TupleNoun::Symbol(o.to_string())])
-    }
-
-    // #[cfg(test)]
-    pub fn triple_from_ssu(s: &str, p: &str, o: u64) -> Self {
-        Tuple(vec![TupleNoun::Symbol(s.to_string()),
-                   TupleNoun::Symbol(p.to_string()),
-                   TupleNoun::U64(o)])
-    }
-
-    fn is_handler_tuple(&self) -> Option<String> {
-        let Tuple(nouns) = self;
-        match &nouns[..] {
-            [TupleNoun::Symbol(s), TupleNoun::Symbol(p), TupleNoun::Symbol(o)] if p == "is a" && o == "handler" => { Some(s.clone()) },
-            _ => None
-        }
-    }
-
-}
+impl ReactorData<Tuple> for Tuple {}
 
 impl GeneratesProgram<Tuple> for Tuple {
     fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Tuple, Tuple>>, FxHashSet<Tuple>)> {
         if let Some(path) = self.is_handler_tuple() {
-            if let Some(handler) = unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) } {
-                let bootstrapped_output = handler.get_bootstrap_output();
-                Some((Box::new(handler), bootstrapped_output))   
-            } else { None }
+            match unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) } {
+                Ok(handler) => {
+                    let bootstrapped_output = handler.get_bootstrap_output();
+                    Some((Box::new(handler), bootstrapped_output))
+                }
+            
+                Err(e) => {
+                    eprintln!("Error loading handler: {:?}", e);
+                    None
+                }
+            }
         } else {
             None
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
-pub enum TupleNoun {
-    Query,          // 0
-    Prefix,         // 5 TODO: Should we renumber?
-    Symbol(String), // 1
-    CPtr(u64),      // 2
-    U64(u64),       // 3
-    I64(i64),       // 4
-}
 
-impl TupleNoun {
-    pub fn from_str(s: &str) -> TupleNoun {
-        match s {
-            "*" => { TupleNoun::Query },
-            "..." => { TupleNoun::Prefix },
-            s => TupleNoun::Symbol(s.to_string()),
-        }
-    }
-}
 
 #[cfg(test)]
 pub mod tests {

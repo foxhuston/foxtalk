@@ -15,7 +15,7 @@ protected:
         {
             auto subj = i.at<uint64_t>(0).value();
             sum += subj;
-                }
+        }
         claim(Tuple{std::vector{TupleNoun("all number subjects"), TupleNoun("sum to"), TupleNoun(sum)}});
     }
 

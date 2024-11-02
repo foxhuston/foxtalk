@@ -1,5 +1,3 @@
-use std::hash::Hash;
-
 pub trait QueryEngine<O, P, Q> {
     fn insert_program_for_query(&mut self, q: Q, p: P) -> ();
     fn remove_program(&mut self, q: Q, p: P) -> ();

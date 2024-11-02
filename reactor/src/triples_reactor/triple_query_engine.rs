@@ -1,7 +1,8 @@
 use crate::reactor::query_engine::QueryEngine;
-use crate::triples_reactor::{Tuple, TupleNoun};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
+use rust_tuple_reactor_serde::tuple::Tuple;
+use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 
 pub struct TripleQueryEngine<P> {
     flat_node_tree: Vec<TripleQueryNode<P>>,

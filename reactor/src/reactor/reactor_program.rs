@@ -7,6 +7,8 @@ pub trait Program<O: ReactorData<Q>, Q> where Self: Send
     fn query(&mut self) -> Q;
     fn handle(&mut self, input: &FxHashSet<O>) -> FxHashSet<O>;
 
+    fn poll(&mut self) -> bool { false  }
+
     fn free_o(&mut self, _o: &O) -> () {}
 }
 
@@ -15,7 +17,9 @@ pub trait Program<O: ReactorData<Q>, Q> where Self: Send
 pub struct ProgramInfo<O: Eq + Hash>
 {
     pub(super) I: FxHashSet<O>,
+
     pub(super) O: FxHashSet<O>,
+
     pub(super) dirty: bool,
 }
 

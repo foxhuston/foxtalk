@@ -97,8 +97,11 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, Q
             }
         };
         // println!("Removing handler {:?} from the reactor hashset", handler_id);
+        
         self.program_map.remove(&handler_id);
-        self.reactor_program_map.remove(&handler_id);
+        if let Some(mut p) = self.reactor_program_map.remove(&handler_id) {
+            self.query_engine.remove_program(p.query(), handler_id);
+        }
     }
 
     pub fn insert(&mut self, input: O) {
@@ -113,11 +116,19 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, Q
             }
 
            for program_id in self.query_engine.query(&input) {
-                let program = self.program_map.get_mut(&program_id).unwrap();
-                if !program.I.contains(&input) {
-                    program.I.insert(input.clone());
-                    program.dirty = true;
-                }
+               //println!("Handling query with program id {:?}", program_id);
+               let mut_program_ptr = self.program_map.get_mut(&program_id);
+               if mut_program_ptr.is_none() {
+                   eprintln!("Program id {:?} not found in program_map", program_id);
+               }
+               else {
+                   let program = mut_program_ptr.unwrap();
+                   if !program.I.contains(&input) {
+                       program.I.insert(input.clone());
+                       program.dirty = true;
+                   }
+               }
+
            }
 
             self.ref_counts.insert(input, 1);
@@ -129,11 +140,12 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, Q
         self.remove_with_hid(input, None);
     }
     fn remove_with_hid(&mut self, input: O, maybe_hid: Option<ReactorProgramId>) {
-        // println!("removing o: {:?}", input);
+        // println!("removing o: [[[[[ {:?} ]]]]]]", input);
         if self.ref_counts.contains_key(&input) {
+            // println!("ref count does contain the key [[[[[ {:?} ]]]]]]", input);
             let count = self.ref_counts.get_mut(&input).unwrap();
             *count -= 1;
-            if *count == 0 {
+            if *count <= 0 {
                 if let Some(hid) = maybe_hid {
                     self.reactor_program_map.get_mut(&hid).unwrap().free_o(&input);
                 }
@@ -161,11 +173,11 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, Q
         let mut need_to_insert_total = Vec::new();
         let mut need_to_remove_total = Vec::new();
         for (hid, handler) in self.program_map.iter_mut() {
-            if handler.dirty {
+            let program = self.reactor_program_map.get_mut(&hid).unwrap();
+            if handler.dirty || program.poll() {
                 // let qa = &mut handler.qa;
                 let input = &handler.I;
 
-                let program = self.reactor_program_map.get_mut(&hid).unwrap();
                 let new_output = program.handle(input);
 
                 let need_to_insert: FxHashSet<O> = new_output.difference(&handler.O).cloned().collect();

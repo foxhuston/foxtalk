@@ -1,9 +1,10 @@
 use crate::recursive_inotify::FileWatcherHandlers;
 use reactor::reactor::{Reactor, ReactorProgramId};
 use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
-use reactor::triples_reactor::{Tuple, TupleNoun};
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
+use rust_tuple_reactor_serde::tuple::Tuple;
+use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use walkdir::WalkDir;
 
 pub struct ReactorAddingSoHandler {
@@ -17,25 +18,27 @@ impl Debug for ReactorAddingSoHandler {
 }
 impl FileWatcherHandlers for ReactorAddingSoHandler {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
-        // println!("on_create {:?}", full_path);
+        println!("on_create {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
+                println!("Adding handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
                 reactor.insert(tuple.clone());
-                // println!("Added handler {:?}", tuple);
+                println!("Added handler {:?}", tuple);
                 // println!("{:?}", reactor.ref_counts);
             }
         }
     }
 
     fn on_delete(&self, full_path: String, _: String, extension: String) -> () {
-        // println!("on_delete {:?}", full_path);
+        println!("on_delete {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
+                println!("Removing handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
-                // println!("Removed handler {:?}", tuple);
+                println!("Removed handler {:?}", tuple);
                 // println!("{:?}", reactor.ref_counts);
             }
         }

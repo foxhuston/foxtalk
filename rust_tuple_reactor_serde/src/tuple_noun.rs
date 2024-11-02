@@ -1,8 +1,6 @@
+use std::fmt::Debug;
 use byteorder::{ByteOrder, NativeEndian};
-
-use crate::triples_reactor::serde::{read_foxtalk_size, FoxTalkDeserializable, FoxTalkSerializable, FoxtalkSize, ReturnPosition};
-
-use crate::triples_reactor::TupleNoun;
+use crate::{read_foxtalk_size, FoxTalkDeserializable, FoxTalkSerializable, FoxtalkSize, ReturnPosition};
 
 const QUERY_TYPE: u8 = 0;
 const PREFIX_TYPE: u8 = 5;
@@ -10,6 +8,52 @@ const SYMBOL_TYPE: u8 = 1;
 const CPTR_TYPE: u8 = 2;
 const U64_TYPE: u8 = 3;
 const I64_TYPE: u8 = 4;
+
+
+#[derive(PartialEq, Clone, Eq, Hash)]
+pub enum TupleNoun {
+    Query,          // 0
+    Prefix,         // 5 TODO: Should we renumber?
+    Symbol(String), // 1
+    CPtr(u64),      // 2
+    U64(u64),       // 3
+    I64(i64),       // 4
+}
+
+impl TupleNoun {
+    pub fn from_str(s: &str) -> TupleNoun {
+        match s {
+            "*" => { TupleNoun::Query },
+            "..." => { TupleNoun::Prefix },
+            s => TupleNoun::Symbol(s.to_string()),
+        }
+    }
+}
+
+impl Debug for TupleNoun {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TupleNoun::Query => {
+                write!(f, "Query")
+            }
+            TupleNoun::Prefix => {
+                write!(f, "Prefix")
+            }
+            TupleNoun::Symbol(s) => {
+                write!(f, "Symbol({})", s)
+            }
+            TupleNoun::CPtr(u) => {
+                write!(f, "CPtr({})", u)
+            }
+            TupleNoun::U64(u) => {
+                write!(f, "U64({})", u)
+            }
+            TupleNoun::I64(i) => {
+                write!(f, "I64({})", i)
+            }
+        }
+    }
+}
 
 fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: usize) -> ReturnPosition {
     match noun {

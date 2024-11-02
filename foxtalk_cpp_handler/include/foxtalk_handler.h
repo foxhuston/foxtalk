@@ -33,6 +33,7 @@ extern "C"
     void register_initial_tuples(); // initial O in the buffer after this
     void handle();  // this is a
     void teardown();
+    bool poll();
 }
 
 #endif // REACTOR_FOXTALK_HANDLER_H

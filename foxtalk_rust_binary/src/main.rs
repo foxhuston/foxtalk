@@ -3,15 +3,17 @@ use crate::recursive_inotify::RecursiveFileWatcher;
 use dotenv;
 use reactor::reactor::{Reactor, ReactorProgramId};
 use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
-use reactor::triples_reactor::Tuple;
+use rust_tuple_reactor_serde::tuple::Tuple;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
+use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
 mod commands_json_creator;
 mod cpp_handler_builder;
 mod reactor_adding_so_handler;
 mod recursive_inotify;
+mod reactor_debug_tuple_writer;
 
 fn main() {
     dotenv::dotenv().ok();
@@ -58,11 +60,22 @@ fn main() {
     ));
     RecursiveFileWatcher::watch(so_watcher);
 
+    {
+        let mut reactor_guard = reactor.lock().unwrap();
+        reactor_guard.insert(Tuple::triple_from_sss(
+            "foxtalk",
+            "is",
+            "running",
+        ));
+    }
+
     let mut cnt = 0;
     let mut current_time = Instant::now();
     let mut tps = Vec::new();
 
     println!("Starting reactor...");
+    let mut tuple_writer = ReactorDebugTupleWriter::new();
+
     loop {
         cnt += 1;
         let mut reactor_guard = reactor.lock().unwrap();
@@ -73,18 +86,11 @@ fn main() {
             cnt = 0;
             current_time = new_time;
         }
-        if tps.len() >= 10 {
-            // println!("num ticks per second in the last 10 seconds: {:?}", tps);
+        if tps.len() >= 5 {
             let ticks = tps.iter().sum::<u64>();
             let ticks_per_sec = ticks / tps.len() as u64;
-            let k_ticks_per_sec = ticks_per_sec / 1000;
-            let ticks_per_frame = ticks_per_sec / 120;
-            println!(
-                "Avg ticks per sec: {:?}k || @120fps: {:?} ticks per frame || ticks: {:?}",
-                k_ticks_per_sec, ticks_per_frame, ticks
-            );
-            // println!("==vvvvv===Current counts===vvvvv==");
-            // println!("{:?}", reactor_guard.ref_counts);
+            tuple_writer.update_reactor_tuples(&mut reactor_guard);
+            tuple_writer.update_tps(&mut reactor_guard, ticks_per_sec);
             tps.clear();
         }
         thread::sleep(std::time::Duration::from_millis(4));

@@ -2,11 +2,11 @@
 #[cfg(test)]
 mod tests {
     use reactor::reactor::Reactor;
-    use reactor::triples_reactor::{Tuple, TupleNoun};
-
     use reactor::triples_reactor::ffi::dynamic_handler::DynamicallyLoadedProgram;
     use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
     use std::path::PathBuf;
+    use rust_tuple_reactor_serde::tuple::Tuple;
+    use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
