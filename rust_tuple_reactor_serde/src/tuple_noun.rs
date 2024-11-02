@@ -43,7 +43,7 @@ impl Debug for TupleNoun {
                 write!(f, "Symbol({})", s)
             }
             TupleNoun::CPtr(u) => {
-                write!(f, "CPtr({})", u)
+                write!(f, "CPtr(0x{:X})", u)
             }
             TupleNoun::U64(u) => {
                 write!(f, "U64({})", u)

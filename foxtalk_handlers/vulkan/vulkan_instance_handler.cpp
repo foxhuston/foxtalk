@@ -34,7 +34,7 @@ protected:
     std::cout << "Created Instance!!" << std::endl;
 
     // Put <CPtr(instance), "is the", "vulkan instance"> into db/*  */
-    claim({{{&instance}, {"is the"}, {"vulkan instance"}}});
+    claim({{{instance}, {"is the"}, {"vulkan instance"}}});
   }
 
   void init() override
