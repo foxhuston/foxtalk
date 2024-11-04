@@ -13,6 +13,10 @@
 #include <string>
 #include <cstdint>
 #include <cmath>
+#include <cstring>
+
+using namespace std::literals;
+
 #include "debug_utils.h"
 
 extern "C"
@@ -37,7 +41,7 @@ inline std::pair<T, size_t> read_t_from_buffer(const uint8_t *buffer, size_t ind
 }
 
 template <typename T>
-inline size_t write_vec_to_buffer(uint8_t *buffer, size_t start_position, const std::vector<T> &vec)
+inline size_t write_tuple_noun_vec_to_buffer(uint8_t *buffer, size_t start_position, const std::vector<T> &vec)
 {
     auto count_bytes = write_t_to_buffer<foxtalk_size_t>(buffer, start_position, (foxtalk_size_t)vec.size());
     auto current_position = start_position + count_bytes;
@@ -51,7 +55,7 @@ inline size_t write_vec_to_buffer(uint8_t *buffer, size_t start_position, const 
 }
 
 template <typename T>
-inline std::pair<std::vector<T>, size_t> read_vec_from_buffer(uint8_t *buffer, size_t start_position)
+inline std::pair<std::vector<T>, size_t> read_tuple_noun_vec_from_buffer(uint8_t *buffer, size_t start_position)
 {
     size_t current_position = start_position;
     auto [vec_size, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
@@ -78,7 +82,8 @@ struct TupleNoun
         std::string,    // Symbol
         void *,         // Cptr
         uint64_t,       // U64
-        int64_t         // I64
+        int64_t,        // I64
+        std::vector<uint8_t> // Bytes
         >
         NounData;
 
@@ -102,7 +107,8 @@ struct TupleNoun
         CPtr = 2,
         U64 = 3,
         I64 = 4,
-        Prefix = 5,
+        Bytes = 5,
+        Prefix = 6,
         MAX
     };
 
@@ -112,6 +118,28 @@ struct TupleNoun
     static TupleNoun prefix() { return TupleNoun{NounType::Prefix}; }
 
     // static TupleNoun prefix() { return TupleNoun{ NounType::Prefix, std::monostate() }; }
+
+
+    template<typename T>
+    static TupleNoun from_struct(T t)
+    {
+        std::vector<uint8_t> bytes(sizeof(T));
+        memcpy(bytes.data(), &t, sizeof(T));
+        return { bytes };
+    }
+
+    template<typename T>
+    std::optional<T> into_struct() const
+    {
+        if (std::holds_alternative<std::vector<uint8_t>>(data))
+        {
+            T out {};
+            memcpy(&out, std::get<std::vector<uint8_t>>(data).data(), sizeof(T));
+            return out;
+        }
+
+        return std::nullopt;
+    }
 
     TupleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data)
     {
@@ -149,6 +177,9 @@ struct TupleNoun
             break;
         case NounType::I64:
             os << std::get<int64_t>(noun.data);
+            break;
+        case NounType::Bytes:
+            os << "Bytes[" << std::get<std::vector<uint8_t>>(noun.data).size() << "]";
             break;
         case NounType::Prefix:
             os << "Prefix";
@@ -188,6 +219,23 @@ struct TupleNoun
                 TupleNoun{str},
                 (buffer_position - start_position) + str_length};
         }
+        case NounType::Bytes:
+            {
+                auto [length, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, buffer_position);
+                buffer_position += read_bytes;
+
+                std::vector<uint8_t> bytes {};
+                for (int i = 0; i < length; i++)
+                {
+                    auto [byte, read_bytes] = read_t_from_buffer<uint8_t>(buffer, buffer_position);
+                    buffer_position += read_bytes;
+                    bytes.push_back(byte);
+                }
+
+                return {
+                    TupleNoun{bytes},
+                    buffer_position - start_position};
+            }
         case NounType::CPtr:
         {
             auto [dat, read_bytes] = read_t_from_buffer<void *>(buffer, buffer_position);
@@ -249,6 +297,14 @@ struct TupleNoun
         case NounType::I64:
             current_position += write_t_to_buffer(buffer, current_position, std::get<int64_t>(data));
             break;
+        case NounType::Bytes:
+            {
+                auto bytes = std::get<std::vector<uint8_t>>(data);
+                current_position += write_t_to_buffer(buffer, current_position, (foxtalk_size_t)bytes.size());
+                memcpy((buffer + current_position), bytes.data(), sizeof(uint8_t) * bytes.size());
+                current_position += sizeof(uint8_t) * bytes.size();
+                break;
+            }
         default:
             throw std::runtime_error("Unknown NounType!");
         }
@@ -332,6 +388,15 @@ public:
         }
     }
 
+    template<typename T>
+    std::optional<T> struct_at(size_t i) const
+    {
+        if (nouns_.size() < i)
+            return std::nullopt;
+
+        return nouns_[i].into_struct<T>();
+    }
+
     template <typename T>
     bool matches(size_t i, T to_match) const
     {
@@ -347,12 +412,12 @@ public:
     //// SERIALIZATION / DESERIALIZATION /////
     size_t write_to_buffer(uint8_t *buffer, size_t start_position) const
     {
-        return write_vec_to_buffer(buffer, start_position, nouns_);
+        return write_tuple_noun_vec_to_buffer(buffer, start_position, nouns_);
     }
 
     static std::pair<Tuple, foxtalk_size_t> read_from_buffer(uint8_t *buffer, size_t start_position)
     {
-        auto [nouns, read_bytes] = read_vec_from_buffer<TupleNoun>(buffer, start_position);
+        auto [nouns, read_bytes] = read_tuple_noun_vec_from_buffer<TupleNoun>(buffer, start_position);
         return std::pair<Tuple, size_t>(Tuple{std::move(nouns)}, read_bytes);
     }
 };

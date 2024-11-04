@@ -3,21 +3,23 @@ use byteorder::{ByteOrder, NativeEndian};
 use crate::{read_foxtalk_size, FoxTalkDeserializable, FoxTalkSerializable, FoxtalkSize, ReturnPosition};
 
 const QUERY_TYPE: u8 = 0;
-const PREFIX_TYPE: u8 = 5;
+const PREFIX_TYPE: u8 = 6;
 const SYMBOL_TYPE: u8 = 1;
 const CPTR_TYPE: u8 = 2;
 const U64_TYPE: u8 = 3;
 const I64_TYPE: u8 = 4;
+const BYTES_TYPE: u8 = 5;
 
 
 #[derive(PartialEq, Clone, Eq, Hash)]
 pub enum TupleNoun {
     Query,          // 0
-    Prefix,         // 5 TODO: Should we renumber?
     Symbol(String), // 1
     CPtr(u64),      // 2
     U64(u64),       // 3
     I64(i64),       // 4
+    Bytes(Vec<u8>), // 5
+    Prefix,         // 6
 }
 
 impl TupleNoun {
@@ -51,6 +53,9 @@ impl Debug for TupleNoun {
             TupleNoun::I64(i) => {
                 write!(f, "I64({})", i)
             }
+            TupleNoun::Bytes(bytes) => {
+                write!(f, "Bytes[{}]", bytes.len())
+            }
         }
     }
 }
@@ -74,6 +79,9 @@ fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: u
         }
         TupleNoun::I64(_) => {
             write_to[start_position] = I64_TYPE;
+        },
+        TupleNoun::Bytes(_) => {
+            write_to[start_position] = BYTES_TYPE;
         },
     }
     ReturnPosition { pos: start_position + size_of::<u8>() }
@@ -104,6 +112,21 @@ impl FoxTalkSerializable for TupleNoun {
                 write_to[length_end_idx..utf8_end_idx].copy_from_slice(utf8_bytes);
 
                 ReturnPosition { pos: utf8_end_idx }
+            }
+            TupleNoun::Bytes(value) => {
+                let current_position = write_type_to_buffer(self, write_to, start_position);
+                let bytes_length = value.len() as FoxtalkSize;
+
+                let bytes_length_in_bytes: [u8; size_of::<FoxtalkSize>()] = bytes_length.to_ne_bytes();
+                let length_end_idx = (current_position.pos) + size_of::<FoxtalkSize>();
+                write_to[current_position.pos..length_end_idx].copy_from_slice(&bytes_length_in_bytes);
+
+
+                let actual_bytes_end_idx = length_end_idx + value.len();
+
+                write_to[length_end_idx..actual_bytes_end_idx].copy_from_slice(value);
+
+                ReturnPosition { pos: actual_bytes_end_idx }
             }
             TupleNoun::CPtr(value) => {
                 let current_position = write_type_to_buffer(self, write_to, start_position);
@@ -156,6 +179,15 @@ impl FoxTalkDeserializable for TupleNoun {
             4 => {
                 let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<i64>())];
                 (TupleNoun::I64(NativeEndian::read_i64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<i64>() })
+            }
+            6 => {
+                (TupleNoun::Prefix, current_position)
+            }
+            5 => {
+                let (bytes_length, current_position) = read_foxtalk_size(read_from, current_position.pos);
+                let actual_bytes = &read_from[current_position.pos..(current_position.pos + bytes_length as usize)];
+                let bytes = actual_bytes.to_vec();
+                (TupleNoun::Bytes(bytes), ReturnPosition { pos: current_position.pos + bytes_length as usize })
             }
             _ => {
                 panic!("UNKNOWN TUPLENOUN TYPE CASE! Value {} at position {}", type_input, start_position)

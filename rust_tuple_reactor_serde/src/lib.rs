@@ -171,6 +171,10 @@ mod tests {
     pub fn round_trip_works_for_cptr() {
         round_trip_works_for_noun(TupleNoun::CPtr(0x834237423))
     }
+    #[test]
+    pub fn round_trip_works_for_bytes() {
+        round_trip_works_for_noun(TupleNoun::Bytes(vec![0, 1, 2, 3, 4, 5, 100]))
+    }
 
     #[test]
     pub fn round_trip_works_for_u64() {
@@ -187,9 +191,12 @@ mod tests {
         let subj = TupleNoun::Symbol("/dev/cam1".to_string());
         let pred = TupleNoun::Symbol("is at".to_string());
         let obj = TupleNoun::CPtr(0x12345678);
+        let bytes = TupleNoun::Bytes(vec![12, 43, 17, 23, 111, 122,]);
+        let query = TupleNoun::Query;
+        let prefix = TupleNoun::Prefix;
         let buffer = &mut [0u8; 1024];
 
-        let tuples = vec![Tuple(vec![subj, pred, obj])];
+        let tuples = vec![Tuple(vec![subj, prefix, pred, query,  obj, bytes])];
 
         let _ = tuples.iter().write_to_buffer(buffer, 0);
 

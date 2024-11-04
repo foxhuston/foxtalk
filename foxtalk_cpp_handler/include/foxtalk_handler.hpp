@@ -32,14 +32,14 @@ public:
     {
         claims.clear();
         init();
-        write_vec_to_buffer<Tuple>(buffer, 0, claims);
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 
     void ffi_register_init(uint8_t *buffer)
     {
         claims.clear();
         register_initial_tuples();
-        write_vec_to_buffer<Tuple>(buffer, 0, claims);
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 
     void ffi_handle(uint8_t *buffer)
@@ -48,13 +48,13 @@ public:
         claims.clear();
 
         // How many tuples in query result set?
-        auto [query_results, read_bytes] = read_vec_from_buffer<Tuple>(buffer, 0);
+        auto [query_results, read_bytes] = read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
 
         // Actually work with the results
         handle(query_results);
 
         // Serialize
-        write_vec_to_buffer<Tuple>(buffer, 0, claims);
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
     }
 };
 

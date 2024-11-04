@@ -1,6 +1,9 @@
 {
   "files.associations": {
     "*.ipp": "cpp",
-    "optional": "cpp"
+    "optional": "cpp",
+    "array": "cpp",
+    "string_view": "cpp",
+    "span": "cpp"
   }
 }

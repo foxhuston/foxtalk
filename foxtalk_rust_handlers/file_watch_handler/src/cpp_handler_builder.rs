@@ -42,15 +42,17 @@ impl FileWatcherHandlers for CppFileBuilder {
             }).map(|c| {
                 c.replace("//foxtalk-link", "").trim().to_string()
             }).collect::<Vec<String>>();
-
+            
+            
+            println!("Compiling {:?} to {:?}", full_path, output_so_file);
 
             fn pkg_config_args(arg: &str, l: &str) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
                     .args([arg, l].iter())
                     .output() {
                     if pkg_libs_cmd.status.success() {
-                        let pkg_libs = String::from_utf8(pkg_libs_cmd.stdout).unwrap_or("".to_string());
-                        pkg_libs.split_whitespace().map(|s| s.trim().to_string()).collect()
+                        let pkg_libs = String::from_utf8(pkg_libs_cmd.stdout).unwrap();
+                        pkg_libs.split_whitespace().collect()
                     } else {
                         eprintln!("Failed to execute pkg-config {}", arg);
                         Vec::new()
@@ -65,8 +67,6 @@ impl FileWatcherHandlers for CppFileBuilder {
                 vec![pkg_config_args("--libs", l), pkg_config_args("--cflags", l)].concat()
             }).collect::<Vec<String>>();
 
-
-            println!("Compiling {:?} to {:?}", full_path, output_so_file);
             let rest_of_args: Vec<String> = vec![
                 "-shared",
                 "-O0",
@@ -81,7 +81,7 @@ impl FileWatcherHandlers for CppFileBuilder {
                 output_so_file.as_str()
             ].iter().map(|&s| s.to_string()).collect();
             let status = Command::new("clang++")
-                .args([rest_of_args, linking_args].concat())
+                .args([linking_args, rest_of_args].concat())
                 .status();
 
             if status.is_err() {
@@ -89,7 +89,7 @@ impl FileWatcherHandlers for CppFileBuilder {
             } else {
                 println!("Compiled {:?} to {:?}", full_path, output_so_file);
             }
-            commands_json_creator::regenerate_compiler_commands();
+            // commands_json_creator::regenerate_compiler_commands();
         }
     }
 

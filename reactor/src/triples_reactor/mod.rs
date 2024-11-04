@@ -53,6 +53,7 @@ pub mod tests {
         reactor.insert(handler_tup.clone());
         reactor.tick();
         reactor.tick();
+        
 
         let cnt = reactor.ref_counts.get(&expected_tuple);
         assert_eq!(cnt, Some(&1));

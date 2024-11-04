@@ -3,19 +3,21 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::thread;
+use rust_tuple_reactor_serde::tuple::Tuple;
 
 pub trait FileWatcherHandlers
 where
     Self: Send + Sync + Debug,
 {
-    fn on_create(&self, full_path: String, file_name: String, extension: String) -> ();
-    fn on_delete(&self, full_path: String, file_name: String, extension: String) -> ();
+    fn on_create(&self, full_path: String, file_name: String, extension: String) -> Vec<Tuple>;
+    fn on_delete(&self, full_path: String, file_name: String, extension: String) -> Vec<Tuple>;
 }
 
 pub struct RecursiveFileWatcher {
     base_path: String,
     child_watch_descriptors: Arc<RwLock<HashMap<String, Arc<RecursiveFileWatcher>>>>,
     user_handlers: Arc<dyn FileWatcherHandlers>,
+    claims: Vec<Tuple>
 }
 
 impl RecursiveFileWatcher {
@@ -24,6 +26,7 @@ impl RecursiveFileWatcher {
             base_path,
             child_watch_descriptors: Arc::new(RwLock::new(HashMap::new())),
             user_handlers: h,
+            claims: Vec::new()
         }
     }
 
@@ -50,6 +53,7 @@ impl RecursiveFileWatcher {
                         base_path: new_base_path,
                         child_watch_descriptors: Arc::new(RwLock::new(HashMap::new())),
                         user_handlers: watcher.user_handlers.clone(),
+                        claims: Vec::new()
                     });
                     watcher
                         .child_watch_descriptors
@@ -82,6 +86,7 @@ impl RecursiveFileWatcher {
                             base_path: full_path_to_file.clone(),
                             child_watch_descriptors: Arc::new(RwLock::new(HashMap::new())),
                             user_handlers: watcher.user_handlers.clone(),
+                            claims: Vec::new()
                         });
                         RecursiveFileWatcher::watch(new_watcher.clone());
                         watcher
@@ -115,7 +120,7 @@ impl RecursiveFileWatcher {
                     }
                     if event.mask == EventMask::CLOSE_WRITE || event.mask == EventMask::MOVED_TO {
                         // println!("Writing to file {:?}", full_path_to_file);
-                        watcher.user_handlers.on_create(
+                        let new_tuples = watcher.user_handlers.on_create(
                             full_path_to_file.clone(),
                             file_name.clone(),
                             extension.clone(),

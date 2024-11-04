@@ -16,7 +16,7 @@ class TupleTests : public ::testing::Test {
 TEST_F(TupleTests, TripleNounQueryRoundTrip) {
     uint8_t buffer[64]{};
 
-    auto nWrite = TupleNoun();
+    auto nWrite = TupleNoun::query();
     nWrite.write_to_buffer(buffer, 0);
 
     auto [nRead, read_bytes] = TupleNoun::read_from_buffer(buffer, 0);
@@ -179,10 +179,10 @@ TEST_F(TupleTests, TupleNounVecRoundTrip1) {
                                       }};
 
     uint8_t buffer[256]{};
-    write_vec_to_buffer<TupleNoun>(buffer, 0, tupleNouns);
+    write_tuple_noun_vec_to_buffer<TupleNoun>(buffer, 0, tupleNouns);
     dbg_dump_buffer_region(buffer, 0, 256);
 
-    auto [res, bytes_read] = read_vec_from_buffer<TupleNoun>(buffer, 0);
+    auto [res, bytes_read] = read_tuple_noun_vec_from_buffer<TupleNoun>(buffer, 0);
 
     ASSERT_EQ(tupleNouns, res);
 }
@@ -197,12 +197,12 @@ TEST_F(TupleTests, TupleVecRoundTrip1) {
                               }};
 
     uint8_t buffer[256]{};
-    write_vec_to_buffer<Tuple>(buffer, 0, tuples);
+    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, tuples);
     dbg_dump_buffer_region(buffer, 0, 256);
 
     // I would expect: 01 00 00 00 03 00 00 00 ...
 
-    auto [res, bytes_read] = read_vec_from_buffer<Tuple>(buffer, 0);
+    auto [res, bytes_read] = read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
 
     ASSERT_EQ(tuples, res);
 }
@@ -223,12 +223,35 @@ TEST_F(TupleTests, TupleVecRoundTrip2) {
                               }};
 
     uint8_t buffer[256]{};
-    write_vec_to_buffer<Tuple>(buffer, 0, tuples);
+    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, tuples);
     dbg_dump_buffer_region(buffer, 0, 256);
 
     // I would expect: 01 00 00 00 03 00 00 00 ...
 
-    auto [res, bytes_read] = read_vec_from_buffer<Tuple>(buffer, 0);
+    auto [res, bytes_read] = read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
+
+    ASSERT_EQ(tuples, res);
+}
+
+struct TestStruct
+{
+    uint32_t One;
+};
+
+TEST_F(TupleTests, TupleBytesWorksWithCppStruct) {
+    TestStruct test { 0x4392 };
+    std::vector<Tuple> tuples{
+            {
+                Tuple{{
+                    TupleNoun::from_struct(test)
+                }}
+            }};
+
+    uint8_t buffer[256]{};
+    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, tuples);
+    dbg_dump_buffer_region(buffer, 0, 256);
+
+    auto [res, bytes_read] = read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
 
     ASSERT_EQ(tuples, res);
 }

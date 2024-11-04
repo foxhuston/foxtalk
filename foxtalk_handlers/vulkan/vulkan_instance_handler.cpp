@@ -1,4 +1,4 @@
-// pkg-config: vulkan
+//foxtalk-link vulkan
 
 #include <iostream>
 #include <vulkan/vulkan.h>

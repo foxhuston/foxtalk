@@ -1,4 +1,4 @@
-// pkg-config: vulkan
+//foxtalk-link vulkan
 
 #include <iostream>
 #include <vector>
@@ -7,7 +7,7 @@
 #include <vulkan/vulkan.hpp>
 #include <foxtalk_handler.hpp>
 
-class ExampleHandler : public Handler
+class VulkanPhysicalDeviceHandler : public Handler
 {
 
 protected:
@@ -37,15 +37,17 @@ protected:
       std::vector<VkPhysicalDevice> devices(deviceCount);
       vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
+      std::cout << "Found " << deviceCount << " devices" << std::endl;
+
       for (auto d : devices)
       {
         vk::PhysicalDevice dev(d);
         auto props = dev.getProperties();
-        std::string device_name(props.deviceName);
+        auto features = dev.getFeatures();
 
         claim({{{d}, {"is a"}, {"vulkan physical device"},
-              {"with name"}, {device_name},
-              {"with type"}, {(uint64_t)props.deviceType}
+              {"with props"}, TupleNoun::from_struct(props),
+              {"with features"}, TupleNoun::from_struct(features)
               
         }});
       }
@@ -58,4 +60,4 @@ protected:
   }
 };
 
-FOXTALK_FFI_HANDLER_REG(ExampleHandler);
+FOXTALK_FFI_HANDLER_REG(VulkanPhysicalDeviceHandler);
