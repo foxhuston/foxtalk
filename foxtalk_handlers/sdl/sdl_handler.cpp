@@ -1,11 +1,15 @@
 // pkg-config: sdl3
+#include "foxtalk_tuple.h"
 #include <SDL3/SDL.h>
 
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_render.h>
 #include <cstdint>
 #include <iostream>
 
 #include <foxtalk_handler.hpp>
+#include <tuple>
 
 class SdlHandler : public Handler {
 private:
@@ -24,14 +28,28 @@ public:
   pthread_mutex_t mutex;
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    if(queryResults.size() == 0) { return; }
+    if (queryResults.size() == 0) {
+      SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
+      SDL_RenderClear(renderer);
+      SDL_RenderPresent(renderer);
+      return;
+    }
     assert(queryResults.size() == 1);
+    auto t = queryResults[0];
+    auto x = t.at<uint64_t>(4).value();
+    auto y = t.at<uint64_t>(6).value();
+    auto width = t.at<uint64_t>(8).value();
+    auto height = t.at<uint64_t>(10).value();
 
-    uint64_t clock_count = queryResults[0].at<uint64_t>(2).value();
-    auto red = (clock_count) % 256;
 
-    SDL_SetRenderDrawColor(renderer, red, 0, 127, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 30, 30, SDL_ALPHA_OPAQUE);
+    const SDL_FRect rect(x, y, width, height);
+    SDL_RenderFillRect(renderer, &rect);
+
+
     SDL_RenderPresent(renderer);
   }
 
@@ -40,7 +58,7 @@ public:
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
       window =
-          SDL_CreateWindow("Foxtalk Debug??", 352, 430, SDL_WINDOW_RESIZABLE);
+          SDL_CreateWindow("Foxtalk Debug??", 1280, 720, SDL_WINDOW_RESIZABLE);
       if (window) {
         renderer = SDL_CreateRenderer(window, NULL);
         if (renderer) {
@@ -56,8 +74,19 @@ public:
             }
           }
 
-          // claim({{{"foxtalk reactor"}, {"sees tuples"}, TupleNoun::query()}});
-          claim({{{"clock"}, {"is at"}, TupleNoun::query()}});
+          // claim({{{"foxtalk reactor"}, {"sees tuples"},
+          // TupleNoun::query()}});
+          claim({{{"illumination"},
+                  {"rectangle"},
+                  {"at"},
+                  {"x"},
+                  TupleNoun::query(),
+                  {"y"},
+                  TupleNoun::query(),
+                  {"width"},
+                  TupleNoun::query(),
+                  {"height"},
+                  TupleNoun::query()}});
         } else {
           std::cerr << "Couldn't initialize renderer!" << std::endl;
         }
