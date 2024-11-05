@@ -74,9 +74,10 @@ impl<P: PartialEq> TripleQueryNode<P> {
 
 impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Vec<Tuple>> for TripleQueryEngine<P> {
     fn insert_program_for_query(&mut self, query_tuples: Vec<Tuple>, p: P) -> () {
-        let mut current_node_id: usize = 0;
-
         for Tuple(nouns) in query_tuples {
+            let p = p.clone();
+            let mut current_node_id: usize = 0;
+
             for n in nouns {
                 match n {
                     TupleNoun::Prefix => {
@@ -98,15 +99,15 @@ impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Vec<Tuple>> for TripleQueryEngi
                     }
                 }
             }
+            self.flat_node_tree.get_mut(current_node_id).unwrap().matched_exact_programs.push(p);
         }
-
-        self.flat_node_tree.get_mut(current_node_id).unwrap().matched_exact_programs.push(p);
     }
 
     fn remove_program(&mut self, query_tuples: Vec<Tuple>, p: P) -> () {
-        let mut current_node_id: usize = 0;
-
         for Tuple(nouns) in query_tuples {
+            let p = p.clone();
+            let mut current_node_id: usize = 0;
+
             for n in nouns {
                 match n {
                     TupleNoun::Prefix => {
@@ -124,9 +125,8 @@ impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Vec<Tuple>> for TripleQueryEngi
                     }
                 }
             }
+            self.flat_node_tree.get_mut(current_node_id).unwrap().remove_from_exact_programs(p);
         }
-
-        self.flat_node_tree.get_mut(current_node_id).unwrap().remove_from_exact_programs(p);
     }
 
     fn query(&mut self, Tuple(nouns): &Tuple) -> Vec<P> {
@@ -277,6 +277,25 @@ mod tests {
         engine.remove_program(vec![Tuple::triple_from_strs(&["lexi", "..."])], 1);
 
         let actual = engine.query(&Tuple::triple_from_strs(&["lexi", "is a", "husky"]));
+        assert_eq!(actual, vec![]);
+    }
+
+    #[test]
+    pub fn queries_match_a_or_b_not_c() {
+        let mut engine = TripleQueryEngine::new();
+
+        engine.insert_program_for_query(vec![
+            Tuple::triple_from_strs(&["a"]),
+            Tuple::triple_from_strs(&["b"])
+        ], 1);
+
+        let actual = engine.query(&Tuple::triple_from_strs(&["a"]));
+        assert_eq!(actual, vec![1]);
+
+        // let actual = engine.query(&Tuple::triple_from_strs(&["b"]));
+        // assert_eq!(actual, vec![1]);
+
+        let actual = engine.query(&Tuple::triple_from_strs(&["c"]));
         assert_eq!(actual, vec![]);
     }
 }
