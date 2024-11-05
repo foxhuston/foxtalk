@@ -2,7 +2,7 @@ use crate::reactor::ReactorData;
 use std::hash::Hash;
 use rustc_hash::FxHashSet;
 
-pub trait Program<O: ReactorData<Q>, Q> where Self: Send
+pub trait Program<O: ReactorData, Q> where Self: Send
 {
     fn query(&mut self) -> Q;
     fn handle(&mut self, input: &FxHashSet<O>) -> FxHashSet<O>;

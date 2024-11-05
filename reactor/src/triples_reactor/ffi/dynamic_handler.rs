@@ -19,7 +19,7 @@ pub struct DynamicallyLoadedProgram {
     teardown: Symbol<extern "C" fn() -> ()>,
     buffer: Symbol<*mut u8>,
     poll: Symbol<extern "C" fn() -> bool>,
-    query: Tuple
+    query: Vec<Tuple>
 }
 
 unsafe impl Send for DynamicallyLoadedProgram {}
@@ -46,13 +46,12 @@ impl DynamicallyLoadedProgram {
 
         init();
         let rust_buffer = unsafe { slice::from_raw_parts_mut(*buffer, BUFFER_SIZE) };
-        let tuples: Vec<Tuple> = Vec::<Tuple>::read_from_buffer(rust_buffer, 0).0;
+        let (query, _) = Vec::<Tuple>::read_from_buffer(rust_buffer, 0);
 
-        if tuples.is_empty() {
+        if query.is_empty() {
             return Err(format_err!("Query not loaded into the buffer after calling init on {:?}. Not loading program.", path));
         }
 
-        let query = tuples[0].clone();
         register_initial_tuples();
 
         Ok(DynamicallyLoadedProgram {
@@ -75,8 +74,8 @@ impl Drop for DynamicallyLoadedProgram {
     }
 }
 
-impl Program<Tuple, Tuple> for DynamicallyLoadedProgram {
-    fn query(&mut self) -> Tuple {
+impl Program<Tuple, Vec<Tuple>> for DynamicallyLoadedProgram {
+    fn query(&mut self) -> Vec<Tuple> {
         self.query.clone()
     }
 

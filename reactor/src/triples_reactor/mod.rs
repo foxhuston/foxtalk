@@ -10,10 +10,10 @@ use log::{error, warn, info, debug, trace};
 pub mod ffi;
 pub mod triple_query_engine;
 
-impl ReactorData<Tuple> for Tuple {}
+impl ReactorData for Tuple {}
 
-impl GeneratesProgram<Tuple> for Tuple {
-    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Tuple, Tuple>>, FxHashSet<Tuple>)> {
+impl GeneratesProgram<Tuple, Vec<Tuple>> for Tuple {
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Tuple, Vec<Tuple>>>, FxHashSet<Tuple>)> {
         if let Some(path) = self.is_handler_tuple() {
             match unsafe { DynamicallyLoadedProgram::new(Path::new(&path)) } {
                 Ok(handler) => {
@@ -40,6 +40,8 @@ pub mod tests {
     use crate::reactor::utils::test::linked_lib_path;
     use crate::triples_reactor::triple_query_engine::TripleQueryEngine;
     use crate::triples_reactor::Tuple;
+    
+    use log::{error, warn, info, debug, trace};
 
     #[test]
     pub fn it_should_add_and_remove_handlers() {

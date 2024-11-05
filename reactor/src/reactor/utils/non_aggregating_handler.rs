@@ -2,17 +2,17 @@ use crate::reactor::reactor_program::Program;
 use crate::reactor::ReactorData;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-pub trait NonAggregatingProgram<O: ReactorData<Q>, Q> {
+pub trait NonAggregatingProgram<O: ReactorData, Q> {
     fn query(&self) -> Q;
     fn handle(&mut self, input: O) -> FxHashSet<O>;
 }
 
-pub struct NonAggregatingAdapter<O: ReactorData<Q>, Q> {
+pub struct NonAggregatingAdapter<O: ReactorData, Q> {
     h: Box<dyn NonAggregatingProgram<O, Q>>,
     sideband: FxHashMap<O, FxHashSet<O>>
 }
 
-impl<O: ReactorData<Q>, Q> NonAggregatingAdapter<O, Q> {
+impl<O: ReactorData, Q> NonAggregatingAdapter<O, Q> {
     pub fn new(h: Box<dyn NonAggregatingProgram<O, Q>>) -> Self {
         Self {
             h, sideband: FxHashMap::default()
@@ -30,9 +30,9 @@ impl<O: ReactorData<Q>, Q> NonAggregatingAdapter<O, Q> {
     }
 }
 
-unsafe impl<O: ReactorData<Q>, Q> Send for NonAggregatingAdapter<O, Q> {}
+unsafe impl<O: ReactorData, Q> Send for NonAggregatingAdapter<O, Q> {}
 
-impl<O: ReactorData<Q>, Q> Program<O, Q> for NonAggregatingAdapter<O, Q> {
+impl<O: ReactorData, Q> Program<O, Q> for NonAggregatingAdapter<O, Q> {
     fn query(&mut self) -> Q {
         self.h.query()
     }
@@ -73,7 +73,6 @@ mod test {
     #[test]
     pub fn paper_non_agg_example() {
         struct PaperHandler;
-        impl ReactorData<NonAggPaperQuery> for u64{}
         impl NonAggregatingProgram<u64, NonAggPaperQuery> for PaperHandler {
             fn query(&self) -> NonAggPaperQuery {
                 NonAggPaperQuery{}

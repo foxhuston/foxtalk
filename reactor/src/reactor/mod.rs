@@ -13,18 +13,30 @@ use std::hash::Hash;
 pub struct ReactorProgramId(u64);
 
 
-pub trait GeneratesProgram<Q>
+pub trait GeneratesProgram<O, Q>
 where Self: Eq + Hash + Sized {
-    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<Self, Q>>, FxHashSet<Self>)> { None }
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<O, Q>>, FxHashSet<O>)> { None }
 }
 
-impl<Q> GeneratesProgram<Q> for u64 { }
+impl<Q> GeneratesProgram<u64, Q> for u64 { }
 
-pub trait ReactorData<Q> where Self: Eq + Hash + Clone + Debug + Send + GeneratesProgram<Q> {}
+impl<Q, U: ReactorData + GeneratesProgram<U, Q>> GeneratesProgram<U, Q> for Vec<U> {
+    fn mk_handler_with_bootstrap_input(&self) -> Option<(Box<dyn Program<U, Q>>, FxHashSet<U>)> {
+        if self.len() != 1 {
+            None
+        } else {
+            self.first().unwrap().mk_handler_with_bootstrap_input()
+        }
+    }
+}
+
+pub trait ReactorData where Self: Eq + Hash + Clone + Debug + Send {}
+impl ReactorData for u64 {}
+impl ReactorData for i64 {}
 
 pub struct Reactor<Q, QE, O>
     where
-        O: ReactorData<Q>,
+        O: ReactorData + GeneratesProgram<O, Q>,
         QE : QueryEngine<O, ReactorProgramId, Q>
 {
     pub program_map: FxHashMap<ReactorProgramId, ProgramInfo<O>>,
@@ -37,7 +49,7 @@ pub struct Reactor<Q, QE, O>
     current_program_id: u64,
 }
 
-impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, QE, O> {
+impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, QE, O> {
     pub fn new(query_engine: QE) -> Self {
         Reactor {
             program_map: FxHashMap::default(),
@@ -209,7 +221,7 @@ impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, Q
 
 }
 
-impl<Q, O: ReactorData<Q>, QE: QueryEngine<O, ReactorProgramId, Q>>  Drop for Reactor<Q, QE, O> {
+impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgramId, Q>>  Drop for Reactor<Q, QE, O> {
     fn drop(&mut self) {
         // println!("Dropping the reactor now!");
         let hids: Vec<ReactorProgramId> = self.program_map.keys().cloned().collect();
@@ -238,7 +250,6 @@ mod tests {
                 *o > 5 && *o < 20
             }
         }
-        impl ReactorData<PaperQuery> for u64{}
 
         impl Program<u64, PaperQuery> for PaperHandler {
             fn query(&mut self) -> PaperQuery {
