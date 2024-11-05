@@ -5,6 +5,7 @@ use std::fs;
 use std::process::Command;
 
 use log::{error, warn, info, debug, trace};
+use regex::Regex;
 
 pub struct CppFileBuilder {
     pub base_cpp_path: String,
@@ -37,18 +38,27 @@ impl FileWatcherHandlers for CppFileBuilder {
             let output_json_file = output_so_path.clone() + ".json";
             
             let source = fs::read_to_string(full_path.clone()).unwrap();
-            
-            // if source starts with //foxtalk-link, then we need to add -l(whatever comes after //foxtalk-link)
-            let link = source.split("\n").filter(|&c| {
-                c.trim().starts_with("//foxtalk-link") 
-            }).map(|c| {
-                c.replace("//foxtalk-link", "").trim().to_string()
-            }).collect::<Vec<String>>();
 
+            let config_regex = Regex::new(r"(//|/\*) *pkg-config:? +(.*?)(\*/)?$").unwrap();
 
-            fn pkg_config_args(arg: &str, l: &str) -> Vec<String> {
+            let packages: Vec<&str> =
+                source.split("\n")
+                    .filter_map(|line| {
+                        let out: Option<Vec<&str>> = config_regex.captures(line)
+                            .and_then(|c| c.get(2)
+                                .map(|m| m.as_str().split(" ")
+                                    .filter(|m| !m.is_empty())
+                                    .collect()));
+                        out
+                    })
+                    .flatten()
+                    .collect();
+
+            debug!("Found {:?} in {:?}", packages, full_path);
+
+            fn pkg_config_args(arg: &str, package_names: &[&str]) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
-                    .args([arg, l].iter())
+                    .args([arg].iter().chain(package_names))
                     .output() {
                     if pkg_libs_cmd.status.success() {
                         let pkg_libs = String::from_utf8(pkg_libs_cmd.stdout).unwrap_or("".to_string());
@@ -63,10 +73,13 @@ impl FileWatcherHandlers for CppFileBuilder {
                 }
             }
 
-            let linking_args = link.iter().flat_map(|l| {
-                vec![pkg_config_args("--libs", l), pkg_config_args("--cflags", l)].concat()
-            }).collect::<Vec<String>>();
-
+            let linking_args: Vec<String> =
+                if packages.len() > 0 {
+                    [pkg_config_args("--libs", &packages), pkg_config_args("--cflags", &packages)]
+                        .concat()
+                } else {
+                    Vec::new()
+                };
 
             debug!("Compiling {:?} to {:?}", full_path, output_so_file);
             let rest_of_args: Vec<String> = vec![

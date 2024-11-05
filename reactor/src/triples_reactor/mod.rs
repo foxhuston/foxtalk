@@ -5,6 +5,8 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use rustc_hash::FxHashSet;
 use crate::reactor::reactor_program::Program;
 
+use log::{error, warn, info, debug, trace};
+
 pub mod ffi;
 pub mod triple_query_engine;
 
@@ -20,7 +22,7 @@ impl GeneratesProgram<Tuple> for Tuple {
                 }
             
                 Err(e) => {
-                    eprintln!("Error loading handler: {:?}", e);
+                    error!("Error loading handler: {:?}", e);
                     None
                 }
             }
@@ -64,6 +66,6 @@ pub mod tests {
         reactor.tick();
         reactor.tick();
         assert_eq!(reactor.ref_counts.get(&expected_tuple), None);
-        println!("Test end (Should have seen \"Dropping DynamicHandler\" before this...)");
+        trace!("Test end (Should have seen \"Dropping DynamicHandler\" before this...)");
     }
 }

@@ -10,6 +10,7 @@ use std::{fs, thread};
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
 use log::{error, warn, info, debug, trace, LevelFilter};
+use regex::Regex;
 
 mod commands_json_creator;
 mod cpp_handler_builder;
@@ -18,7 +19,7 @@ mod recursive_inotify;
 mod reactor_debug_tuple_writer;
 
 fn main() {
-    colog::default_builder().filter_level(LevelFilter::Info).init();
+    colog::default_builder().filter_level(LevelFilter::Trace).init();
     dotenv::dotenv().ok();
 
     let so_path_from_env = std::env::var("SO_PATH");
@@ -81,21 +82,23 @@ fn main() {
 
     loop {
         cnt += 1;
-        let mut reactor_guard = reactor.lock().unwrap();
-        reactor_guard.tick();
-        let new_time = Instant::now();
-        if new_time.duration_since(current_time).as_secs() >= 1 {
-            tps.push(cnt);
-            cnt = 0;
-            current_time = new_time;
+        {
+            let mut reactor_guard = reactor.lock().unwrap();
+            reactor_guard.tick();
+            let new_time = Instant::now();
+            if new_time.duration_since(current_time).as_secs() >= 1 {
+                tps.push(cnt);
+                cnt = 0;
+                current_time = new_time;
+            }
+            if tps.len() >= 1 {
+                let ticks = tps.iter().sum::<u64>();
+                let ticks_per_sec = ticks / tps.len() as u64;
+                tuple_writer.update_reactor_tuples(&mut reactor_guard);
+                tuple_writer.update_tps(&mut reactor_guard, ticks_per_sec);
+                tps.clear();
+            }
         }
-        if tps.len() >= 1 {
-            let ticks = tps.iter().sum::<u64>();
-            let ticks_per_sec = ticks / tps.len() as u64;
-            tuple_writer.update_reactor_tuples(&mut reactor_guard);
-            tuple_writer.update_tps(&mut reactor_guard, ticks_per_sec);
-            tps.clear();
-        }
-        thread::sleep(std::time::Duration::from_millis(4));
+        thread::sleep(std::time::Duration::from_micros(16666));
     }
 }

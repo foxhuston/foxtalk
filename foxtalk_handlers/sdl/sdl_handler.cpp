@@ -1,125 +1,77 @@
-// pkg-config sdl3
+// pkg-config: sdl3
 #include <SDL3/SDL.h>
 
+#include <SDL3/SDL_init.h>
+#include <cstdint>
 #include <iostream>
-#include <thread>
-#include <atomic>
-#include <string>
 
 #include <foxtalk_handler.hpp>
 
-class SdlHandler : public Handler
-{
-  // std::atomic<bool> running(true);
-  // std::string displayText = "Hello, World!";
+class SdlHandler : public Handler {
+private:
+  SDL_Window *gWindow{nullptr};
 
-  // int main(int argc, char* argv[]) {
-      // Initialize SDL
+  // The surface contained by the window
+  SDL_Surface *gScreenSurface{nullptr};
 
+  // The image we will load and show on the screen
+  SDL_Surface *gHelloWorld{nullptr};
 
-      // Load font
-      // TTF_Font* font = TTF_OpenFont("path/to/font.ttf", 24);
-      // if (!font) {
-      //     std::cerr << "Failed to load font! TTF_Error: " << TTF_GetError() << std::endl;
-      //     return 1;
-      // }
-
-      // Start the text update thread
-      // std::thread updater(updateText);
-
-  //     // Main loop
-  //     SDL_Event e;
-  //     while (running) {
-  //         while (SDL_PollEvent(&e) != 0) {
-  //             if (e.type == SDL_QUIT) {
-  //                 running = false;
-  //             }
-  //         }
-
-  //         // Clear screen
-  //         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-  //         SDL_RenderClear(renderer);
-
-  //         // Render text
-  //         SDL_Color textColor = {0, 0, 0, 255};
-  //         SDL_Surface* textSurface = TTF_RenderText_Solid(font, displayText.c_str(), textColor);
-  //         SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-  //         SDL_Rect renderQuad = { 50, 50, textSurface->w, textSurface->h };
-  //         SDL_RenderCopy(renderer, textTexture, NULL, &renderQuad);
-
-  //         // Update screen
-  //         SDL_RenderPresent(renderer);
-
-  //         // Clean up
-  //         SDL_FreeSurface(textSurface);
-  //         SDL_DestroyTexture(textTexture);
-  //     }
-
-  //     // Clean up
-  //     running = false;
-  //     updater.join();
-  //     // TTF_CloseFont(font);
-  //     SDL_DestroyRenderer(renderer);
-  //     SDL_DestroyWindow(window);
-  //     // TTF_Quit();
-  //     SDL_Quit();
-
-  //     return 0;
-  // }
-protected:
-
-  SDL_Window* window;
-  SDL_Renderer* renderer;
+public:
+  SDL_Window *window;
+  SDL_Renderer *renderer;
 
   pthread_mutex_t mutex;
 
   void handle(const std::vector<Tuple> &queryResults) override {
+    if(queryResults.size() == 0) { return; }
+    assert(queryResults.size() == 1);
 
+    uint64_t clock_count = queryResults[0].at<uint64_t>(2).value();
+    auto red = (clock_count) % 256;
+
+    SDL_SetRenderDrawColor(renderer, red, 0, 127, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
   }
 
-  // void* render_thread(void* arg) {
-
-  //   if (!SDL_Init(SDL_INIT_VIDEO)) {
-  //     std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
-  //   }
-
-  //   window = SDL_CreateWindow("SDL3 Hello World", 640, 480, SDL_WINDOW_OPENGL);
-  //   if (!window) {
-  //     std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-  //   }
-
-  //   renderer = SDL_CreateRenderer(window, NULL);
-  //   if (!renderer) {
-  //     std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-  //   }
-
-  //   while (1) {
-  //       // Lock mutex to safely update shared resources
-  //       pthread_mutex_lock(&mutex);
-
-
-  //       pthread_mutex_unlock(&mutex);
-  //       SDL_Delay(16); // Simulate frame delay
-  //   }
-  //   return NULL;
-  // }
-
   void init() override {
-
-    // sdlThread = std::thread(sdlWindowThread);
-    // display_text = "Hello world";
-    // is_updating.store(false);
-
-
-    // pthread_t thread;
-    // pthread_mutex_init(&mutex, NULL);
-
-    // // Start rendering thread
-    // pthread_create(&thread, NULL, render_thread, NULL);
-
     std::cout << "Hello from SDL Handler!" << std::endl;
 
-    claim({{{"foxtalk reactor"}, {"sees tuples"}, TupleNoun::query()}});
+    if (SDL_Init(SDL_INIT_VIDEO)) {
+      window =
+          SDL_CreateWindow("Foxtalk Debug??", 352, 430, SDL_WINDOW_RESIZABLE);
+      if (window) {
+        renderer = SDL_CreateRenderer(window, NULL);
+        if (renderer) {
+          SDL_ShowWindow(window);
+          {
+            int width, height, bbwidth, bbheight;
+            SDL_GetWindowSize(window, &width, &height);
+            SDL_GetWindowSizeInPixels(window, &bbwidth, &bbheight);
+            SDL_Log("Window size: %ix%i", width, height);
+            SDL_Log("Backbuffer size: %ix%i", bbwidth, bbheight);
+            if (width != bbwidth) {
+              SDL_Log("This is a highdpi environment.");
+            }
+          }
+
+          // claim({{{"foxtalk reactor"}, {"sees tuples"}, TupleNoun::query()}});
+          claim({{{"clock"}, {"is at"}, TupleNoun::query()}});
+        } else {
+          std::cerr << "Couldn't initialize renderer!" << std::endl;
+        }
+      } else {
+        std::cerr << "Couldn't initialize window!" << std::endl;
+      }
+    } else {
+      std::cerr << "Couldn't initialize SDL(SDL_INIT_VIDEO)!" << std::endl;
+    }
+  }
+
+  ~SdlHandler() {
+    std::cout << "SdlHandler destructor called..." << std::endl;
+    SDL_Quit();
   }
 };
 
