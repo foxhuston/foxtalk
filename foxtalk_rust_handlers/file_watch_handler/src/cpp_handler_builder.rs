@@ -4,6 +4,8 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::process::Command;
 
+use log::{error, warn, info, debug, trace};
+
 pub struct CppFileBuilder {
     pub base_cpp_path: String,
     pub so_path: String,
@@ -36,15 +38,15 @@ impl FileWatcherHandlers for CppFileBuilder {
             
             let source = fs::read_to_string(full_path.clone()).unwrap();
             
-            // if source starts with //foxtalk-link, then we need to add -l(whatever comes after //foxtalk-link)
+            // if source starts with //foxtalk-link, then we need to add -l(whatever comes after // pkg-config)
             let link = source.split("\n").filter(|&c| {
-                c.trim().starts_with("//foxtalk-link") 
+                c.trim().starts_with("// pkg-config")
             }).map(|c| {
-                c.replace("//foxtalk-link", "").trim().to_string()
+                c.replace("// pkg-config", "").trim().to_string()
             }).collect::<Vec<String>>();
             
             
-            println!("Compiling {:?} to {:?}", full_path, output_so_file);
+            info!("Compiling {:?} to {:?}", full_path, output_so_file);
 
             fn pkg_config_args(arg: &str, l: &str) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
@@ -54,11 +56,11 @@ impl FileWatcherHandlers for CppFileBuilder {
                         let pkg_libs = String::from_utf8(pkg_libs_cmd.stdout).unwrap();
                         pkg_libs.split_whitespace().collect()
                     } else {
-                        eprintln!("Failed to execute pkg-config {}", arg);
+                        error!("Failed to execute pkg-config {}", arg);
                         Vec::new()
                     }
                 } else {
-                    eprintln!("Failed to execute pkg-config {}", arg);
+                    error!("Failed to execute pkg-config {}", arg);
                     Vec::new()
                 }
             }
@@ -85,9 +87,9 @@ impl FileWatcherHandlers for CppFileBuilder {
                 .status();
 
             if status.is_err() {
-                eprintln!("Error while compiling {:?}: {:?}", full_path, status);
+                error!("Error while compiling {:?}: {:?}", full_path, status);
             } else {
-                println!("Compiled {:?} to {:?}", full_path, output_so_file);
+                info!("Compiled {:?} to {:?}", full_path, output_so_file);
             }
             // commands_json_creator::regenerate_compiler_commands();
         }
@@ -100,10 +102,10 @@ impl FileWatcherHandlers for CppFileBuilder {
             // println!("Removing {:?} and {:?}", output_so_file, output_json_file);
 
             if let Err(err) = fs::remove_file(output_so_file.clone()) {
-                eprintln!("Error while removing {:?}: {:?}", output_so_file, err);
+                error!("Error while removing {:?}: {:?}", output_so_file, err);
             }
             if let Err(err) = fs::remove_file(output_json_file.clone()) {
-                eprintln!("Error while removing {:?}: {:?}", output_json_file, err);
+                error!("Error while removing {:?}: {:?}", output_json_file, err);
             }
         }
     }

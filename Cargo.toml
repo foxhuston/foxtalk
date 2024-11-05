@@ -1,0 +1,11 @@
+[workspace]
+
+resolver = "2"
+
+members = [
+    "reactor",
+    "foxtalk_rust_binary",
+    "rust_tuple_reactor_serde",
+    "foxtalk_rust_handlers/file_watch_handler",
+    "foxtalk_rust_handlers/ref_count_gui",
+]

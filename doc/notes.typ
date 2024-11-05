@@ -248,9 +248,11 @@ Things we can take advantage of:
 
 The Query Engine provides several (abstract) operations: $
   insert_(q):& QueryEngine -> q times program -> QueryEngine \
-  remove_(q):& QueryEngine -> program -> QueryEngine \
+  remove_(q):& QueryEngine -> q times program -> QueryEngine \
   query_(q): & QueryEngine -> o -> {program}
 $
+
+#fox[Should query be a $Q -> O -> {p}$?]
 
 == Reactor
 
@@ -296,7 +298,7 @@ Addition simply increments the refcount in $sdb$ and, for each handler that matc
     + *return* $<<P', Q', R'>>$
 ]
 
-/*
+
 Next, we write the removal function on a specific aggregator:
 
 #pseudocode-list(booktabs: true, title: [$remove_(a): sdb -> object -> sdb$])[
@@ -328,6 +330,7 @@ Next, we have to write the tick function, that actually processes everything tha
     + #line-label(<tick-return>) *return* $sdb'$
 ]
 
+/*
 
 == Query Engine
 

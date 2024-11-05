@@ -9,6 +9,8 @@ use std::time::Instant;
 use std::{fs, thread};
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
+use log::{error, warn, info, debug, trace, LevelFilter};
+
 mod commands_json_creator;
 mod cpp_handler_builder;
 mod reactor_adding_so_handler;
@@ -16,6 +18,7 @@ mod recursive_inotify;
 mod reactor_debug_tuple_writer;
 
 fn main() {
+    colog::default_builder().filter_level(LevelFilter::Info).init();
     dotenv::dotenv().ok();
 
     let so_path_from_env = std::env::var("SO_PATH");
@@ -23,7 +26,7 @@ fn main() {
     let handler_path_from_env = std::env::var("HANDLER_INCLUDE_PATH");
 
     if so_path_from_env.is_err() || cpp_path_from_env.is_err() {
-        eprintln!("Error: SO_PATH and CPP_PATH and HANDLER_INCLUDE_PATH environment variable must be set.");
+        error!("Error: SO_PATH and CPP_PATH and HANDLER_INCLUDE_PATH environment variable must be set.");
         std::process::exit(1);
     }
 
@@ -73,7 +76,7 @@ fn main() {
     let mut current_time = Instant::now();
     let mut tps = Vec::new();
 
-    println!("Starting reactor...");
+    info!("Starting reactor...");
     let mut tuple_writer = ReactorDebugTupleWriter::new();
 
     loop {
@@ -86,7 +89,7 @@ fn main() {
             cnt = 0;
             current_time = new_time;
         }
-        if tps.len() >= 5 {
+        if tps.len() >= 1 {
             let ticks = tps.iter().sum::<u64>();
             let ticks_per_sec = ticks / tps.len() as u64;
             tuple_writer.update_reactor_tuples(&mut reactor_guard);

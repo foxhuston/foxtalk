@@ -7,6 +7,8 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use walkdir::WalkDir;
 
+use log::{error, warn, info, debug, trace};
+
 pub struct ReactorAddingSoHandler {
     reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
 }
@@ -18,27 +20,27 @@ impl Debug for ReactorAddingSoHandler {
 }
 impl FileWatcherHandlers for ReactorAddingSoHandler {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
-        println!("on_create {:?}", full_path);
+        trace!("on_create {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
-                println!("Adding handler {:?}", tuple);
+                debug!("Adding handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
                 reactor.insert(tuple.clone());
-                println!("Added handler {:?}", tuple);
+                info!("Added handler {:?}", tuple);
                 // println!("{:?}", reactor.ref_counts);
             }
         }
     }
 
     fn on_delete(&self, full_path: String, _: String, extension: String) -> () {
-        println!("on_delete {:?}", full_path);
+        trace!("on_delete {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
-                println!("Removing handler {:?}", tuple);
+                debug!("Removing handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
-                println!("Removed handler {:?}", tuple);
+                info!("Removed handler {:?}", tuple);
                 // println!("{:?}", reactor.ref_counts);
             }
         }
@@ -57,18 +59,30 @@ impl ReactorAddingSoHandler {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            // println!("{}", entry.path().display());
+            debug!("AddingSoHandler Scanning: {}", entry.path().display());
 
             if entry.file_name().to_str().unwrap().ends_with(".so") {
                 if let Some(tuple) =
                     Self::make_handler_tuple(Some(entry.path().to_str().unwrap().to_string()))
                 {
+                    info!("AddingSoHandler Found: {}", entry.path().display());
+
                     r.remove(tuple.clone());
                     r.insert(tuple.clone());
                 }
             }
         }
-        ReactorAddingSoHandler { reactor }
+
+        let handler = ReactorAddingSoHandler { reactor };
+        // for entry in WalkDir::new(base_path.clone())
+        //     .into_iter()
+        //     .filter_map(|e| e.ok())
+        // {
+        //     handler.on_create(entry.path().to_string_lossy().to_string(), "".to_string(), "so".to_string());
+        // }
+
+
+        handler
     }
     fn make_handler_tuple(absolute_path: Option<String>) -> Option<Tuple> {
         absolute_path
