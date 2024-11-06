@@ -29,14 +29,23 @@ protected:
     createInfo.enabledExtensionCount = 0;
     createInfo.enabledLayerCount = 0;
 
-    VkDevice logical_device {};
+    VkDevice logical_device;
 
     auto device =  static_cast<VkPhysicalDevice>(result.at<void *>(0).value());
 
+    
 
     if (vkCreateDevice(device, &createInfo, nullptr, &logical_device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
     }
+
+    VkQueue graphicsQueue;
+    vkGetDeviceQueue(logical_device, chosen_queue_family.value(), 0, &graphicsQueue);
+
+     
+    claim({{
+      {logical_device}, {"is the"}, {"vulkan logical device"}, {"with graphics queue"}, {graphicsQueue}
+    }});
   }
 
   void init() override {

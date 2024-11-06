@@ -9,8 +9,7 @@ use std::time::Instant;
 use std::{fs, thread};
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
-use log::{error, warn, info, debug, trace, LevelFilter};
-use regex::Regex;
+use log::*;
 
 mod commands_json_creator;
 mod cpp_handler_builder;

@@ -7,7 +7,7 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use walkdir::WalkDir;
 
-use log::{error, warn, info, debug, trace};
+use log::*;
 
 pub struct ReactorAddingSoHandler {
     reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
