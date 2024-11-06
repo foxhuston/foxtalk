@@ -5,7 +5,7 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use rustc_hash::FxHashSet;
 use crate::reactor::reactor_program::Program;
 
-use log::{error, warn, info, debug, trace};
+use log::*;
 
 pub mod ffi;
 pub mod triple_query_engine;

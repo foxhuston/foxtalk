@@ -17,7 +17,7 @@ impl ReactorDebugTupleWriter {
         }
     }
 
-    pub fn update_tps(&mut self,reactor_guard: &mut MutexGuard<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>, tps: u64)  {
+    pub fn update_tps(&mut self,reactor_guard: &mut MutexGuard<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>, tps: u64)  {
         if let Some(t) =  &self.last_tps_tuple  {
             reactor_guard.remove(t.clone());
         }
@@ -29,13 +29,13 @@ impl ReactorDebugTupleWriter {
         reactor_guard.insert(tuple.clone());
         self.last_tps_tuple = Some(tuple);
     }
-    pub fn update_reactor_tuples(&mut self, reactor_guard: &mut MutexGuard<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>) {
+    pub fn update_reactor_tuples(&mut self, reactor_guard: &mut MutexGuard<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>) {
         let string_repr = reactor_guard
             .ref_counts
             .iter()
             .filter(|(Tuple(nouns), _)| {
-                let is_sees_tuples_tuple = nouns.len() >= 2 && 
-                    nouns[0] == TupleNoun::Symbol("foxtalk reactor".to_string()) && 
+                let is_sees_tuples_tuple = nouns.len() >= 2 &&
+                    nouns[0] == TupleNoun::Symbol("foxtalk reactor".to_string()) &&
                     nouns[1] == TupleNoun::Symbol("sees tuples".to_string());
                 !is_sees_tuples_tuple
             })

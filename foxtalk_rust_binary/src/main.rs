@@ -9,8 +9,7 @@ use std::time::Instant;
 use std::{fs, thread};
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
-use log::{error, warn, info, debug, trace, LevelFilter};
-use regex::Regex;
+use log::*;
 
 mod commands_json_creator;
 mod cpp_handler_builder;
@@ -44,7 +43,7 @@ fn main() {
     }
 
     let query_engine = TripleQueryEngine::new();
-    let reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
+    let reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
         Arc::new(Mutex::new(Reactor::new(query_engine)));
     let so_handler = ReactorAddingSoHandler::new(reactor.clone(), so_path.clone());
     let cpp_handler = cpp_handler_builder::CppFileBuilder {

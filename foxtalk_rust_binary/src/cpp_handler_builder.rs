@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::process::Command;
 
-use log::{error, warn, info, debug, trace};
+use log::*;
 use regex::Regex;
 
 pub struct CppFileBuilder {
