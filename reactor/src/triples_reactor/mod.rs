@@ -8,6 +8,9 @@ use crate::reactor::reactor_program::Program;
 use log::{error, warn, info, debug, trace};
 
 pub mod ffi;
+
+// pub mod query;
+
 pub mod triple_query_engine;
 
 impl ReactorData for Tuple {}
@@ -40,7 +43,7 @@ pub mod tests {
     use crate::reactor::utils::test::linked_lib_path;
     use crate::triples_reactor::triple_query_engine::TripleQueryEngine;
     use crate::triples_reactor::Tuple;
-    
+
     use log::{error, warn, info, debug, trace};
 
     #[test]

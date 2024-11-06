@@ -141,6 +141,18 @@ struct TupleNoun
         return std::nullopt;
     }
 
+    template<typename T>
+    std::optional<T> get() const {
+        if (std::holds_alternative<T>(data))
+        {
+            return {std::get<T>(data)};
+        }
+        else
+        {
+            return std::nullopt;
+        }
+    }
+
     TupleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data)
     {
         //        std::cout << std::boolalpha
@@ -370,22 +382,9 @@ public:
     template <typename T>
     std::optional<const T> at(size_t i) const
     {
-        if (nouns_.size() < i)
-            return std::nullopt;
+        if (nouns_.size() < i) { return std::nullopt; }
 
-        if (std::holds_alternative<T>(nouns_[i].data))
-        {
-            return {std::get<T>(nouns_[i].data)};
-        }
-        else
-        {
-            // This isn't really a warning... we use at<T>
-            // std::cout << "WARNING: noun at " << i << " was not a " << typeid(T).name()
-            //           << " (It had the foxtalk type id " << (size_t)nouns_[i].type << ")"
-            //           << std::endl;
-
-            return std::nullopt;
-        }
+        return nouns_[i].get<T>();
     }
 
     template<typename T>

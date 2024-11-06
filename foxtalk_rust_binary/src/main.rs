@@ -44,7 +44,7 @@ fn main() {
     }
 
     let query_engine = TripleQueryEngine::new();
-    let reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
+    let reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
         Arc::new(Mutex::new(Reactor::new(query_engine)));
     let so_handler = ReactorAddingSoHandler::new(reactor.clone(), so_path.clone());
     let cpp_handler = cpp_handler_builder::CppFileBuilder {
@@ -99,6 +99,7 @@ fn main() {
                 tps.clear();
             }
         }
-        thread::sleep(std::time::Duration::from_micros(16666));
+        // thread::sleep(std::time::Duration::from_micros(16666));
+        thread::sleep(std::time::Duration::from_micros(100));
     }
 }

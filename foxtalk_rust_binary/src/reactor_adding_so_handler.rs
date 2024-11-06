@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 use log::{error, warn, info, debug, trace};
 
 pub struct ReactorAddingSoHandler {
-    reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
+    reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
 }
 
 impl Debug for ReactorAddingSoHandler {
@@ -49,7 +49,7 @@ impl FileWatcherHandlers for ReactorAddingSoHandler {
 
 impl ReactorAddingSoHandler {
     pub fn new(
-        reactor: Arc<Mutex<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
+        reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
         base_path: String,
     ) -> Self {
         let re = reactor.clone();

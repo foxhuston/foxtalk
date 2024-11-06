@@ -17,7 +17,7 @@ impl ReactorDebugTupleWriter {
         }
     }
 
-    pub fn update_tps(&mut self,reactor_guard: &mut MutexGuard<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>, tps: u64)  {
+    pub fn update_tps(&mut self,reactor_guard: &mut MutexGuard<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>, tps: u64)  {
         if let Some(t) =  &self.last_tps_tuple  {
             reactor_guard.remove(t.clone());
         }
@@ -29,8 +29,8 @@ impl ReactorDebugTupleWriter {
         reactor_guard.insert(tuple.clone());
         self.last_tps_tuple = Some(tuple);
     }
-    pub fn update_reactor_tuples(&mut self, reactor_guard: &mut MutexGuard<Reactor<Tuple, TripleQueryEngine<ReactorProgramId>, Tuple>>) {
-        let string_repr = reactor_guard
+    pub fn update_reactor_tuples(&mut self, reactor_guard: &mut MutexGuard<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>) {
+        let mut strings: Vec<String> = reactor_guard
             .ref_counts
             .iter()
             .filter(|(Tuple(nouns), _)| {
@@ -39,9 +39,11 @@ impl ReactorDebugTupleWriter {
                     nouns[1] == TupleNoun::Symbol("sees tuples".to_string());
                 !is_sees_tuples_tuple
             })
-            .fold(String::new(), |acc, (k, v)| {
-                acc + &format!("{:?} [{:?}]\n", k, v)
-            });
+            .map(|(k, v)| format!("{:?} [{:?}]", k, v))
+            .collect();
+        
+        strings.sort();
+        let string_repr = strings.join("\n");
 
         let new_tuple_sees = Tuple::triple_from_sss(
             "foxtalk reactor",
