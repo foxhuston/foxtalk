@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 use byteorder::{ByteOrder, NativeEndian};
 use crate::{read_foxtalk_size, FoxTalkDeserializable, FoxTalkSerializable, FoxtalkSize, ReturnPosition};
 
@@ -12,7 +13,7 @@ const DOUBLE_TYPE: u8 = 7;
 const BYTES_TYPE: u8 = 5;
 
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum TupleNoun {
     Query,          // 0
     Symbol(String), // 1
@@ -21,7 +22,39 @@ pub enum TupleNoun {
     I64(i64),       // 4
     Bytes(Vec<u8>), // 5
     Prefix,         // 6
-    // Double(f64),    // 7
+    Double(f64),    // 7
+}
+
+impl Eq for TupleNoun {}
+impl Hash for TupleNoun{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            TupleNoun::Query => {
+                true.hash(state);
+            }
+            TupleNoun::Symbol(s) => {
+                s.hash(state);
+            }
+            TupleNoun::CPtr(s) => {
+                s.hash(state);
+            }
+            TupleNoun::U64(s) => {
+                s.hash(state);
+            }
+            TupleNoun::I64(s) => {
+                s.hash(state);
+            }
+            TupleNoun::Bytes(s) => {
+                s.hash(state);
+            }
+            TupleNoun::Prefix => {
+                false.hash(state);
+            }
+            TupleNoun::Double(s) => {
+                s.to_bits().hash(state);
+            }
+        }
+    }
 }
 
 impl TupleNoun {
@@ -52,9 +85,9 @@ impl Debug for TupleNoun {
             TupleNoun::U64(u) => {
                 write!(f, "U64({})", u)
             }
-            // TupleNoun::Double(d) => {
-            //     write!(f, "Double({})", d)
-            // }
+            TupleNoun::Double(d) => {
+                write!(f, "Double({})", d)
+            }
             TupleNoun::I64(i) => {
                 write!(f, "I64({})", i)
             }
@@ -85,9 +118,9 @@ fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: u
         TupleNoun::I64(_) => {
             write_to[start_position] = I64_TYPE;
         },
-        // TupleNoun::Double(_) => {
-        //     write_to[start_position] = DOUBLE_TYPE;
-        // },
+        TupleNoun::Double(_) => {
+            write_to[start_position] = DOUBLE_TYPE;
+        },
         TupleNoun::Bytes(_) => {
             write_to[start_position] = BYTES_TYPE;
         },
@@ -157,13 +190,13 @@ impl FoxTalkSerializable for TupleNoun {
                 write_to[current_position.pos..e].copy_from_slice(&i64_bytes);
                 ReturnPosition { pos: e }
             }
-            // TupleNoun::Double(value) => {
-            //     let current_position = write_type_to_buffer(self, write_to, start_position);
-            //     let u64_bytes: [u8; size_of::<u64>()] = value.to_ne_bytes();
-            //     let e = (current_position.pos) + size_of::<u64>();
-            //     write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
-            //     ReturnPosition { pos: e }
-            // }
+            TupleNoun::Double(value) => {
+                let current_position = write_type_to_buffer(self, write_to, start_position);
+                let u64_bytes: [u8; size_of::<u64>()] = value.to_ne_bytes();
+                let e = (current_position.pos) + size_of::<u64>();
+                write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
+                ReturnPosition { pos: e }
+            }
         }
     }
 }
