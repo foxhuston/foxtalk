@@ -8,10 +8,11 @@ const SYMBOL_TYPE: u8 = 1;
 const CPTR_TYPE: u8 = 2;
 const U64_TYPE: u8 = 3;
 const I64_TYPE: u8 = 4;
+const DOUBLE_TYPE: u8 = 7;
 const BYTES_TYPE: u8 = 5;
 
 
-#[derive(PartialEq, Clone, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum TupleNoun {
     Query,          // 0
     Symbol(String), // 1
@@ -20,6 +21,7 @@ pub enum TupleNoun {
     I64(i64),       // 4
     Bytes(Vec<u8>), // 5
     Prefix,         // 6
+    // Double(f64),    // 7
 }
 
 impl TupleNoun {
@@ -50,6 +52,9 @@ impl Debug for TupleNoun {
             TupleNoun::U64(u) => {
                 write!(f, "U64({})", u)
             }
+            // TupleNoun::Double(d) => {
+            //     write!(f, "Double({})", d)
+            // }
             TupleNoun::I64(i) => {
                 write!(f, "I64({})", i)
             }
@@ -80,6 +85,9 @@ fn write_type_to_buffer(noun: &TupleNoun, write_to: &mut [u8], start_position: u
         TupleNoun::I64(_) => {
             write_to[start_position] = I64_TYPE;
         },
+        // TupleNoun::Double(_) => {
+        //     write_to[start_position] = DOUBLE_TYPE;
+        // },
         TupleNoun::Bytes(_) => {
             write_to[start_position] = BYTES_TYPE;
         },
@@ -149,6 +157,13 @@ impl FoxTalkSerializable for TupleNoun {
                 write_to[current_position.pos..e].copy_from_slice(&i64_bytes);
                 ReturnPosition { pos: e }
             }
+            // TupleNoun::Double(value) => {
+            //     let current_position = write_type_to_buffer(self, write_to, start_position);
+            //     let u64_bytes: [u8; size_of::<u64>()] = value.to_ne_bytes();
+            //     let e = (current_position.pos) + size_of::<u64>();
+            //     write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
+            //     ReturnPosition { pos: e }
+            // }
         }
     }
 }
@@ -159,31 +174,35 @@ impl FoxTalkDeserializable for TupleNoun {
         let current_position = ReturnPosition { pos: start_position + size_of::<u8>() };
 
         match type_input {
-            0 => {
+            &QUERY_TYPE => {
                 (TupleNoun::Query, current_position)
             }
-            1 => {
+            &SYMBOL_TYPE => {
                 let (symbol_length, current_position) = read_foxtalk_size(read_from, current_position.pos);
                 let symbol_bytes = &read_from[current_position.pos..(current_position.pos + symbol_length as usize)];
                 let symbol = String::from_utf8(symbol_bytes.to_vec()).unwrap();
                 (TupleNoun::Symbol(symbol), ReturnPosition { pos: current_position.pos + symbol_length as usize })
             }
-            2 => {
+            &CPTR_TYPE => {
                 let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<u64>())];
                 (TupleNoun::CPtr(NativeEndian::read_u64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<u64>() })
             }
-            3 => {
+            &U64_TYPE => {
                 let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<u64>())];
                 (TupleNoun::U64(NativeEndian::read_u64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<u64>() })
             }
-            4 => {
+            &I64_TYPE => {
                 let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<i64>())];
                 (TupleNoun::I64(NativeEndian::read_i64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<i64>() })
             }
-            6 => {
+            // &DOUBLE_TYPE => {
+            //     let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<f64>())];
+            //     (TupleNoun::Double(NativeEndian::read_f64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<f64>() })
+            // }
+            &PREFIX_TYPE => {
                 (TupleNoun::Prefix, current_position)
             }
-            5 => {
+            &BYTES_TYPE => {
                 let (bytes_length, current_position) = read_foxtalk_size(read_from, current_position.pos);
                 let actual_bytes = &read_from[current_position.pos..(current_position.pos + bytes_length as usize)];
                 let bytes = actual_bytes.to_vec();

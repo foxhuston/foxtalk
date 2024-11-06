@@ -20,7 +20,7 @@ public:
     clock_gettime(CLOCK_REALTIME, &t);
 
     // std::cout << "RTC HANDLE: " << t.tv_nsec << std::endl;
-    double delta = (t.tv_nsec - last_time) / ONE_NS;
+    // double delta = (t.tv_nsec - last_time) / ONE_NS;
 
     claim({{ {"clock"}, {"ns"}, {t.tv_nsec}, {"delta"}, {t.tv_nsec - last_time} }});
 
@@ -31,8 +31,6 @@ public:
     struct timespec t {};
     clock_gettime(CLOCK_REALTIME, &t);
     auto now = t.tv_nsec;
-
-    // std::cout << "RTC POLL: " << t.tv_nsec << "   " << (now - last_time) << std::endl;
 
     return (now - last_time) > tick_rate_ns;
   }

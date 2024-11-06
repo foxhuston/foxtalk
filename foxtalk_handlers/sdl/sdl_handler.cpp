@@ -41,7 +41,6 @@ public:
     auto width = t.at<uint64_t>(8).value();
     auto height = t.at<uint64_t>(10).value();
 
-
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
