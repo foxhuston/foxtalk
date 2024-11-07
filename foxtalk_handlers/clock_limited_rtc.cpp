@@ -8,31 +8,35 @@
 
 class ClockHandler : public Handler {
 private:
-  uint64_t last_time = 0;
+  double last_time = 0;
 
   // 1/60s
-  static constexpr uint64_t tick_rate_ns = 1.667e7;
+  static constexpr double tick_rate_ns = 1.0/60;
   static constexpr double ONE_NS = 1e9;
+
+  double get_time_as_double() {
+    struct timespec t {};
+    clock_gettime(CLOCK_REALTIME, &t);
+    return (double)t.tv_sec + ((double)t.tv_nsec / 1E7);  
+  }
 
 public:
   void handle(const std::vector<Tuple> &queryResults) override {
-    struct timespec t {};
-    clock_gettime(CLOCK_REALTIME, &t);
+    
+    auto now = get_time_as_double();
+    double delta = (now - last_time);
 
-    // std::cout << "RTC HANDLE: " << t.tv_nsec << std::endl;
-    // double delta = (t.tv_nsec - last_time) / ONE_NS;
+    // std::cout << "RTC HANDLE: " << delta << std::endl;
 
-    claim({{ {"clock"}, {"ns"}, {t.tv_nsec}, {"delta"}, {t.tv_nsec - last_time} }});
+    claim({{ {"clock"}, {"epoch time"}, {now}, {"delta"}, {delta} }});
 
-    last_time = t.tv_nsec;
+    last_time = now; 
   }
 
   bool poll() override {
-    struct timespec t {};
-    clock_gettime(CLOCK_REALTIME, &t);
-    auto now = t.tv_nsec;
+    auto now = get_time_as_double();
 
-    return (now - last_time) > tick_rate_ns;
+    return (now - last_time) > tick_rate_ns; 
   }
 
   void init() override {
@@ -40,12 +44,9 @@ public:
   }
 
   void register_initial_tuples() override {
-    struct timespec t {};
-    clock_gettime(CLOCK_REALTIME, &t);
+    last_time = get_time_as_double();
 
-    last_time = t.tv_nsec;
-
-    claim({{ {"clock"}, {"ns"}, {t.tv_nsec}, {"delta"}, {0ul} }});
+    claim({{ {"clock"}, {"epoch time"}, {last_time}, {"delta"}, {0ul} }});
   }
 };
 

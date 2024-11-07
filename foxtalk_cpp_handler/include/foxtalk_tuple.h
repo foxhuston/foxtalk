@@ -75,15 +75,33 @@ inline std::pair<std::vector<T>, size_t> read_tuple_noun_vec_from_buffer(uint8_t
     return std::pair<std::vector<T>, size_t>(out, current_position - start_position);
 }
 
+struct query_t
+{
+    bool operator==(const query_t &other) const
+    {
+        return true;
+    }
+};
+struct prefix_t
+{
+    bool operator==(const prefix_t &other) const
+    {
+        return true;
+    }
+};
+
+
 struct TupleNoun
 {
     typedef std::variant<
-        std::monostate, // Query
+        query_t,        // Query
         std::string,    // Symbol
         void *,         // Cptr
         uint64_t,       // U64
         int64_t,        // I64
-        std::vector<uint8_t> // Bytes
+        std::vector<uint8_t>, // Bytes
+        prefix_t,       // Prefix
+        double_t        // Double
         >
         NounData;
 
@@ -109,13 +127,14 @@ struct TupleNoun
         I64 = 4,
         Bytes = 5,
         Prefix = 6,
+        Double = 7,
         MAX
     };
 
-    TupleNoun(TupleNoun::NounType t) : type(t), data(std::monostate()) {}
+    // TupleNoun(TupleNoun::NounType t) : type(t), data(std::monostate()) {}
 
-    static TupleNoun query() { return TupleNoun{NounType::Query}; }
-    static TupleNoun prefix() { return TupleNoun{NounType::Prefix}; }
+    static TupleNoun query() { return TupleNoun(query_t {}); }
+    static TupleNoun prefix() { return TupleNoun{prefix_t {}}; }
 
     // static TupleNoun prefix() { return TupleNoun{ NounType::Prefix, std::monostate() }; }
 
@@ -190,6 +209,9 @@ struct TupleNoun
         case NounType::I64:
             os << std::get<int64_t>(noun.data);
             break;
+        case NounType::Double:
+            os << std::get<double_t>(noun.data);
+            break;
         case NounType::Bytes:
             os << "Bytes[" << std::get<std::vector<uint8_t>>(noun.data).size() << "]";
             break;
@@ -216,11 +238,11 @@ struct TupleNoun
         {
         case NounType::Query:
             return {
-                TupleNoun{std::monostate()},
+                TupleNoun{query_t{}},
                 buffer_position - start_position};
         case NounType::Prefix:
             return {
-                TupleNoun{std::monostate()},
+                TupleNoun{prefix_t{}},
                 buffer_position - start_position};
         case NounType::Symbol:
         {
@@ -275,6 +297,15 @@ struct TupleNoun
                 TupleNoun{dat},
                 buffer_position - start_position};
         }
+        case NounType::Double:
+            {
+                auto [dat, read_bytes] = read_t_from_buffer<double_t>(buffer, buffer_position);
+                buffer_position += read_bytes;
+
+                return {
+                    TupleNoun{dat},
+                    buffer_position - start_position};
+            }
         default:
             throw std::runtime_error("Unknown NounType!");
         }
@@ -308,6 +339,9 @@ struct TupleNoun
             break;
         case NounType::I64:
             current_position += write_t_to_buffer(buffer, current_position, std::get<int64_t>(data));
+            break;
+        case NounType::Double:
+            current_position += write_t_to_buffer(buffer, current_position, std::get<double_t>(data));
             break;
         case NounType::Bytes:
             {

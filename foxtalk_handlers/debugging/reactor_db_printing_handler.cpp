@@ -3,7 +3,7 @@
 class ReactorDbPrintingHandler : public Handler
 {
 
-protected:
+protected: 
   void handle(const std::vector<Tuple> &queryResults) override
   {
     if (queryResults.size() >= 1)
@@ -26,4 +26,4 @@ protected:
   }
 };
 
-FOXTALK_FFI_HANDLER_REG(ReactorDbPrintingHandler);
+FOXTALK_FFI_HANDLER_REG(ReactorDbPrintingHandler); 

@@ -212,6 +212,8 @@ TEST_F(TupleTests, TupleVecRoundTrip2) {
                                       Tuple{{
                                                     TupleNoun{"lexi"s},
                                                     TupleNoun{"is a"s},
+                                                    TupleNoun{12384.485},
+                                                    TupleNoun{1238488},
                                                     TupleNoun{"husky"s}
                                             }},
 

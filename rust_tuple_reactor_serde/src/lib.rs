@@ -166,6 +166,10 @@ mod tests {
     pub fn round_trip_works_for_symbol() {
         round_trip_works_for_noun(TupleNoun::Symbol("testing".to_string()))
     }
+    #[test]
+    pub fn round_trip_works_for_double() {
+        round_trip_works_for_noun(TupleNoun::Double(1237.3472))
+    }
 
     #[test]
     pub fn round_trip_works_for_cptr() {

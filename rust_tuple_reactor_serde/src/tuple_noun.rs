@@ -192,9 +192,9 @@ impl FoxTalkSerializable for TupleNoun {
             }
             TupleNoun::Double(value) => {
                 let current_position = write_type_to_buffer(self, write_to, start_position);
-                let u64_bytes: [u8; size_of::<u64>()] = value.to_ne_bytes();
-                let e = (current_position.pos) + size_of::<u64>();
-                write_to[current_position.pos..e].copy_from_slice(&u64_bytes);
+                let f64_bytes: [u8; size_of::<f64>()] = value.to_ne_bytes();
+                let e = (current_position.pos) + size_of::<f64>();
+                write_to[current_position.pos..e].copy_from_slice(&f64_bytes);
                 ReturnPosition { pos: e }
             }
         }
@@ -228,10 +228,10 @@ impl FoxTalkDeserializable for TupleNoun {
                 let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<i64>())];
                 (TupleNoun::I64(NativeEndian::read_i64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<i64>() })
             }
-            // &DOUBLE_TYPE => {
-            //     let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<f64>())];
-            //     (TupleNoun::Double(NativeEndian::read_f64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<f64>() })
-            // }
+            &DOUBLE_TYPE => {
+                let bytes = &read_from[current_position.pos..(current_position.pos + size_of::<f64>())];
+                (TupleNoun::Double(NativeEndian::read_f64(bytes)), ReturnPosition { pos: current_position.pos + size_of::<f64>() })
+            }
             &PREFIX_TYPE => {
                 (TupleNoun::Prefix, current_position)
             }
