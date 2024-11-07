@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Token(
-  Token(..)
+  QueryToken(..)
   , unparse
   , tokens
 ) where
@@ -16,7 +16,7 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
 type Parser = Parsec Void String
 
-data Token =
+data QueryToken =
       Ident String
     | Binding String
     | BoundLit String String
@@ -27,7 +27,7 @@ data Token =
 
     deriving Show
 
-unparse :: Token -> String
+unparse :: QueryToken -> String
 unparse (Ident s)      = s
 unparse (Binding s)    = "/" ++ s ++ "/"
 unparse (BoundLit b l) = "/" ++ b ++ "/@" ++ l
@@ -36,22 +36,22 @@ unparse RParen         = ")"
 unparse Or             = "or"
 unparse And            = "and"
 
-orWord :: Parser Token
+orWord :: Parser QueryToken
 orWord = string "or" $> Or
 
-andWord :: Parser Token
+andWord :: Parser QueryToken
 andWord = string "and" $> And
 
-lParen :: Parser Token
+lParen :: Parser QueryToken
 lParen = char '(' $> LParen
 
-rParen :: Parser Token
+rParen :: Parser QueryToken
 rParen = char ')' $> RParen
 
-ident :: Parser Token
+ident :: Parser QueryToken
 ident = Ident <$> some letterChar
 
-binding :: Parser Token
+binding :: Parser QueryToken
 binding = do
     _ <- char '/'
     Ident s <- ident
@@ -63,11 +63,11 @@ binding = do
         Nothing -> return $ Binding s
         Just (Ident lit) -> return $ BoundLit s lit
 
-token :: Parser Token
+token :: Parser QueryToken
 token = choice [
         andWord, orWord, lParen, rParen,
         binding, ident
     ]
 
-tokens :: Parser [Token]
+tokens :: Parser [QueryToken]
 tokens = many (token <* skipMany spaceChar)

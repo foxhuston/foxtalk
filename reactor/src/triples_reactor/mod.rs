@@ -9,7 +9,7 @@ use log::*;
 
 pub mod ffi;
 
-// pub mod query;
+pub mod query;
 
 pub mod triple_query_engine;
 
