@@ -1,48 +1,45 @@
 use std::collections::{HashMap, HashSet};
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use crate::triples_reactor::{Tuple};
+use anyhow::Result;
 
-struct TupleQuery {}
+use combine::{many1, Parser, sep_by, choice, between, token};
+use combine::parser::char::{letter, space};
 
-impl TupleQuery {
-    pub fn new(s: &str) -> Self {
-        TupleQuery {}
-    }
-
-    /// Blah
-    ///
-    /// For example: the query `(you) has width /width/` requires the input-binding
-    /// `you -> <some noun>`, and will generate a map with `width -> <some noun>` if the
-    /// query matches. It will return `None` if it doesn't.
-    pub fn run(&self, input_bindings: HashMap<String, TupleNoun>, tuples: &HashSet<Tuple>) -> Option<HashMap<String, TupleNoun>> {
-        todo!()
-    }
-
-    // TODO: This needs to partially accumulate for conjunction, and notify the reactor if it actually
-    //       cares about something that's part of one of its subclauses.
+#[derive(Debug, PartialEq)]
+enum QueryExpr<A> {
+    EIdent(A),
+    // EI64, EU64, EDouble (eventually) etc...
+    ELookup(A),
+    EBinding(A),
+    ETuple(Vec<QueryExpr<A>>),
+    EBoundLit(A, Box<QueryExpr<A>>),
+    EOr(Box<QueryExpr<A>>, Box<QueryExpr<A>>),
+    EAnd(Box<QueryExpr<A>>, Box<QueryExpr<A>>),
 }
+
+impl QueryExpr<String> {
+    pub fn new(inp: &str) -> Result<QueryExpr<String>> {
+        let word = many1(letter());
+        let ident = word.map(|c: String| QueryExpr::EIdent(c));
+        let binding = between(token('/'), word, token('/')).map(|c: String| QueryExpr::EBinding(c));
+        
+        let mut parser = choice([ident]);
+
+        let (out, _) = parser.parse(inp)?;
+        Ok(out)
+    }
+}
+
 
 #[cfg(test)]
 pub mod test {
-    use nom::branch::alt;
-    use nom::multi::many_till;
-    use nom::bytes::complete::{tag, take_till};
-    use nom::character::complete::anychar;
-    use nom::IResult;
-    use nom::sequence::delimited;
-    use crate::triples_reactor::query::TupleQuery;
-
-    fn vlookup(input: &str) -> IResult<&str, String> {
-        let (a, (b, _)) = delimited(tag("("), many_till(tag(")"), anychar), tag(")"))(input)?;
-        
-        Ok((a, b.into()))
-    }
+    use crate::triples_reactor::query::QueryExpr;
 
     #[test]
-    pub fn learning_nom() {
-        let q = "(you) has width /width/";
-        
-        println!("{:?}", vlookup("(you)"))
+    pub fn learning_combine() {
+        let qe= QueryExpr::new("bork").unwrap();
+        assert_eq!(qe, QueryExpr::EIdent("bork".to_string()));
 
         // let vbind = delimited(tag("/"), anychar, tag("/"));
         // 
