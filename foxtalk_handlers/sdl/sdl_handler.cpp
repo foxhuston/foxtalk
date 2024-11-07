@@ -2,10 +2,12 @@
 #include "foxtalk_tuple.h"
 #include <SDL3/SDL.h>
 
+#include <SDL3/SDL_events.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_render.h>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 
 #include <foxtalk_handler.hpp>
@@ -27,6 +29,10 @@ public:
 
   pthread_mutex_t mutex;
 
+  bool poll() override {
+    return SDL_PollEvent(nullptr);
+  }
+
   void handle(const std::vector<Tuple> &queryResults) override {
     if (queryResults.size() == 0) {
       SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
@@ -34,12 +40,36 @@ public:
       SDL_RenderPresent(renderer);
       return;
     }
+
     assert(queryResults.size() == 1);
     auto t = queryResults[0];
     auto x = t.at<uint64_t>(4).value();
     auto y = t.at<uint64_t>(6).value();
     auto width = t.at<uint64_t>(8).value();
     auto height = t.at<uint64_t>(10).value();
+
+    SDL_Event event {};
+    while(SDL_PollEvent(&event)) {
+      switch (event.type) {
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+          claim({{{"mouse"}, {"button"}, {(uint64_t)event.button.button}}});
+        break;
+
+        case SDL_EVENT_QUIT:
+          exit(0);
+          break;
+
+        case SDL_EVENT_MOUSE_MOTION:
+          claim({{{"mouse"}, {"is"}, {"at"},
+            {"x"}, {(uint64_t)event.motion.x},
+            {"y"}, {(uint64_t)event.motion.y},
+          }});
+        break;
+
+        default:
+          break;
+      }
+    }
 
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
