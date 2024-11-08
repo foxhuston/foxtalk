@@ -60,16 +60,17 @@ class WebcamHandler : public Handler
   // output: <"/dev/video1", "is a", "camera">;
 
 protected:
-  void handle(const std::vector<Tuple> &queryResults) override {}
+  void handle(const std::vector<Tuple> &queryResults) override {
+    for (auto q: queryResults) {
+      auto camera = q.at<std::string>(1).value();
+      addCameraDevice(camera);
+    }
+  }
   void init() override
   {
     claim({{{"camera"}, TupleNoun::query(), {"state changed"}}});
   }
 
-  void register_initial_tuples() override
-  {
-    addCameraDevice("/dev/video1");
-  }
 };
 
 FOXTALK_FFI_HANDLER_REG(WebcamHandler);

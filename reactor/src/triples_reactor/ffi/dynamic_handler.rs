@@ -1,13 +1,11 @@
+use anyhow::{format_err, Result};
 
-use anyhow::{Result, format_err};
-
+use crate::reactor::reactor_program::Program;
 use crate::triples_reactor::Tuple;
 use libloading::os::unix::{Library, Symbol, RTLD_LOCAL, RTLD_NOW};
-use std::path::Path;
-use std::slice;
 use rust_tuple_reactor_serde::{FoxTalkDeserializable, FoxTalkOwnedSerializable, FoxTalkSerializable};
 use rustc_hash::FxHashSet;
-use crate::reactor::reactor_program::Program;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct DynamicallyLoadedProgram {

@@ -23,6 +23,26 @@ impl Debug for CppFileBuilder {
     }
 }
 
+impl CppFileBuilder {
+
+    fn find_cpp_std_in_source(source: String) -> String {
+        let cppstd_regex = Regex::new(r"(//|/\*) *cppstd:? +(.*?)(\*/)?$").unwrap();
+
+
+        let cppstd: Option<String> =
+            source.split("\n")
+                .filter_map(|line| {
+                    let out: Option<&str> = cppstd_regex.captures(line)
+                        .and_then(|c| c.get(2).map(|m| m.as_str()));
+                           
+                    out
+                }).find(|s| !s.is_empty())
+                .map(|s| s.trim().to_string());
+        
+        cppstd.unwrap_or("26".to_string())
+    }
+}
+
 impl FileWatcherHandlers for CppFileBuilder {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
         if extension == "cpp" {
@@ -41,6 +61,7 @@ impl FileWatcherHandlers for CppFileBuilder {
 
             let config_regex = Regex::new(r"(//|/\*) *pkg-config:? +(.*?)(\*/)?$").unwrap();
 
+
             let packages: Vec<&str> =
                 source.split("\n")
                     .filter_map(|line| {
@@ -56,6 +77,7 @@ impl FileWatcherHandlers for CppFileBuilder {
 
             debug!("Found {:?} in {:?}", packages, full_path);
 
+            
             fn pkg_config_args(arg: &str, package_names: &[&str]) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
                     .args([arg].iter().chain(package_names))
@@ -82,10 +104,13 @@ impl FileWatcherHandlers for CppFileBuilder {
                 };
 
             debug!("Compiling {:?} to {:?}", full_path, output_so_file);
+            
+            let cpp_standard = CppFileBuilder::find_cpp_std_in_source(source);
+            let cpp_std_str = format!("-std=c++{}", cpp_standard);
             let rest_of_args: Vec<String> = vec![
                 "-shared",
                 "-O0",
-                "-std=c++26",
+                cpp_std_str.as_str(),
                 "-I",
                 self.include_path.as_str(),
                 "-fPIC",
@@ -121,5 +146,24 @@ impl FileWatcherHandlers for CppFileBuilder {
                 error!("Error while removing {:?}: {:?}", output_json_file, err);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+
+    #[test]
+    fn it_should_get_the_cpp_standard() {
+        let source = "// pkg-config: opencv4\n// cppstd: 23\n\n#include <foxtalk_handler.hpp>\n#include <opencv2/opencv.hpp>\n#include <ostream>";
+        let cppstd = CppFileBuilder::find_cpp_std_in_source(source.to_string());
+        assert_eq!(cppstd, "23".to_string());
+    }
+    #[test]
+    fn it_should_default_to_cpp_standard_26() {
+        let source = "// pkg-config: opencv4\n\n#include <foxtalk_handler.hpp>\n#include <opencv2/opencv.hpp>\n#include <ostream>";
+        let cppstd = CppFileBuilder::find_cpp_std_in_source(source.to_string());
+        assert_eq!(cppstd, "26".to_string());
     }
 }
