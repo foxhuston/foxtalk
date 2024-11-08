@@ -11,6 +11,10 @@ import Text.Megaparsec (MonadParsec, Token, Parsec, choice, skipMany, many, some
 
 import Data.Void
 
+data QueryExpr =
+  ESymbol
+  | EVarIntro
+
 type TokenParser = Parsec Void QueryToken
 
 inner :: TokenParser TupleNoun
@@ -21,9 +25,9 @@ inner = undefined
 
 toQuery :: [QueryToken] -> [TupleNoun]
 toQuery [] = []
-toQuery ((TIdent s):xs) = Symbol s : toQuery xs
-toQuery ((TBinding _):xs) = Query : toQuery xs
-toQuery ((TBoundLit _ lit):xs) = Symbol lit : toQuery xs
+toQuery ((TSymbolLit s):xs) = Symbol s : toQuery xs
+toQuery ((TVarIntro _):xs) = Query : toQuery xs
+toQuery ((TVarIntroLit _ lit):xs) = Symbol lit : toQuery xs
 toQuery _ = undefined
 
 

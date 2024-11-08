@@ -19,9 +19,10 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 type Parser = Parsec Void String
 
 data QueryToken =
-      TIdent String
-    | TBinding String
-    | TBoundLit String String
+      TSymbolLit String
+    | TVarIntro String
+    | TVarBinding String
+    | TVarIntroLit String String
     | TLParen
     | TRParen
     | TOr
@@ -30,9 +31,10 @@ data QueryToken =
     deriving (Show, Eq)
 
 unparse :: QueryToken -> String
-unparse (TIdent s)      = s
-unparse (TBinding s)    = "/" ++ s ++ "/"
-unparse (TBoundLit b l) = "/" ++ b ++ "/@" ++ l
+unparse (TSymbolLit s)      = s
+unparse (TVarIntro s)    = "/" ++ s ++ "/"
+unparse (TVarIntroLit b l) = "/" ++ b ++ "/@" ++ l
+unparse (TVarBinding s) = "(" ++ s ++ ")"
 unparse TLParen         = "("
 unparse TRParen         = ")"
 unparse TOr             = "or"
@@ -51,24 +53,33 @@ rParen :: Parser QueryToken
 rParen = char ')' $> TRParen
 
 ident :: Parser QueryToken
-ident = TIdent <$> some letterChar
+ident = TSymbolLit <$> some letterChar
 
-binding :: Parser QueryToken
-binding = do
+varBinding :: Parser QueryToken
+varBinding = do
+  _ <- char '('
+  TSymbolLit s <- ident
+  _ <- char ')'
+
+  return $ TVarBinding s
+
+varIntro :: Parser QueryToken
+varIntro = do
     _ <- char '/'
-    TIdent s <- ident
+    TSymbolLit s <- ident
     _ <- char '/'
 
     boundLit <- optional $ char '@' *> ident
 
     case boundLit of
-        Nothing -> return $ TBinding s
-        Just (TIdent lit) -> return $ TBoundLit s lit
+        Nothing -> return $ TVarIntro s
+        Just (TSymbolLit lit) -> return $ TVarIntroLit s lit
 
 token :: Parser QueryToken
 token = choice [
-        andWord, orWord, lParen, rParen,
-        binding, ident
+        andWord, orWord,
+        lParen, rParen,
+        varIntro, ident
     ]
 
 tokensParser :: Parser [QueryToken]
