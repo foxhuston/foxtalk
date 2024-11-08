@@ -21,6 +21,7 @@ protected:
     }
     void init() override
     {
+
         claim(Tuple {std::vector{
             TupleNoun("clock") ,
             TupleNoun("is at"),
@@ -30,6 +31,7 @@ protected:
 
     void register_initial_tuples() override
     {
+
         claim(Tuple {std::vector{
             TupleNoun("clock") ,
             TupleNoun("is at"),

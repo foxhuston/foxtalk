@@ -69,12 +69,12 @@ public:
 
 #define FOXTALK_FFI_HANDLER_REG(T)                                             \
     static T *T##_instance = nullptr;                                          \
-    void init()                                                                \
+    void init(uint8_t *buffer)                                                                \
     {                                                                          \
         try                                                                    \
         {                                                                      \
             T##_instance = new T();                                            \
-            T##_instance->ffi_init(_foxtalk_ipc_buffer);                       \
+            T##_instance->ffi_init(buffer);                       \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
@@ -85,11 +85,11 @@ public:
             std::cerr << "CRASH in init()" << std::endl;                       \
         }                                                                      \
     }                                                                          \
-    void free_tuple()                                                          \
+    void free_tuple(uint8_t *buffer)                                                          \
     {                                                                          \
         try                                                                    \
         {                                                                      \
-            T##_instance->ffi_free_tuple(_foxtalk_ipc_buffer);                 \
+            T##_instance->ffi_free_tuple(buffer);                 \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
@@ -100,11 +100,11 @@ public:
             std::cerr << "CRASH in free_tuple()" << std::endl;                 \
         }                                                                      \
     }                                                                          \
-    void handle()                                                              \
+    void handle(uint8_t *buffer)                                                              \
     {                                                                          \
         try                                                                    \
         {                                                                      \
-            T##_instance->ffi_handle(_foxtalk_ipc_buffer);                     \
+            T##_instance->ffi_handle(buffer);                     \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
@@ -115,11 +115,11 @@ public:
             std::cerr << "CRASH in handle()" << std::endl;                     \
         }                                                                      \
     }                                                                          \
-    void register_initial_tuples()                                             \
+    void register_initial_tuples(uint8_t *buffer)                                             \
     {                                                                          \
         try                                                                    \
         {                                                                      \
-            T##_instance->ffi_register_init(_foxtalk_ipc_buffer);              \
+            T##_instance->ffi_register_init(buffer);              \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \

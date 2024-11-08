@@ -17,21 +17,13 @@ constexpr size_t FOXTALK_IPC_BUFFER_SIZE = 10 * 1024 * 1024; // 10Mb
 
 extern "C"
 {
-    /**
-     * This is the runtime communication buffer, fixed to 10Mb by the constant above.
-     * The first `sizeof(foxtalk_size_t)` bytes are the number of tuples in the buffer, which
-     * are NOT GUARANTEED TO BE UNIQUE! After that is the standard serialization of Tuples,
-     * which can be seen in `foxtalk_tuple.h`.
-     */
-    inline uint8_t _foxtalk_ipc_buffer[FOXTALK_IPC_BUFFER_SIZE];
-
     ///// USER MUST IMPLEMENT /////
 
     // from the <q, a, S, I, O> in the paper...
-    void init(); // Q tuple is in the buffer after this
-    void free_tuple();
-    void register_initial_tuples(); // initial O in the buffer after this
-    void handle();  // this is a
+    void init(uint8_t *buffer); // Q tuple is in the buffer after this
+    void free_tuple(uint8_t *buffer);
+    void register_initial_tuples(uint8_t *buffer); // initial O in the buffer after this
+    void handle(uint8_t *buffer);  // this is a
     void teardown();
     bool poll();
 }

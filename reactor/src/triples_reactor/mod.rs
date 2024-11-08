@@ -44,7 +44,7 @@ pub mod tests {
     use crate::triples_reactor::triple_query_engine::TripleQueryEngine;
     use crate::triples_reactor::Tuple;
 
-    use log::{error, warn, info, debug, trace};
+    use log::*;
 
     #[test]
     pub fn it_should_add_and_remove_handlers() {
