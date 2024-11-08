@@ -13,7 +13,7 @@ import Data.Functor
 import Data.Maybe (fromMaybe)
 
 -- import Data.Attoparsec.Text
-import Text.Megaparsec (Parsec, choice, skipMany, many, some, optional, parseMaybe)
+import Text.Megaparsec (Parsec, try, choice, skipMany, many, some, optional, parseMaybe)
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
 type Parser = Parsec Void String
@@ -78,6 +78,7 @@ varIntro = do
 token :: Parser QueryToken
 token = choice [
         andWord, orWord,
+        try varBinding,
         lParen, rParen,
         varIntro, ident
     ]

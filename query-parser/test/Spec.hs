@@ -6,6 +6,7 @@ import Data.List (sort)
 
 import Token (tokens, QueryToken(..))
 import Foreign.C (eRPCMISMATCH)
+import GHC.Conc (TVar(TVar))
 
 main :: IO ()
 main = defaultMain tests
@@ -36,6 +37,13 @@ tokenTests = testGroup "Token tests"
 
     , testCase "BoundLit 1" $ tokens "/shape/@circle" @?= Just [TVarIntroLit "shape" "circle"]
 
-    , testCase "tokens" $ tokens "/shape/@rectangle with x /x/ or /shape/@circle with r /r/"
+    , testCase "Tokens 1" $ tokens "/shape/@rectangle with x /x/ or /shape/@circle with r /r/"
         @?= Just [TVarIntroLit "shape" "rectangle", TSymbolLit "with", TSymbolLit "x", TVarIntro "x", TOr, TVarIntroLit "shape" "circle", TSymbolLit "with", TSymbolLit "r", TVarIntro "r"]
+
+    , testCase "Tokens 2" $ tokens "((you) is a rectangle with x /x/) and ((you) has color /c/)"
+        @?= Just ([TLParen, TVarBinding "you"]
+              ++ map TSymbolLit (words "is a rectangle with x")
+              ++ [TVarIntro "x", TRParen, TAnd, TLParen, TVarBinding "you"]
+              ++ map TSymbolLit (words "has color")
+              ++ [TVarIntro "c", TRParen])
   ]
