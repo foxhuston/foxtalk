@@ -1,0 +1,10 @@
+cc_binary(
+    name = "binary_example",
+    srcs = ["example.cxx"],
+)
+
+cc_binary(
+    name = "shared_binary_example",
+    srcs = ["example.cxx"],
+    linkshared = True,
+)
