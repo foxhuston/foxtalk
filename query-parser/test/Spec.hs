@@ -25,7 +25,9 @@ tokenTests = testGroup "Token tests"
   [
       testCase "Ident 1" $ tokens "a" @?= Just [TSymbolLit "a"]
 
-    , testCase "Ident 1" $ tokens "fox" @?= Just [TSymbolLit "fox"]
+    , testCase "Ident 2" $ tokens "fox" @?= Just [TSymbolLit "fox"]
+
+    , testCase "Ident 3" $ tokens "foxorlexi" @?= Just [TSymbolLit "foxorlexi"]
 
     , testCase "VarIntro 1" $ tokens "/lexi/" @?= Just [TVarIntro "lexi"]
 

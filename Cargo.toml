@@ -7,5 +7,5 @@ members = [
     "foxtalk_rust_binary",
     "rust_tuple_reactor_serde",
     "foxtalk_rust_handlers/file_watch_handler",
-    "foxtalk_rust_handlers/ref_count_gui",
+    "foxtalk_rust_handlers/ref_count_gui", "foxtalk_rust_handlers/rust_handler_macro", "foxtalk_rust_handlers/example_rust_handler_v1",
 ]

@@ -78,13 +78,13 @@ varIntro = do
 token :: Parser QueryToken
 token = choice [
         andWord, orWord,
-        try varBinding,
+        varBinding,
         lParen, rParen,
         varIntro, ident
     ]
 
 tokensParser :: Parser [QueryToken]
-tokensParser = many (token <* skipMany spaceChar)
+tokensParser = many (token <* (skipMany spaceChar))
 
 tokens :: String -> Maybe [QueryToken]
 tokens = parseMaybe tokensParser

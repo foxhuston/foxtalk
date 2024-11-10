@@ -25,7 +25,7 @@ mod tests {
         let mut reactor= Reactor::new(query_engine);
         let tuple = Tuple(vec![TupleNoun::Symbol("lexi".to_string()), TupleNoun::Symbol("is a".to_string()), TupleNoun::Symbol("husky".to_string())]);
 
-        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("husky_handler.so").as_path()) }.unwrap();
+        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("libexample_rust_handler_v1.so").as_path()) }.unwrap();
         reactor.add_program(Box::new(handler));
         
         reactor.tick();

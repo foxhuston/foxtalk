@@ -1,0 +1,13 @@
+[package]
+name = "example_rust_handler_v1"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust_tuple_reactor_serde = { path = "../../rust_tuple_reactor_serde" }
+rust_handler_macro = { path = "../rust_handler_macro" }
+env_logger = "0.11.5"
+
+[lib]
+name = "example_rust_handler_v1"
+crate-type = ["cdylib"]
