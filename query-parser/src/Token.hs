@@ -3,6 +3,7 @@
 module Token(
   QueryToken(..)
   , unparse
+  , handlerBody -- exported only for testing...
   , queryTokens
 ) where
 
@@ -10,9 +11,13 @@ module Token(
 import Data.Void
 import Data.Functor
 
+import Control.Applicative ((<|>))
+
 -- import Data.Attoparsec.Text
-import Text.Megaparsec (Parsec, try, choice, skipMany, many, some, optional, parseMaybe)
+import Text.Megaparsec (Parsec, between, manyTill, anySingle, takeRest, try, choice, skipMany, many, some, optional, parseMaybe)
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
+
+import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void String
 
@@ -21,10 +26,12 @@ data QueryToken =
     | TVarIntro String
     | TVarBinding String
     | TVarIntroLit String String
-    | TLParen
-    | TRParen
+    | THandlerBody String
+    | TLParen | TRParen
     | TOr
     | TAnd
+    | TWhen
+    | TForAll
 
     deriving (Show, Eq, Ord)
 
@@ -37,6 +44,14 @@ unparse TLParen         = "("
 unparse TRParen         = ")"
 unparse TOr             = "or"
 unparse TAnd            = "and"
+unparse TWhen           = "When"
+unparse TForAll         = "ForAll"
+
+whenWord :: Parser QueryToken
+whenWord = string "When" $> TWhen
+
+forAllWord :: Parser QueryToken
+forAllWord = string "ForAll" $> TForAll
 
 orWord :: Parser QueryToken
 orWord = string "or" $> TOr
@@ -49,6 +64,17 @@ lParen = char '(' $> TLParen
 
 rParen :: Parser QueryToken
 rParen = char ')' $> TRParen
+
+-- TODO Fox: This could be far more readable.
+handlerBody :: Parser String
+handlerBody = s *> (concat <$> manyTill p e)
+  where
+    p :: Parser String
+    p = ((\bod -> "{" ++ bod ++ "}") <$> handlerBody) <|> ((:[]) <$> anySingle)
+    s :: Parser String
+    s = string "{"
+    e :: Parser String
+    e = string "}"
 
 ident :: Parser QueryToken
 ident = TSymbolLit <$> some letterChar
@@ -76,10 +102,12 @@ varIntro = do
 
 queryToken :: Parser QueryToken
 queryToken = choice [
-        andWord, orWord,
-        try varBinding,
-        lParen, rParen,
-        varIntro, ident
+      whenWord, forAllWord,
+      andWord, orWord,
+      try varBinding,
+      lParen, rParen,
+      THandlerBody <$> handlerBody,
+      varIntro, ident
     ]
 
 queryTokensParser :: Parser [QueryToken]

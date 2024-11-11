@@ -4,8 +4,8 @@ import Test.Tasty.QuickCheck as QC
 
 import Data.List (sort)
 
-import Token (queryTokens, QueryToken(..))
-import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query)
+import Token (queryTokens, QueryToken(..), handlerBody)
+import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkWhen)
 
 import Text.Megaparsec (parseMaybe)
 
@@ -48,6 +48,21 @@ queryTokenTests = testGroup "Token tests"
               ++ [TVarIntro "x", TRParen, TAnd, TLParen, TVarBinding "you"]
               ++ map TSymbolLit (words "has color")
               ++ [TVarIntro "c", TRParen])
+
+    , testCase "When" $ queryTokens "When bonk"
+        @?= Just ([TWhen, TSymbolLit "bonk"])
+
+    , testCase "Handler Body 0" $ parseMaybe handlerBody "{ this is some c code or whatever }"
+                                                @?= Just (" this is some c code or whatever ")
+
+    , testCase "Handler Body 1" $ parseMaybe handlerBody "{ this is {some c} code or whatever }"
+                                                @?= Just (" this is {some c} code or whatever ")
+
+    , testCase "Handler Body 2" $ queryTokens  "When bonk { this is some c code or whatever }"
+        @?= Just ([TWhen, TSymbolLit "bonk", THandlerBody " this is some c code or whatever "])
+
+    , testCase "Handler Body 3" $ queryTokens  "When bonk { this is some for(;;) { gnarly} c code or whatever}"
+        @?= Just ([TWhen, TSymbolLit "bonk", THandlerBody " this is some for(;;) { gnarly} c code or whatever"])
   ]
 
 
@@ -62,4 +77,14 @@ parserTests = testGroup "Parser Tests"
 
     , testCase "Parses Or" $ (queryTokens "/who/ is a husky or (who) is cool" >>= parseMaybe query)
         @?= (Just (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"])))
+
+    , testCase "Parses When Clause" $ (queryTokens "When /who/ is a husky or (who) is cool { some gnarly C code }" >>= parseMaybe foxtalkWhen)
+        @?= (Just (EWhen
+                    (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                    " some gnarly C code "))
+
+    , testCase "Parses When Clause with Nested Bod" $ (queryTokens "When /who/ is a husky or (who) is cool { some {gnarlier} C code }" >>= parseMaybe foxtalkWhen)
+        @?= (Just (EWhen
+                    (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                    " some {gnarlier} C code "))
   ]

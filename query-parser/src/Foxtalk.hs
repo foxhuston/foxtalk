@@ -5,7 +5,9 @@ module Foxtalk (
   QueryExpr (..),
   FoxtalkExpr (..),
 
-  query
+  query,
+
+  foxtalkWhen -- Exported only for testing
 ) where
 
 
@@ -71,7 +73,6 @@ varIntroLit = (uncurry VVarIntroLit) <$> token sym Set.empty
   where sym (TVarIntroLit s b) = Just (s, b)
         sym _                  = Nothing
 
-
 queryValue :: Parser QueryValue
 queryValue = choice [symbolLit, varIntro, varBinding, varIntroLit]
 
@@ -84,8 +85,8 @@ queryBranch = do
   rest <- query
   return $ (oper, rest)
 
-queryTuple :: Parser QueryExpr
-queryTuple = do
+query :: Parser QueryExpr
+query = do
   vals <- some queryValue
   maybeRest <- optional $ queryBranch
   case maybeRest of
@@ -93,5 +94,18 @@ queryTuple = do
     Just (TAnd, rest) -> return $ EQueryAnd (EQueryTuple vals) rest
     Just (TOr, rest) -> return $ EQueryOr (EQueryTuple vals) rest
 
-query :: Parser QueryExpr
-query = choice [queryTuple]
+
+foxtalkWhen :: Parser FoxtalkExpr
+foxtalkWhen =
+  do
+    single TWhen
+    q <- query
+    bod <- token sym Set.empty
+    return $ EWhen q bod
+  where
+    sym (THandlerBody bod) = Just bod
+    sym _                  = Nothing
+
+
+foxtalkProgram :: Parser FoxtalkExpr
+foxtalkProgram = undefined
