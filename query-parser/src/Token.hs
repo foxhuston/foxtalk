@@ -10,8 +10,6 @@ module Token(
 import Data.Void
 import Data.Functor
 
-import Data.Maybe (fromMaybe)
-
 -- import Data.Attoparsec.Text
 import Text.Megaparsec (Parsec, try, choice, skipMany, many, some, optional, parseMaybe)
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
@@ -28,7 +26,7 @@ data QueryToken =
     | TOr
     | TAnd
 
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 unparse :: QueryToken -> String
 unparse (TSymbolLit s)      = s
@@ -74,6 +72,7 @@ varIntro = do
     case boundLit of
         Nothing -> return $ TVarIntro s
         Just (TSymbolLit lit) -> return $ TVarIntroLit s lit
+        _ -> undefined
 
 queryToken :: Parser QueryToken
 queryToken = choice [

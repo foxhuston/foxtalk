@@ -37,6 +37,7 @@ library:
   source-dirs: src
   dependencies:
     - megaparsec
+    - containers
     # - text
     # - attoparsec
 
