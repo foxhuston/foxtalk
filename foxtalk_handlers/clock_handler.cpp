@@ -23,13 +23,13 @@ protected:
 
     void init() override
     {
-        claim(Tuple{std::vector{
+        claim(Tuple{std::vector{ 
             TupleNoun("clock"),
             TupleNoun("is at"),
             TupleNoun::query()}});
         }
 
-    void register_initial_tuples() override
+    void register_initial_tuples() override 
     {
         claim(Tuple{std::vector{
             TupleNoun("clock"),

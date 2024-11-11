@@ -31,7 +31,7 @@ public:
     claim({{ {"clock"}, {"epoch time"}, {now}, {"delta"}, {delta} }});
 
     last_time = now; 
-  }
+  } 
 
   bool poll() override {
     auto now = get_time_as_double();

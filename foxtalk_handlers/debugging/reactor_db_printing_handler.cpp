@@ -8,12 +8,12 @@ protected:
   {
     if (queryResults.size() >= 1)
     {
-
       claims.clear();
-      auto t = queryResults[0];
+      auto t = queryResults[0]; 
       auto all_tuples = t.at<std::string>(2);
       if (all_tuples.has_value())
-      {
+      { 
+ 
         std::cout << all_tuples.value() << std::endl;
         std::cout << "============================" << std::endl;
       }

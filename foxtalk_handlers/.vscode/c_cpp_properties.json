@@ -10,6 +10,6 @@
             "cppStandard": "c++23",
             "compileCommands": "build/compile_commands.json"
         }
-    ],
+    ], 
     "version": 4
 }

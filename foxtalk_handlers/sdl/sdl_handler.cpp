@@ -16,7 +16,7 @@
 class SdlHandler : public Handler {
 private:
   SDL_Window *gWindow{nullptr};
-
+ 
   // The surface contained by the window
   SDL_Surface *gScreenSurface{nullptr};
 
