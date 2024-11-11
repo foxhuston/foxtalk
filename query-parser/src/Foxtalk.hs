@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
-module Foxtalk() where
+module Foxtalk (
+  QueryValue (..),
+  QueryExpr (..),
+  FoxtalkExpr (..),
+
+  query
+) where
 
 
 import Data.Void
@@ -37,53 +43,11 @@ data QueryExpr =
   | EQueryOr QueryExpr QueryExpr
   deriving (Show, Eq)
 
-data FoxTalkExpr =
+data FoxtalkExpr =
     EWhen QueryExpr String
   | EForAll String QueryExpr String
   deriving (Show, Eq)
 
-
--- orWord :: Parser QueryToken
--- orWord = string "or" $> TOr
-
--- andWord :: Parser QueryToken
--- andWord = string "and" $> TAnd
-
--- lParen :: Parser QueryToken
--- lParen = char '(' $> TLParen
-
--- rParen :: Parser QueryToken
--- rParen = char ')' $> TRParen
-
--- symbolLit :: Parser String
--- symbolLit = some letterChar
-
--- varBinding :: Parser QueryValue
--- varBinding = do
---   _ <- char '('
---   s <- symbolLit
---   _ <- char ')'
-
---   return $ VVarBinding s
-
--- varIntro :: Parser QueryValue
--- varIntro = do
---     _ <- char '/'
---     s <- symbolLit
---     _ <- char '/'
-
---     boundLit <- optional $ char '@' *> symbolLit
-
---     case boundLit of
---         Nothing -> return $ VVarIntro s
---         Just lit -> return $ VVarIntroLit s lit
-
--- queryValue :: Parser QueryValue
--- queryValue = choice [
---         try varBinding,
---         varIntro,
---         VSymbolLit <$> symbolLit
---     ]
 
 symbolLit :: Parser QueryValue
 symbolLit = VSymbolLit <$> token sym Set.empty

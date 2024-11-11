@@ -5,15 +5,15 @@ import Test.Tasty.QuickCheck as QC
 import Data.List (sort)
 
 import Token (queryTokens, QueryToken(..))
-import Foreign.C (eRPCMISMATCH)
-import GHC.Conc (TVar(TVar))
+import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query)
+
+import Text.Megaparsec (parseMaybe)
 
 main :: IO ()
 main = defaultMain tests
 
-
 tests :: TestTree
-tests = testGroup "Tests" [queryTokenTests {-, qcProps -}]
+tests = testGroup "Tests" [queryTokenTests, parserTests {-, qcProps -}]
 
 -- qcProps :: TestTree
 -- qcProps = testGroup "(checked by quickcheck)"
@@ -48,4 +48,18 @@ queryTokenTests = testGroup "Token tests"
               ++ [TVarIntro "x", TRParen, TAnd, TLParen, TVarBinding "you"]
               ++ map TSymbolLit (words "has color")
               ++ [TVarIntro "c", TRParen])
+  ]
+
+
+parserTests :: TestTree
+parserTests = testGroup "Parser Tests"
+  [
+      testCase "Parses Tuple" $ (queryTokens "/who/ is a husky" >>= parseMaybe query)
+        @?= (Just (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]))
+
+    , testCase "Parses And" $ (queryTokens "/who/ is a husky and (who) is cool" >>= parseMaybe query)
+        @?= (Just (EQueryAnd (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"])))
+
+    , testCase "Parses Or" $ (queryTokens "/who/ is a husky or (who) is cool" >>= parseMaybe query)
+        @?= (Just (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"])))
   ]
