@@ -37,6 +37,7 @@ library:
   source-dirs: src
   dependencies:
     - megaparsec
+    - containers
     # - text
     # - attoparsec
 
@@ -61,6 +62,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - query-parser
+    - megaparsec
     - tasty
     - tasty-hunit
     - tasty-quickcheck

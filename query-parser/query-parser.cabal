@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Foxtalk
       Lib
       Query
       Token
@@ -38,6 +39,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , containers
     , megaparsec
   default-language: Haskell2010
 
@@ -67,6 +69,7 @@ test-suite query-parser-test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , megaparsec
     , query-parser
     , tasty
     , tasty-hunit

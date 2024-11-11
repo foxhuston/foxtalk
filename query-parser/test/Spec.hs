@@ -4,48 +4,87 @@ import Test.Tasty.QuickCheck as QC
 
 import Data.List (sort)
 
-import Token (tokens, QueryToken(..))
-import Foreign.C (eRPCMISMATCH)
-import GHC.Conc (TVar(TVar))
+import Token (queryTokens, QueryToken(..), handlerBody)
+import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkWhen)
+
+import Text.Megaparsec (parseMaybe)
 
 main :: IO ()
 main = defaultMain tests
 
-
 tests :: TestTree
-tests = testGroup "Tests" [tokenTests {-, qcProps -}]
+tests = testGroup "Tests" [queryTokenTests, parserTests {-, qcProps -}]
 
 -- qcProps :: TestTree
 -- qcProps = testGroup "(checked by quickcheck)"
 --   [ ]
 
 
-tokenTests :: TestTree
-tokenTests = testGroup "Token tests"
+queryTokenTests :: TestTree
+queryTokenTests = testGroup "Token tests"
   [
-      testCase "Ident 1" $ tokens "a" @?= Just [TSymbolLit "a"]
+      testCase "Ident 1" $ queryTokens "a" @?= Just [TSymbolLit "a"]
 
-    , testCase "Ident 2" $ tokens "fox" @?= Just [TSymbolLit "fox"]
+    , testCase "Ident 1" $ queryTokens "fox" @?= Just [TSymbolLit "fox"]
 
-    , testCase "Ident 3" $ tokens "foxorlexi" @?= Just [TSymbolLit "foxorlexi"]
+    , testCase "Ident 3" $ queryTokens "foxorlexi" @?= Just [TSymbolLit "foxorlexi"]
 
-    , testCase "VarIntro 1" $ tokens "/lexi/" @?= Just [TVarIntro "lexi"]
+    , testCase "VarIntro 1" $ queryTokens "/lexi/" @?= Just [TVarIntro "lexi"]
 
-    , testCase "VarIntro 2" $ tokens "/test with spaces/" @?= Nothing
+    , testCase "VarIntro 2" $ queryTokens "/test with spaces/" @?= Nothing
 
-    , testCase "VarBinding 1" $ tokens "(lexi)" @?= Just [TVarBinding "lexi"]
+    , testCase "VarBinding 1" $ queryTokens "(lexi)" @?= Just [TVarBinding "lexi"]
 
-    , testCase "VarBinding 2" $ tokens "(test with spaces)" @?= Just [TLParen, TSymbolLit "test", TSymbolLit "with", TSymbolLit "spaces", TRParen]
+    , testCase "VarBinding 2" $ queryTokens "(test with spaces)" @?= Just [TLParen, TSymbolLit "test", TSymbolLit "with", TSymbolLit "spaces", TRParen]
 
-    , testCase "BoundLit 1" $ tokens "/shape/@circle" @?= Just [TVarIntroLit "shape" "circle"]
+    , testCase "BoundLit 1" $ queryTokens "/shape/@circle" @?= Just [TVarIntroLit "shape" "circle"]
 
-    , testCase "Tokens 1" $ tokens "/shape/@rectangle with x /x/ or /shape/@circle with r /r/"
+    , testCase "Tokens 1" $ queryTokens "/shape/@rectangle with x /x/ or /shape/@circle with r /r/"
         @?= Just [TVarIntroLit "shape" "rectangle", TSymbolLit "with", TSymbolLit "x", TVarIntro "x", TOr, TVarIntroLit "shape" "circle", TSymbolLit "with", TSymbolLit "r", TVarIntro "r"]
 
-    , testCase "Tokens 2" $ tokens "((you) is a rectangle with x /x/) and ((you) has color /c/)"
+    , testCase "Tokens 2" $ queryTokens "((you) is a rectangle with x /x/) and ((you) has color /c/)"
         @?= Just ([TLParen, TVarBinding "you"]
               ++ map TSymbolLit (words "is a rectangle with x")
               ++ [TVarIntro "x", TRParen, TAnd, TLParen, TVarBinding "you"]
               ++ map TSymbolLit (words "has color")
               ++ [TVarIntro "c", TRParen])
+
+    , testCase "When" $ queryTokens "When bonk"
+        @?= Just ([TWhen, TSymbolLit "bonk"])
+
+    , testCase "Handler Body 0" $ parseMaybe handlerBody "{ this is some c code or whatever }"
+                                                @?= Just (" this is some c code or whatever ")
+
+    , testCase "Handler Body 1" $ parseMaybe handlerBody "{ this is {some c} code or whatever }"
+                                                @?= Just (" this is {some c} code or whatever ")
+
+    , testCase "Handler Body 2" $ queryTokens  "When bonk { this is some c code or whatever }"
+        @?= Just ([TWhen, TSymbolLit "bonk", THandlerBody " this is some c code or whatever "])
+
+    , testCase "Handler Body 3" $ queryTokens  "When bonk { this is some for(;;) { gnarly} c code or whatever}"
+        @?= Just ([TWhen, TSymbolLit "bonk", THandlerBody " this is some for(;;) { gnarly} c code or whatever"])
+  ]
+
+
+parserTests :: TestTree
+parserTests = testGroup "Parser Tests"
+  [
+      testCase "Parses Tuple" $ (queryTokens "/who/ is a husky" >>= parseMaybe query)
+        @?= (Just (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]))
+
+    , testCase "Parses And" $ (queryTokens "/who/ is a husky and (who) is cool" >>= parseMaybe query)
+        @?= (Just (EQueryAnd (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"])))
+
+    , testCase "Parses Or" $ (queryTokens "/who/ is a husky or (who) is cool" >>= parseMaybe query)
+        @?= (Just (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"])))
+
+    , testCase "Parses When Clause" $ (queryTokens "When /who/ is a husky or (who) is cool { some gnarly C code }" >>= parseMaybe foxtalkWhen)
+        @?= (Just (EWhen
+                    (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                    " some gnarly C code "))
+
+    , testCase "Parses When Clause with Nested Bod" $ (queryTokens "When /who/ is a husky or (who) is cool { some {gnarlier} C code }" >>= parseMaybe foxtalkWhen)
+        @?= (Just (EWhen
+                    (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                    " some {gnarlier} C code "))
   ]
