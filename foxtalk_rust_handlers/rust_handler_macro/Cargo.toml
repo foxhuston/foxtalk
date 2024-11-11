@@ -1,0 +1,9 @@
+[package]
+name = "rust_handler_macro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust_tuple_reactor_serde = { path = "../../rust_tuple_reactor_serde" }
+log = "0.4.22"
+lazy_static = "1.5.0"

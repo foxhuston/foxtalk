@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # do this first to get timezones or opencv will be very mad
 # well, nevermind, i don't need opencv in this container
@@ -9,28 +9,31 @@ RUN apt-get update && \
     dpkg-reconfigure -f noninteractive tzdata
 
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
     wget \
+    unzip \
     gnupg \
     lsb-release \
     curl \
     libssl-dev \
     apt-transport-https \
+    build-essential \
+    gcc \
+    g++ \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # and grab Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Add LLVM's APT repository and install clang-16
-RUN wget https://apt.llvm.org/llvm.sh && \
-    chmod +x llvm.sh && \
-    ./llvm.sh 16 && \
-    rm llvm.sh
+# aaaaand Bazel
+ARG BAZEL_VERSION=7.4.0
+RUN ARCH="$(dpkg --print-architecture)" && \
+    if [ "$ARCH" = "amd64" ]; then \
+        wget -q https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-x86_64 -O /usr/local/bin/bazel ; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        wget -q https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-arm64 -O /usr/local/bin/bazel ; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1 ; \
+    fi && \
+    chmod +x /usr/local/bin/bazel
 
-# Add the Kitware APT repository to install CMake 3.30
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | apt-key add - && \
-    apt-add-repository 'deb https://apt.kitware.com/ubuntu/ jammy main' && \
-    apt-get update && \
-    apt-get install -y cmake=3.30.* && \
-    rm -rf /var/lib/apt/lists/*

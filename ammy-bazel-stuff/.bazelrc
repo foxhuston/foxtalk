@@ -1,0 +1,4 @@
+build --compiler=gcc
+build --cxxopt=-std=c++23
+build --crosstool_top=@bazel_tools//tools/cpp:toolchain
+build --host_crosstool_top=@bazel_tools//tools/cpp:toolchain

@@ -27,6 +27,8 @@ queryTokenTests = testGroup "Token tests"
 
     , testCase "Ident 1" $ queryTokens "fox" @?= Just [TSymbolLit "fox"]
 
+    , testCase "Ident 3" $ queryTokens "foxorlexi" @?= Just [TSymbolLit "foxorlexi"]
+
     , testCase "VarIntro 1" $ queryTokens "/lexi/" @?= Just [TVarIntro "lexi"]
 
     , testCase "VarIntro 2" $ queryTokens "/test with spaces/" @?= Nothing

@@ -1,3 +1,4 @@
+use std::ptr::slice_from_raw_parts_mut;
 use rust_tuple_reactor_serde::tuple::Tuple;
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use rust_tuple_reactor_serde::*;
@@ -6,9 +7,7 @@ use std::sync::LazyLock;
 use eframe::{egui, EventLoopBuilderHook};
 use winit::platform::wayland::EventLoopBuilderExtWayland;
 
-#[allow(non_upper_case_globals)]
-#[no_mangle]
-pub static mut _foxtalk_ipc_buffer: [u8; 10*1024*1024] = [0; 10*1024*1024];
+static BUFFER_SIZE: usize = 10 * 1024 * 1024;
 
 pub static GUI_THREAD_HANDLE: LazyLock<std::thread::JoinHandle<()>> =
     LazyLock::new(|| std::thread::spawn(|| {
@@ -38,31 +37,40 @@ fn update(ctx: &eframe::egui::Context, _: &mut eframe::Frame) {
 }
 
 #[no_mangle]
-pub extern "C" fn init() {
+pub extern "C" fn init(buffer: *mut u8) {
     let query_tuple = vec![Tuple(vec![
         TupleNoun::Symbol("foxtalk reactor".to_string()),
         TupleNoun::Symbol("sees tuples".to_string()),
         TupleNoun::Query
     ])];
-    unsafe { query_tuple.iter().write_to_buffer(_foxtalk_ipc_buffer.as_mut(), 0); }
+    unsafe { match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
+        None => { eprintln!("Slice from raw parts failed") }
+        Some(buf) => {query_tuple.iter().write_to_buffer(buf, 0); }
+    }};
     println!("Is about the start the gui thread!");
     let _ = GUI_THREAD_HANDLE.is_finished();
     println!("Should have stared the gui thread!");
 
 }
 #[no_mangle]
-pub extern "C" fn free_tuple() {
+pub extern "C" fn free_tuple(_buffer: *mut u8) {
 
 }
 #[no_mangle]
-pub extern "C" fn handle() {
-    let (tuples, _) = unsafe { Vec::<Tuple>::read_from_buffer(_foxtalk_ipc_buffer.as_mut(), 0) };
-    if !tuples.is_empty() {
-        unsafe { LATEST_SEEN_TUPLE[0] = Some(tuples[0].clone()); }
-    }
+pub extern "C" fn handle(buffer: *mut u8) {
+    unsafe { match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
+        None => { eprintln!("Slice from raw parts failed") }
+        Some(buf) => {
+            let (tuples, _) = unsafe { Vec::<Tuple>::read_from_buffer(buf, 0) };
+            if !tuples.is_empty() {
+                unsafe { LATEST_SEEN_TUPLE[0] = Some(tuples[0].clone()); }
+            }
+        }
+    }};
+
 }
 #[no_mangle]
-pub extern "C" fn register_initial_tuples() {
+pub extern "C" fn register_initial_tuples(_buffer: *mut [u8]) {
 }
 #[no_mangle]
 pub extern "C" fn teardown() {
