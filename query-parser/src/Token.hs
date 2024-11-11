@@ -3,7 +3,7 @@
 module Token(
   QueryToken(..)
   , unparse
-  , tokens
+  , queryTokens
 ) where
 
 
@@ -75,16 +75,16 @@ varIntro = do
         Nothing -> return $ TVarIntro s
         Just (TSymbolLit lit) -> return $ TVarIntroLit s lit
 
-token :: Parser QueryToken
-token = choice [
+queryToken :: Parser QueryToken
+queryToken = choice [
         andWord, orWord,
         try varBinding,
         lParen, rParen,
         varIntro, ident
     ]
 
-tokensParser :: Parser [QueryToken]
-tokensParser = many (token <* skipMany spaceChar)
+queryTokensParser :: Parser [QueryToken]
+queryTokensParser = many (queryToken <* skipMany spaceChar)
 
-tokens :: String -> Maybe [QueryToken]
-tokens = parseMaybe tokensParser
+queryTokens :: String -> Maybe [QueryToken]
+queryTokens = parseMaybe queryTokensParser
