@@ -5,7 +5,7 @@ import Test.Tasty.QuickCheck as QC
 import Data.List (sort)
 
 import Token (queryTokens, QueryToken(..), handlerBody)
-import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkWhen, foxtalkForall)
+import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkProgram, foxtalkWhen, foxtalkForall, foxtalkClaim)
 
 import Text.Megaparsec (parseMaybe)
 
@@ -63,6 +63,17 @@ queryTokenTests = testGroup "Token tests"
 
     , testCase "Handler Body 3" $ queryTokens  "When bonk { this is some for(;;) { gnarly} c code or whatever}"
         @?= Just ([TWhen, TSymbolLit "bonk", THandlerBody " this is some for(;;) { gnarly} c code or whatever"])
+
+    , testCase "Tokenizes Forall Clause with Nested Bod" $
+        (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }")
+            @?= (Just [TForAll, TVarIntro "huskies", TWhen, TVarIntro "who"
+                      , TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"
+                      , THandlerBody " some {gnarlier} C code "])
+
+    , testCase "Tokenizes top-level Claim" $
+        (queryTokens "Claim lexi is a husky")
+            @?= (Just [TClaim, TSymbolLit "lexi", TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"])
+
   ]
 
 
@@ -92,12 +103,6 @@ parserTests = testGroup "Parser Tests"
                                 (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
                             " some {gnarlier} C code "))
 
-    , testCase "Tokenizes Forall Clause with Nested Bod" $
-        (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }")
-            @?= (Just [TForAll, TVarIntro "huskies", TWhen, TVarIntro "who"
-                      , TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"
-                      , THandlerBody " some {gnarlier} C code "])
-
     , testCase "Parses Forall Clause with Nested Bod" $
         (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }"
             >>= parseMaybe foxtalkForall)
@@ -105,16 +110,38 @@ parserTests = testGroup "Parser Tests"
                             (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
                             " some {gnarlier} C code "))
 
-    , testCase "Tokenizes top-level Claim" $
-        (queryTokens "Claim lexi is a husky")
-            @?= (Just [TForAll, TVarIntro "huskies", TWhen, TVarIntro "who"
-                      , TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"
-                      , THandlerBody " some {gnarlier} C code "])
+    , testGroup "Top-level Parser" [
+          testCase "Parses top-level Claim" $
+            (queryTokens "Claim lexi is a husky"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [EClaim [VSymbolLit "lexi",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]])
 
-    , testCase "Parses top-level Claim" $
-        (queryTokens "Claim lexi is a husky"
-            >>= parseMaybe foxtalkForall)
-                @?= (Just (EForAll "huskies"
-                            (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
-                            " some {gnarlier} C code "))
+        , testCase "Parses When Clause" $
+            (queryTokens "When /who/ is a husky or (who) is cool { some gnarly C code }"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [EWhen
+                                (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                                " some gnarly C code "])
+
+        , testCase "Parses When Clause with Nested Bod" $
+            (queryTokens "When /who/ is a husky or (who) is cool { some {gnarlier} C code }"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [EWhen
+                                (EQueryOr
+                                    (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                                    (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                                " some {gnarlier} C code "])
+
+        , testCase "Parses Forall Clause with Nested Bod" $
+            (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [EForAll "huskies"
+                                (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                                " some {gnarlier} C code "])
+
+        , testCase "Parses top-level Claim" $
+            (queryTokens "Claim lexi is a husky"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [EClaim [VSymbolLit "lexi",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]])
+    ]
   ]

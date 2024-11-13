@@ -6,9 +6,11 @@ module Foxtalk (
   , FoxtalkExpr (..)
 
   , query
+  , foxtalkProgram
 
   , foxtalkWhen -- Exported only for testing
   , foxtalkForall -- Exported only for testing
+  , foxtalkClaim -- Exported only for testing
 ) where
 
 
@@ -53,6 +55,7 @@ data QueryExpr =
 data FoxtalkExpr =
     EWhen QueryExpr String
   | EForAll String QueryExpr String
+  | EClaim [QueryValue]
   deriving (Show, Eq)
 
 
@@ -129,5 +132,15 @@ foxtalkForall =
     EWhen q bod <- foxtalkWhen
     return $ EForAll resultsVar q bod
 
-foxtalkProgram :: Parser FoxtalkExpr
-foxtalkProgram = undefined
+foxtalkClaim :: Parser FoxtalkExpr
+foxtalkClaim =
+  do
+    single TClaim
+    vals <- many queryValue
+    return $ EClaim vals
+
+
+foxtalkProgram :: Parser [FoxtalkExpr]
+foxtalkProgram = many $ choice [
+    foxtalkClaim, foxtalkForall, foxtalkWhen
+  ]

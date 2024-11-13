@@ -32,6 +32,7 @@ data QueryToken =
     | TAnd
     | TWhen
     | TForAll
+    | TClaim
 
     deriving (Show, Eq, Ord)
 
@@ -46,9 +47,13 @@ unparse TOr             = "or"
 unparse TAnd            = "and"
 unparse TWhen           = "When"
 unparse TForAll         = "ForAll"
+unparse TClaim          = "Claim"
 
 whenWord :: Parser QueryToken
 whenWord = string "When" $> TWhen
+
+claimWord :: Parser QueryToken
+claimWord = string "Claim" $> TClaim
 
 forAllWord :: Parser QueryToken
 forAllWord = string "ForAll" $> TForAll
@@ -112,6 +117,7 @@ varIntro = do
 queryToken :: Parser QueryToken
 queryToken = choice [
       whenWord, forAllWord,
+      claimWord,
       andWord, orWord,
       try varBinding,
       lParen, rParen,
