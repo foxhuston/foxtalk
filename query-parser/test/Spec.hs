@@ -5,7 +5,7 @@ import Test.Tasty.QuickCheck as QC
 import Data.List (sort)
 
 import Token (queryTokens, QueryToken(..), handlerBody)
-import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkWhen)
+import Foxtalk (QueryValue(..), QueryExpr(..), FoxtalkExpr(..), query, foxtalkWhen, foxtalkForall)
 
 import Text.Megaparsec (parseMaybe)
 
@@ -83,8 +83,25 @@ parserTests = testGroup "Parser Tests"
                     (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
                     " some gnarly C code "))
 
-    , testCase "Parses When Clause with Nested Bod" $ (queryTokens "When /who/ is a husky or (who) is cool { some {gnarlier} C code }" >>= parseMaybe foxtalkWhen)
-        @?= (Just (EWhen
-                    (EQueryOr (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]) (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
-                    " some {gnarlier} C code "))
+    , testCase "Parses When Clause with Nested Bod" $
+        (queryTokens "When /who/ is a husky or (who) is cool { some {gnarlier} C code }"
+            >>= parseMaybe foxtalkWhen)
+                @?= (Just (EWhen
+                            (EQueryOr
+                                (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                                (EQueryTuple [VVarBinding "who",VSymbolLit "is",VSymbolLit "cool"]))
+                            " some {gnarlier} C code "))
+
+    , testCase "Tokenizes Forall Clause with Nested Bod" $
+        (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }")
+            @?= (Just [TForAll, TVarIntro "huskies", TWhen, TVarIntro "who"
+                      , TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"
+                      , THandlerBody " some {gnarlier} C code "])
+
+    , testCase "Parses Forall Clause with Nested Bod" $
+        (queryTokens "ForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }"
+            >>= parseMaybe foxtalkForall)
+                @?= (Just (EForAll "huskies"
+                            (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                            " some {gnarlier} C code "))
   ]
