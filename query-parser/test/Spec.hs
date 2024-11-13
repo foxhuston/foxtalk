@@ -143,5 +143,14 @@ parserTests = testGroup "Parser Tests"
             (queryTokens "Claim lexi is a husky"
                 >>= parseMaybe foxtalkProgram)
                     @?= (Just [EClaim [VSymbolLit "lexi",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"]])
+
+        , testCase "Parses Everything together" $
+            (queryTokens "Claim lexi is a husky\nForAll /huskies/ When /who/ is a husky { some {gnarlier} C code }"
+                >>= parseMaybe foxtalkProgram)
+                    @?= (Just [
+                        EClaim [VSymbolLit "lexi",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"],
+                        EForAll "huskies"
+                                (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                                " some {gnarlier} C code "])
     ]
   ]
