@@ -104,4 +104,17 @@ parserTests = testGroup "Parser Tests"
                 @?= (Just (EForAll "huskies"
                             (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
                             " some {gnarlier} C code "))
+
+    , testCase "Tokenizes top-level Claim" $
+        (queryTokens "Claim lexi is a husky")
+            @?= (Just [TForAll, TVarIntro "huskies", TWhen, TVarIntro "who"
+                      , TSymbolLit "is", TSymbolLit "a", TSymbolLit "husky"
+                      , THandlerBody " some {gnarlier} C code "])
+
+    , testCase "Parses top-level Claim" $
+        (queryTokens "Claim lexi is a husky"
+            >>= parseMaybe foxtalkForall)
+                @?= (Just (EForAll "huskies"
+                            (EQueryTuple [VVarIntro "who",VSymbolLit "is",VSymbolLit "a",VSymbolLit "husky"])
+                            " some {gnarlier} C code "))
   ]
