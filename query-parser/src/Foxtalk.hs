@@ -3,6 +3,7 @@
 module Foxtalk (
     QueryValue (..)
   , QueryExpr (..)
+  , HandlerBodyLine (..)
   , FoxtalkExpr (..)
 
   , query
@@ -25,10 +26,24 @@ import Control.Applicative ((<|>))
 import qualified Data.Set as Set
 
 -- import Data.Attoparsec.Text
-import Text.Megaparsec (Parsec, VisualStream (..), TraversableStream (..), single, token, try, choice, skipMany, many, some, optional, parseMaybe)
+import Text.Megaparsec (
+  Parsec
+  , VisualStream (..)
+  , TraversableStream (..)
+  , single
+  , token
+  , try
+  , choice
+  , skipMany
+  , many
+  , some
+  , optional
+  , parseMaybe
+  )
+
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
-import Token (QueryToken (..))
+import Token (QueryToken (..), queryTokens)
 
 type Parser = Parsec Void [QueryToken]
 
@@ -52,9 +67,14 @@ data QueryExpr =
   | EQueryOr QueryExpr QueryExpr
   deriving (Show, Eq)
 
+data HandlerBodyLine =
+    BCodeLine String
+  | BFoxtalkExpr FoxtalkExpr
+  deriving (Show, Eq)
+
 data FoxtalkExpr =
-    EWhen QueryExpr String
-  | EForAll String QueryExpr String
+    EWhen QueryExpr [HandlerBodyLine]
+  | EForAll String QueryExpr [HandlerBodyLine]
   | EClaim [QueryValue]
   deriving (Show, Eq)
 
@@ -81,11 +101,20 @@ varIntroLit = token sym Set.empty
   where sym (TVarIntroLit s b) = Just (s, b)
         sym _                  = Nothing
 
-handlerBody :: Parser String
-handlerBody = token sym Set.empty
+handlerBody :: Parser [HandlerBodyLine]
+handlerBody = bod <$> token sym Set.empty
   where
     sym (THandlerBody bod) = Just bod
     sym _                  = Nothing
+
+    bod :: String -> [HandlerBodyLine]
+    bod src = map bodLine $ lines src
+
+    bodLine :: String -> HandlerBodyLine
+    bodLine ln =
+      case queryTokens ln >>= parseMaybe foxtalkExpr of
+        Just expr -> BFoxtalkExpr expr
+        Nothing -> BCodeLine ln
 
 queryValue :: Parser QueryValue
 queryValue = choice [
@@ -139,8 +168,8 @@ foxtalkClaim =
     vals <- many queryValue
     return $ EClaim vals
 
+foxtalkExpr :: Parser FoxtalkExpr
+foxtalkExpr = choice [ foxtalkClaim, foxtalkForall, foxtalkWhen ]
 
 foxtalkProgram :: Parser [FoxtalkExpr]
-foxtalkProgram = many $ choice [
-    foxtalkClaim, foxtalkForall, foxtalkWhen
-  ]
+foxtalkProgram = some foxtalkExpr

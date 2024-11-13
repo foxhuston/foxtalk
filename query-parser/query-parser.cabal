@@ -27,7 +27,6 @@ library
   exposed-modules:
       Foxtalk
       Lib
-      Query
       Token
       Tuple
   other-modules:
