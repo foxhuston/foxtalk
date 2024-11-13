@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Foxtalk
       Lib
       Parse
       Tokenize
@@ -60,6 +61,7 @@ test-suite query-parser-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Parsing
       Paths_query_parser
   autogen-modules:
       Paths_query_parser
