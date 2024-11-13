@@ -19,7 +19,7 @@ import Parse (
 import Text.Megaparsec (parseMaybe)
 
 parsingTests :: TestTree
-parsingTests = testGroup "Parsing Tests" [queryTokenTests, parserTests {-, qcProps -}]
+parsingTests = testGroup "Parsing Tests" [queryTokenTests, parserTests]
 
 queryTokenTests :: TestTree
 queryTokenTests = testGroup "Token tests"

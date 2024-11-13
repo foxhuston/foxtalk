@@ -6,8 +6,10 @@ module Parse (
   , HandlerBodyLine (..)
   , FoxtalkExpr (..)
 
-  , query
-  , foxtalkProgram
+  , parseProgram
+
+  , query -- Exported only for testing
+  , foxtalkProgram -- Exported only for testing
 
   , foxtalkWhen -- Exported only for testing
   , foxtalkForall -- Exported only for testing
@@ -173,3 +175,6 @@ foxtalkExpr = choice [ foxtalkClaim, foxtalkForall, foxtalkWhen ]
 
 foxtalkProgram :: Parser [FoxtalkExpr]
 foxtalkProgram = some foxtalkExpr
+
+parseProgram :: String -> Maybe [FoxtalkExpr]
+parseProgram src = queryTokens src >>= parseMaybe foxtalkProgram
