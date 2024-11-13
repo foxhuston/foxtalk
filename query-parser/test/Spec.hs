@@ -4,8 +4,8 @@ import Test.Tasty.QuickCheck as QC
 
 import Data.List (sort)
 
-import Token (queryTokens, QueryToken(..), handlerBody)
-import Foxtalk (
+import Tokenize (queryTokens, QueryToken(..), handlerBody)
+import Parse (
       QueryValue(..)
     , QueryExpr(..)
     , HandlerBodyLine(..)

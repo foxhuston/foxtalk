@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Token(
+module Tokenize (
   QueryToken(..)
   , unparse
   , handlerBody -- exported only for testing...

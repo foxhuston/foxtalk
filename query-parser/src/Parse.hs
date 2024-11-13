@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
-module Foxtalk (
+module Parse (
     QueryValue (..)
   , QueryExpr (..)
   , HandlerBodyLine (..)
@@ -43,7 +43,7 @@ import Text.Megaparsec (
 
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
-import Token (QueryToken (..), queryTokens)
+import Tokenize (QueryToken (..), queryTokens)
 
 type Parser = Parsec Void [QueryToken]
 

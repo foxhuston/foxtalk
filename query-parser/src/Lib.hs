@@ -4,12 +4,6 @@ module Lib
     ( someFunc
     ) where
 
-import Token
-import Tuple ()
-
-import Text.Megaparsec (parse)
-
-
 someFunc :: IO ()
 someFunc = print "bonk"
     -- undefined

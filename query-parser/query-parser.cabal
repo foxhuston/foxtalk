@@ -25,9 +25,9 @@ source-repository head
 
 library
   exposed-modules:
-      Foxtalk
       Lib
-      Token
+      Parse
+      Tokenize
       Tuple
   other-modules:
       Paths_query_parser
