@@ -8,17 +8,19 @@ import Data.List (intercalate)
 import Parse (
     QueryLiteral (..)
   , QueryValue (..)
-  , QueryExpr (..)
-  , HandlerBodyLine (..)
-  , FoxtalkExpr (..)
+  -- , QueryExpr (..)
+  -- , HandlerBodyLine (..)
+  -- , FoxtalkExpr (..)
   )
 
+queryLitToTupleEntry :: QueryLiteral -> String
+queryLitToTupleEntry (LSymbol s) = "{" ++ show s ++ "}"
+
 queryValueToTupleEntry :: (QueryValue String) -> String
-queryValueToTupleEntry (VLit (LSymbol s)) = "{\"" ++ s ++ "\"}"
-queryValueToTupleEntry (VLit _)           = undefined
-queryValueToTupleEntry (VVarIntro s)      = "TupleValue::query()"
+queryValueToTupleEntry (VLit l)           = queryLitToTupleEntry l
+queryValueToTupleEntry (VVarIntro _)      = "TupleValue::query()"
 queryValueToTupleEntry (VVarBinding s)    = s
-queryValueToTupleEntry (VVarIntroLit s _) = "TupleValue::query()"
+queryValueToTupleEntry (VVarIntroLit _ l) = queryLitToTupleEntry l
 
 tupleObj :: String -> [QueryValue String] -> String
 tupleObj name values =
