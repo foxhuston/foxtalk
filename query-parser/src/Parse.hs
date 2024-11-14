@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
 module Parse (
-    QueryLiteral (..)
-  , QueryValue (..)
-  , QueryExpr (..)
-  , HandlerBodyLine (..)
-  , FoxtalkExpr (..)
+    QueryLiteral(..)
+  , QueryValue(..)
+  , QueryExpr(..)
+  , HandlerBodyLine(..)
+  , FoxtalkType(..)
+  , FoxtalkExpr(..)
 
   , parseProgram
 
@@ -46,7 +47,12 @@ import Text.Megaparsec (
 
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
-import Tokenize (QueryToken (..), QueryLiteral(..), queryTokens)
+import Tokenize (
+    FoxtalkType(..)
+  , QueryToken(..)
+  , QueryLiteral(..)
+  , queryTokens
+  )
 
 type Parser = Parsec Void [QueryToken String]
 
@@ -59,9 +65,9 @@ instance (Ord a) => TraversableStream [a] where
 
 data QueryValue a =
     VLit QueryLiteral
-  | VVarIntro a
+  | VVarIntro FoxtalkType a
   | VVarBinding a
-  | VVarIntroLit a QueryLiteral
+  | VVarIntroLit FoxtalkType a QueryLiteral
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data QueryExpr a =
@@ -86,20 +92,25 @@ parseLit = token sym Set.empty
   where sym (TLit l) = Just l
         sym _        = Nothing
 
-varIntro :: Parser String
+varIntro :: Parser (QueryValue String)
 varIntro = token sym Set.empty
-  where sym (TVarIntro s) = Just s
-        sym _             = Nothing
-
-varBinding :: Parser String
-varBinding = token sym Set.empty
-  where sym (TVarBinding s) = Just s
+  where sym (TVarIntro t s) = Just $ VVarIntro t s
         sym _               = Nothing
 
-varIntroLit :: Parser (String, QueryLiteral)
+untypedVarIntro :: Parser String
+untypedVarIntro = token sym Set.empty
+  where sym (TUntypedVarIntro s) = Just $ s
+        sym _                    = Nothing
+
+varBinding :: Parser (QueryValue String)
+varBinding = token sym Set.empty
+  where sym (TVarBinding s) = Just $ VVarBinding s
+        sym _               = Nothing
+
+varIntroLit :: Parser (QueryValue String)
 varIntroLit = token sym Set.empty
-  where sym (TVarIntroLit s b) = Just (s, b)
-        sym _                  = Nothing
+  where sym (TVarIntroLit t s b) = Just $ VVarIntroLit t s b
+        sym _                    = Nothing
 
 handlerBody :: Parser [HandlerBodyLine String]
 handlerBody = bod <$> token sym Set.empty
@@ -119,9 +130,9 @@ handlerBody = bod <$> token sym Set.empty
 queryValue :: Parser (QueryValue String)
 queryValue = choice [
       VLit <$> parseLit
-    , VVarIntro <$> varIntro
-    , VVarBinding <$> varBinding
-    , (uncurry VVarIntroLit) <$> varIntroLit
+    , varIntro
+    , varBinding
+    , varIntroLit
     ]
 
 queryOper :: Parser (QueryToken String)
@@ -156,7 +167,7 @@ foxtalkForall :: Parser (FoxtalkExpr String)
 foxtalkForall =
   do
     single TForAll
-    resultsVar  <- varIntro
+    resultsVar  <- untypedVarIntro
     EWhen q bod <- foxtalkWhen
     return $ EForAll resultsVar q bod
 

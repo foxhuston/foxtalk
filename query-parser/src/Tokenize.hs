@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Tokenize (
-    QueryLiteral (..)
+    FoxtalkType(..)
+  , QueryLiteral(..)
   , QueryToken(..)
   , unparse
   , handlerBody -- exported only for testing...
@@ -28,16 +29,15 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- DONE: Forgotten: Extract Literals from TVarIntroLit as well!
 -- DONE: Make the type of variable identifiers a type variable, parsers generate Strings
 -- DONE: Write some tests that transform the type, just to make sure I've got all the cases
--- TODO: Add the rest of the literals
+-- DONE: Add the rest of the literals
 -- TODO: Add a FoxtalkType enum
 -- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
 type Parser = Parsec Void String
 
-data FoxtalkType =
-  TQuery | TPrefix | TSymbol | TCptr | TU64 | TI64
-  | TDouble | TBytes
+data FoxtalkType = TSymbol | TCptr | TU64 | TI64 | TDouble | TBytes
+  deriving (Show, Eq, Ord)
 
 data QueryLiteral =
   LSymbol String
@@ -48,9 +48,10 @@ data QueryLiteral =
 
 data QueryToken a =
       TLit QueryLiteral
-    | TVarIntro a
+    | TUntypedVarIntro a
+    | TVarIntro FoxtalkType a
     | TVarBinding a
-    | TVarIntroLit a QueryLiteral
+    | TVarIntroLit FoxtalkType a QueryLiteral
     | THandlerBody String
     | TLParen | TRParen
     | TOr
@@ -60,16 +61,27 @@ data QueryToken a =
     | TClaim
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
+----- UNPARSING -----
+
+unparseType :: FoxtalkType -> String
+unparseType TSymbol = "symbol"
+unparseType TCptr   = "ptr"
+unparseType TU64    = "u64"
+unparseType TI64    = "i64"
+unparseType TDouble = "double"
+unparseType TBytes  = "bytes"
+
 unparseLit :: QueryLiteral -> String
 unparseLit (LSymbol s)  = s
 unparseLit (LU64 u)     = show u
 unparseLit (LI64 i)     = show i
 unparseLit (LDouble d)  = show d
 
+-- TODO: not quite right... the `show` for string has the quotes in it...
 unparse :: Show a => QueryToken a -> String
 unparse (TLit l)           = unparseLit l
-unparse (TVarIntro s)      = "/" ++ show s ++ "/"
-unparse (TVarIntroLit b l) = "/" ++ show b ++ "/@" ++ unparseLit l
+unparse (TVarIntro t s)    = "/" ++ show s ++ ":" ++ unparseType t ++ "/"
+unparse (TVarIntroLit _ b l) = "/" ++ show b ++ "/@" ++ unparseLit l
 unparse (TVarBinding s)    = "(" ++ show s ++ ")"
 unparse TLParen            = "("
 unparse TRParen            = ")"
@@ -78,6 +90,33 @@ unparse TAnd               = "and"
 unparse TWhen              = "When"
 unparse TForAll            = "ForAll"
 unparse TClaim             = "Claim"
+
+----- UTILITIES -----
+
+skipSpaces :: Parser ()
+skipSpaces = skipMany spaceChar
+
+lexeme = L.lexeme skipSpaces
+symbol = L.symbol skipSpaces
+
+----- PARSING TYPES -----
+
+parseType :: Parser FoxtalkType
+parseType = choice [
+    string "symbol" $> TSymbol
+  , string "ptr"    $> TCptr
+  , string "u64"    $> TU64
+  , string "i64"    $> TI64
+  , string "double" $> TDouble
+  ]
+
+typeOfLit :: QueryLiteral -> FoxtalkType
+typeOfLit (LSymbol _)  = TSymbol
+typeOfLit (LU64 _)     = TU64
+typeOfLit (LI64 _)     = TI64
+typeOfLit (LDouble _)  = TDouble
+
+----- PARSING KEYWORDS -----
 
 whenWord :: Parser (QueryToken a)
 whenWord = string "When" $> TWhen
@@ -99,6 +138,8 @@ lParen = char '(' $> TLParen
 
 rParen :: Parser (QueryToken a)
 rParen = char ')' $> TRParen
+
+----- PARSING TOKENS -----
 
 -- TODO Fox: This could be far more readable.
 handlerBody :: Parser String
@@ -144,14 +185,26 @@ varIntro :: Parser (QueryToken String)
 varIntro = do
     _ <- char '/'
     s <- ident
+    ty <- optional $ symbol ":"
+
+    case ty of
+      Nothing ->
+        do
+          _ <- char '/'
+          return $ TUntypedVarIntro s
+      Just _ ->
+        do
+          t <- lexeme parseType
+          _ <- char '/'
+          return $ TVarIntro t s
+
+varIntroLit :: Parser (QueryToken String)
+varIntroLit = do
     _ <- char '/'
-
-    boundLit <- optional $ char '@' *> lit
-
-    case boundLit of
-        Nothing -> return $ TVarIntro s
-        Just lit -> return $ TVarIntroLit s lit
-        _ -> undefined
+    s <- ident
+    _ <- char '/'
+    boundLit <- char '@' *> lit
+    return $ TVarIntroLit (typeOfLit boundLit) s boundLit
 
 queryToken :: Parser (QueryToken String)
 queryToken = choice [
@@ -161,7 +214,8 @@ queryToken = choice [
       try varBinding,
       lParen, rParen,
       THandlerBody <$> handlerBody,
-      varIntro,
+      try varIntro,
+      varIntroLit,
       TLit <$> lit
     ]
 
