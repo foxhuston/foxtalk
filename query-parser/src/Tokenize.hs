@@ -11,6 +11,10 @@ module Tokenize (
 
 import Data.Void
 import Data.Functor
+import Data.Int (Int64)
+import Data.Word (Word64)
+
+import Data.Scientific (floatingOrInteger)
 
 import Control.Applicative ((<|>))
 
@@ -24,14 +28,22 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- DONE: Forgotten: Extract Literals from TVarIntroLit as well!
 -- DONE: Make the type of variable identifiers a type variable, parsers generate Strings
 -- DONE: Write some tests that transform the type, just to make sure I've got all the cases
+-- TODO: Add the rest of the literals
 -- TODO: Add a FoxtalkType enum
 -- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
 type Parser = Parsec Void String
 
+data FoxtalkType =
+  TQuery | TPrefix | TSymbol | TCptr | TU64 | TI64
+  | TDouble | TBytes
+
 data QueryLiteral =
   LSymbol String
+  | LU64 Word64
+  | LI64 Int64
+  | LDouble Double
   deriving (Show, Eq, Ord)
 
 data QueryToken a =
@@ -49,7 +61,10 @@ data QueryToken a =
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 unparseLit :: QueryLiteral -> String
-unparseLit (LSymbol s) = s
+unparseLit (LSymbol s)  = s
+unparseLit (LU64 u)     = show u
+unparseLit (LI64 i)     = show i
+unparseLit (LDouble d)  = show d
 
 unparse :: Show a => QueryToken a -> String
 unparse (TLit l)           = unparseLit l
@@ -99,9 +114,22 @@ handlerBody = s *> (concat <$> manyTill p e)
 ident :: Parser String
 ident = some letterChar
 
+numberLit :: Parser QueryLiteral
+numberLit = do
+  n <- L.signed (skipMany spaceChar) L.scientific
+  c <- optional $ char 'u'
+  case c of
+    Nothing -> case floatingOrInteger n of
+                  Left flt -> return $ LDouble flt
+                  Right intg -> return $ LI64 intg
+    Just _  -> case floatingOrInteger n of
+                  Left flt -> undefined -- TODO: Better failure message
+                  Right intg -> return $ LU64 intg
+
 lit :: Parser QueryLiteral
 lit = choice [
-    LSymbol <$> ident
+      numberLit
+    , LSymbol <$> ident
   ]
 
 varBinding :: Parser (QueryToken String)

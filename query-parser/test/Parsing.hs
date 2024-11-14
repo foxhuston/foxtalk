@@ -24,11 +24,21 @@ parsingTests = testGroup "Parsing Tests" [queryTokenTests, parserTests]
 queryTokenTests :: TestTree
 queryTokenTests = testGroup "Token tests"
   [
-      testCase "Ident 1" $ queryTokens "a" @?= Just [TLit (LSymbol "a")]
+      testCase "Lit: Sym 1" $ queryTokens "a" @?= Just [TLit (LSymbol "a")]
 
-    , testCase "Ident 1" $ queryTokens "fox" @?= Just [TLit (LSymbol "fox")]
+    , testCase "Lit: Sym 1" $ queryTokens "fox" @?= Just [TLit (LSymbol "fox")]
 
-    , testCase "Ident 3" $ queryTokens "foxorlexi" @?= Just [TLit (LSymbol "foxorlexi")]
+    , testCase "Lit: Sym 3" $ queryTokens "foxorlexi" @?= Just [TLit (LSymbol "foxorlexi")]
+
+    , testCase "Lit: Int" $ queryTokens "1234" @?= Just [TLit (LI64 1234)]
+
+    , testCase "Lit: Negative Int" $ queryTokens "-4321" @?= Just [TLit (LI64 (-4321))]
+
+    , testCase "Lit: Unsigned Int" $ queryTokens "88899u" @?= Just [TLit (LU64 88899)]
+
+    , testCase "Lit: Double" $ queryTokens "14.89" @?= Just [TLit (LDouble 14.89)]
+
+    , testCase "Lit: Negative Double" $ queryTokens "-98.41" @?= Just [TLit (LDouble (-98.41))]
 
     , testCase "VarIntro 1" $ queryTokens "/lexi/" @?= Just [TVarIntro "lexi"]
 
