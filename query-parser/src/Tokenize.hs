@@ -22,7 +22,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 -- DONE: Extract Literals
 -- DONE: Forgotten: Extract Literals from TVarIntroLit as well!
--- TODO: Make the type of variable identifiers a type variable, parsers generate Strings
+-- DONE: Make the type of variable identifiers a type variable, parsers generate Strings
+-- DONE: Write some tests that transform the type, just to make sure I've got all the cases
 -- TODO: Add a FoxtalkType enum
 -- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
@@ -45,7 +46,7 @@ data QueryToken a =
     | TWhen
     | TForAll
     | TClaim
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 unparseLit :: QueryLiteral -> String
 unparseLit (LSymbol s) = s

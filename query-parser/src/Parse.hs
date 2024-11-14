@@ -62,25 +62,24 @@ data QueryValue a =
   | VVarIntro a
   | VVarBinding a
   | VVarIntroLit a QueryLiteral
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data QueryExpr a =
     EQueryTuple [QueryValue a]
   | EQueryAnd (QueryExpr a) (QueryExpr a)
   | EQueryOr (QueryExpr a) (QueryExpr a)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data HandlerBodyLine a =
     BCodeLine String
   | BFoxtalkExpr (FoxtalkExpr a)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data FoxtalkExpr a =
     EWhen (QueryExpr a) [HandlerBodyLine a]
-  | EForAll String (QueryExpr a) [HandlerBodyLine a]
+  | EForAll a (QueryExpr a) [HandlerBodyLine a]
   | EClaim [(QueryValue a)]
-  deriving (Show, Eq)
-
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 parseLit :: Parser QueryLiteral
 parseLit = token sym Set.empty
