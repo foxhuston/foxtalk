@@ -61,7 +61,7 @@ data QueryValue =
     VLit QueryLiteral
   | VVarIntro String
   | VVarBinding String
-  | VVarIntroLit String String
+  | VVarIntroLit String QueryLiteral
   deriving (Show, Eq)
 
 data QueryExpr =
@@ -97,7 +97,7 @@ varBinding = token sym Set.empty
   where sym (TVarBinding s) = Just s
         sym _               = Nothing
 
-varIntroLit :: Parser (String, String)
+varIntroLit :: Parser (String, QueryLiteral)
 varIntroLit = token sym Set.empty
   where sym (TVarIntroLit s b) = Just (s, b)
         sym _                  = Nothing

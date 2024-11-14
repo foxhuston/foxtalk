@@ -21,7 +21,10 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 
 -- DONE: Extract Literals
--- TODO: Make symbol types a type variable, parsers generate Strings
+-- TODO: Forgotten: Extract Literals from TVarIntroLit as well!
+-- TODO: Make the type of variable identifiers a type variable, parsers generate Strings
+-- TODO: Add a FoxtalkType enum
+-- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
 type Parser = Parsec Void String
@@ -34,7 +37,7 @@ data QueryToken =
       TLit QueryLiteral
     | TVarIntro String
     | TVarBinding String
-    | TVarIntroLit String String
+    | TVarIntroLit String QueryLiteral
     | THandlerBody String
     | TLParen | TRParen
     | TOr
@@ -42,13 +45,15 @@ data QueryToken =
     | TWhen
     | TForAll
     | TClaim
-
     deriving (Show, Eq, Ord)
 
+unparseLit :: QueryLiteral -> String
+unparseLit (LSymbol s) = s
+
 unparse :: QueryToken -> String
-unparse (TLit (LSymbol s)) = s
+unparse (TLit l)           = unparseLit l
 unparse (TVarIntro s)      = "/" ++ s ++ "/"
-unparse (TVarIntroLit b l) = "/" ++ b ++ "/@" ++ l
+unparse (TVarIntroLit b l) = "/" ++ b ++ "/@" ++ unparseLit l
 unparse (TVarBinding s)    = "(" ++ s ++ ")"
 unparse TLParen            = "("
 unparse TRParen            = ")"
@@ -93,9 +98,9 @@ handlerBody = s *> (concat <$> manyTill p e)
 ident :: Parser String
 ident = some letterChar
 
-lit :: Parser QueryToken
+lit :: Parser QueryLiteral
 lit = choice [
-    TLit . LSymbol <$> ident
+    LSymbol <$> ident
   ]
 
 varBinding :: Parser QueryToken
@@ -112,7 +117,7 @@ varIntro = do
     s <- ident
     _ <- char '/'
 
-    boundLit <- optional $ char '@' *> ident
+    boundLit <- optional $ char '@' *> lit
 
     case boundLit of
         Nothing -> return $ TVarIntro s
@@ -127,7 +132,8 @@ queryToken = choice [
       try varBinding,
       lParen, rParen,
       THandlerBody <$> handlerBody,
-      varIntro, lit
+      varIntro,
+      TLit <$> lit
     ]
 
 queryTokensParser :: Parser [QueryToken]

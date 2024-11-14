@@ -38,10 +38,13 @@ queryTokenTests = testGroup "Token tests"
 
     , testCase "VarBinding 2" $ queryTokens "(test with spaces)" @?= Just [TLParen, TLit (LSymbol "test"), TLit (LSymbol "with"), TLit (LSymbol "spaces"), TRParen]
 
-    , testCase "BoundLit 1" $ queryTokens "/shape/@circle" @?= Just [TVarIntroLit "shape" "circle"]
+    , testCase "BoundLit 1" $ queryTokens "/shape/@circle" @?= Just [TVarIntroLit "shape" (LSymbol "circle")]
 
     , testCase "Tokens 1" $ queryTokens "/shape/@rectangle with x /x/ or /shape/@circle with r /r/"
-        @?= Just [TVarIntroLit "shape" "rectangle", TLit (LSymbol "with"), TLit (LSymbol "x"), TVarIntro "x", TOr, TVarIntroLit "shape" "circle", TLit (LSymbol "with"), TLit (LSymbol "r"), TVarIntro "r"]
+        @?= Just [TVarIntroLit "shape" (LSymbol "rectangle")
+                 , TLit (LSymbol "with"), TLit (LSymbol "x")
+                 , TVarIntro "x", TOr, TVarIntroLit "shape" (LSymbol "circle")
+                 , TLit (LSymbol "with"), TLit (LSymbol "r"), TVarIntro "r"]
 
     , testCase "Tokens 2" $ queryTokens "((you) is a rectangle with x /x/) and ((you) has color /c/)"
         @?= Just ([TLParen, TVarBinding "you"]
