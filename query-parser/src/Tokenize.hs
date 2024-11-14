@@ -71,15 +71,6 @@ rParen :: Parser QueryToken
 rParen = char ')' $> TRParen
 
 -- TODO Fox: This could be far more readable.
--- TODO Fox: Change this so that it emits a series of tokens: they can either be
---           a TCCodeLine for the rest of the line, <|> a `Claim` followed by a
---           bunch of tokens...  Actually, perhaps this is unchanged in the
---           tokenizer, and it's up to the parser to decide line-by-line whether
---           or not something matches a claim? I'm not really sure...
---
---           Essentially I'm trying to avoid writing a C parser (let alone a C++
---           parser), but it would be nice to be able to have a `Claim (x) is
---           cool` line in the body of the handler.
 handlerBody :: Parser String
 handlerBody = s *> (concat <$> manyTill p e)
   where
