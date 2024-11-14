@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
 module Parse (
-    QueryValue (..)
+    QueryLiteral (..)
+  , QueryValue (..)
   , QueryExpr (..)
   , HandlerBodyLine (..)
   , FoxtalkExpr (..)
@@ -45,7 +46,7 @@ import Text.Megaparsec (
 
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
-import Tokenize (QueryToken (..), queryTokens)
+import Tokenize (QueryToken (..), QueryLiteral(..), queryTokens)
 
 type Parser = Parsec Void [QueryToken]
 
@@ -57,7 +58,7 @@ instance (Ord a) => TraversableStream [a] where
   reachOffsetNoLine offset p = undefined
 
 data QueryValue =
-    VSymbolLit String
+    VLit QueryLiteral
   | VVarIntro String
   | VVarBinding String
   | VVarIntroLit String String
@@ -81,22 +82,20 @@ data FoxtalkExpr =
   deriving (Show, Eq)
 
 
-symbolLit :: Parser String
-symbolLit = token sym Set.empty
-  where sym (TSymbolLit s) = Just s
-        sym _              = Nothing
+parseLit :: Parser QueryLiteral
+parseLit = token sym Set.empty
+  where sym (TLit l) = Just l
+        sym _        = Nothing
 
 varIntro :: Parser String
 varIntro = token sym Set.empty
   where sym (TVarIntro s) = Just s
         sym _             = Nothing
 
-
 varBinding :: Parser String
 varBinding = token sym Set.empty
   where sym (TVarBinding s) = Just s
         sym _               = Nothing
-
 
 varIntroLit :: Parser (String, String)
 varIntroLit = token sym Set.empty
@@ -116,11 +115,11 @@ handlerBody = bod <$> token sym Set.empty
     bodLine ln =
       case queryTokens ln >>= parseMaybe foxtalkExpr of
         Just expr -> BFoxtalkExpr expr
-        Nothing -> BCodeLine ln
+        Nothing   -> BCodeLine ln
 
 queryValue :: Parser QueryValue
 queryValue = choice [
-      VSymbolLit <$> symbolLit
+      VLit <$> parseLit
     , VVarIntro <$> varIntro
     , VVarBinding <$> varBinding
     , (uncurry VVarIntroLit) <$> varIntroLit
@@ -137,20 +136,19 @@ queryBranch = do
 
 query :: Parser QueryExpr
 query = do
-  vals <- some queryValue
+  vals      <- some queryValue
   maybeRest <- optional $ queryBranch
   case maybeRest of
-    Nothing -> return $ EQueryTuple vals
+    Nothing           -> return $ EQueryTuple vals
     Just (TAnd, rest) -> return $ EQueryAnd (EQueryTuple vals) rest
-    Just (TOr, rest) -> return $ EQueryOr (EQueryTuple vals) rest
-
+    Just (TOr, rest)  -> return $ EQueryOr (EQueryTuple vals) rest
 
 -- When /x/ is a husky
 foxtalkWhen :: Parser FoxtalkExpr
 foxtalkWhen =
   do
     single TWhen
-    q <- query
+    q   <- query
     bod <- handlerBody
     return $ EWhen q bod
 
@@ -159,7 +157,7 @@ foxtalkForall :: Parser FoxtalkExpr
 foxtalkForall =
   do
     single TForAll
-    resultsVar <- varIntro
+    resultsVar  <- varIntro
     EWhen q bod <- foxtalkWhen
     return $ EForAll resultsVar q bod
 

@@ -6,16 +6,18 @@ module Foxtalk (
 import Data.List (intercalate)
 
 import Parse (
-  QueryValue (..)
+    QueryLiteral (..)
+  , QueryValue (..)
   , QueryExpr (..)
   , HandlerBodyLine (..)
   , FoxtalkExpr (..)
   )
 
 queryValueToTupleEntry :: QueryValue -> String
-queryValueToTupleEntry (VSymbolLit s)   = "{\"" ++ s ++ "\"}"
-queryValueToTupleEntry (VVarIntro s)    = "TupleValue::query()"
-queryValueToTupleEntry (VVarBinding s)  = s
+queryValueToTupleEntry (VLit (LSymbol s)) = "{\"" ++ s ++ "\"}"
+queryValueToTupleEntry (VLit _)           = undefined
+queryValueToTupleEntry (VVarIntro s)      = "TupleValue::query()"
+queryValueToTupleEntry (VVarBinding s)    = s
 queryValueToTupleEntry (VVarIntroLit s _) = "TupleValue::query()"
 
 tupleObj :: String -> [QueryValue] -> String

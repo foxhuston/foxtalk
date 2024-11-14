@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Tokenize (
-  QueryToken(..)
+    QueryLiteral (..)
+  , QueryToken(..)
   , unparse
   , handlerBody -- exported only for testing...
   , queryTokens
@@ -21,8 +22,12 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void String
 
+data QueryLiteral =
+  LSymbol String
+  deriving (Show, Eq, Ord)
+
 data QueryToken =
-      TSymbolLit String
+      TLit QueryLiteral
     | TVarIntro String
     | TVarBinding String
     | TVarIntroLit String String
@@ -37,17 +42,17 @@ data QueryToken =
     deriving (Show, Eq, Ord)
 
 unparse :: QueryToken -> String
-unparse (TSymbolLit s)      = s
-unparse (TVarIntro s)    = "/" ++ s ++ "/"
+unparse (TLit (LSymbol s)) = s
+unparse (TVarIntro s)      = "/" ++ s ++ "/"
 unparse (TVarIntroLit b l) = "/" ++ b ++ "/@" ++ l
-unparse (TVarBinding s) = "(" ++ s ++ ")"
-unparse TLParen         = "("
-unparse TRParen         = ")"
-unparse TOr             = "or"
-unparse TAnd            = "and"
-unparse TWhen           = "When"
-unparse TForAll         = "ForAll"
-unparse TClaim          = "Claim"
+unparse (TVarBinding s)    = "(" ++ s ++ ")"
+unparse TLParen            = "("
+unparse TRParen            = ")"
+unparse TOr                = "or"
+unparse TAnd               = "and"
+unparse TWhen              = "When"
+unparse TForAll            = "ForAll"
+unparse TClaim             = "Claim"
 
 whenWord :: Parser QueryToken
 whenWord = string "When" $> TWhen
@@ -81,13 +86,18 @@ handlerBody = s *> (concat <$> manyTill p e)
     e :: Parser String
     e = string "}"
 
-ident :: Parser QueryToken
-ident = TSymbolLit <$> some letterChar
+ident :: Parser String
+ident = some letterChar
+
+lit :: Parser QueryToken
+lit = choice [
+    TLit . LSymbol <$> ident
+  ]
 
 varBinding :: Parser QueryToken
 varBinding = do
   _ <- char '('
-  TSymbolLit s <- ident
+  s <- ident
   _ <- char ')'
 
   return $ TVarBinding s
@@ -95,14 +105,14 @@ varBinding = do
 varIntro :: Parser QueryToken
 varIntro = do
     _ <- char '/'
-    TSymbolLit s <- ident
+    s <- ident
     _ <- char '/'
 
     boundLit <- optional $ char '@' *> ident
 
     case boundLit of
         Nothing -> return $ TVarIntro s
-        Just (TSymbolLit lit) -> return $ TVarIntroLit s lit
+        Just lit -> return $ TVarIntroLit s lit
         _ -> undefined
 
 queryToken :: Parser QueryToken
@@ -113,7 +123,7 @@ queryToken = choice [
       try varBinding,
       lParen, rParen,
       THandlerBody <$> handlerBody,
-      varIntro, ident
+      varIntro, lit
     ]
 
 queryTokensParser :: Parser [QueryToken]
