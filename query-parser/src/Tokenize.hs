@@ -21,7 +21,7 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 
 -- DONE: Extract Literals
--- TODO: Forgotten: Extract Literals from TVarIntroLit as well!
+-- DONE: Forgotten: Extract Literals from TVarIntroLit as well!
 -- TODO: Make the type of variable identifiers a type variable, parsers generate Strings
 -- TODO: Add a FoxtalkType enum
 -- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
@@ -33,11 +33,11 @@ data QueryLiteral =
   LSymbol String
   deriving (Show, Eq, Ord)
 
-data QueryToken =
+data QueryToken a =
       TLit QueryLiteral
-    | TVarIntro String
-    | TVarBinding String
-    | TVarIntroLit String QueryLiteral
+    | TVarIntro a
+    | TVarBinding a
+    | TVarIntroLit a QueryLiteral
     | THandlerBody String
     | TLParen | TRParen
     | TOr
@@ -50,11 +50,11 @@ data QueryToken =
 unparseLit :: QueryLiteral -> String
 unparseLit (LSymbol s) = s
 
-unparse :: QueryToken -> String
+unparse :: Show a => QueryToken a -> String
 unparse (TLit l)           = unparseLit l
-unparse (TVarIntro s)      = "/" ++ s ++ "/"
-unparse (TVarIntroLit b l) = "/" ++ b ++ "/@" ++ unparseLit l
-unparse (TVarBinding s)    = "(" ++ s ++ ")"
+unparse (TVarIntro s)      = "/" ++ show s ++ "/"
+unparse (TVarIntroLit b l) = "/" ++ show b ++ "/@" ++ unparseLit l
+unparse (TVarBinding s)    = "(" ++ show s ++ ")"
 unparse TLParen            = "("
 unparse TRParen            = ")"
 unparse TOr                = "or"
@@ -63,25 +63,25 @@ unparse TWhen              = "When"
 unparse TForAll            = "ForAll"
 unparse TClaim             = "Claim"
 
-whenWord :: Parser QueryToken
+whenWord :: Parser (QueryToken a)
 whenWord = string "When" $> TWhen
 
-claimWord :: Parser QueryToken
+claimWord :: Parser (QueryToken a)
 claimWord = string "Claim" $> TClaim
 
-forAllWord :: Parser QueryToken
+forAllWord :: Parser (QueryToken a)
 forAllWord = string "ForAll" $> TForAll
 
-orWord :: Parser QueryToken
+orWord :: Parser (QueryToken a)
 orWord = string "or" $> TOr
 
-andWord :: Parser QueryToken
+andWord :: Parser (QueryToken a)
 andWord = string "and" $> TAnd
 
-lParen :: Parser QueryToken
+lParen :: Parser (QueryToken a)
 lParen = char '(' $> TLParen
 
-rParen :: Parser QueryToken
+rParen :: Parser (QueryToken a)
 rParen = char ')' $> TRParen
 
 -- TODO Fox: This could be far more readable.
@@ -103,7 +103,7 @@ lit = choice [
     LSymbol <$> ident
   ]
 
-varBinding :: Parser QueryToken
+varBinding :: Parser (QueryToken String)
 varBinding = do
   _ <- char '('
   s <- ident
@@ -111,7 +111,7 @@ varBinding = do
 
   return $ TVarBinding s
 
-varIntro :: Parser QueryToken
+varIntro :: Parser (QueryToken String)
 varIntro = do
     _ <- char '/'
     s <- ident
@@ -124,7 +124,7 @@ varIntro = do
         Just lit -> return $ TVarIntroLit s lit
         _ -> undefined
 
-queryToken :: Parser QueryToken
+queryToken :: Parser (QueryToken String)
 queryToken = choice [
       whenWord, forAllWord,
       claimWord,
@@ -136,8 +136,8 @@ queryToken = choice [
       TLit <$> lit
     ]
 
-queryTokensParser :: Parser [QueryToken]
+queryTokensParser :: Parser [QueryToken String]
 queryTokensParser = many (queryToken <* skipMany spaceChar)
 
-queryTokens :: String -> Maybe [QueryToken]
+queryTokens :: String -> Maybe [QueryToken String]
 queryTokens = parseMaybe queryTokensParser

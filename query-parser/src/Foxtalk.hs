@@ -13,14 +13,14 @@ import Parse (
   , FoxtalkExpr (..)
   )
 
-queryValueToTupleEntry :: QueryValue -> String
+queryValueToTupleEntry :: (QueryValue String) -> String
 queryValueToTupleEntry (VLit (LSymbol s)) = "{\"" ++ s ++ "\"}"
 queryValueToTupleEntry (VLit _)           = undefined
 queryValueToTupleEntry (VVarIntro s)      = "TupleValue::query()"
 queryValueToTupleEntry (VVarBinding s)    = s
 queryValueToTupleEntry (VVarIntroLit s _) = "TupleValue::query()"
 
-tupleObj :: String -> [QueryValue] -> String
+tupleObj :: String -> [QueryValue String] -> String
 tupleObj name values =
   let vs = intercalate ", " $ map queryValueToTupleEntry values
   in "Tuple " ++ name ++ " { " ++ vs ++ "}"

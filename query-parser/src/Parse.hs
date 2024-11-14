@@ -48,7 +48,7 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
 import Tokenize (QueryToken (..), QueryLiteral(..), queryTokens)
 
-type Parser = Parsec Void [QueryToken]
+type Parser = Parsec Void [QueryToken String]
 
 instance (Show a, Ord a) => VisualStream [a] where
   showTokens Proxy = show
@@ -57,28 +57,28 @@ instance (Ord a) => TraversableStream [a] where
   reachOffsetNoLine 0 p = p
   reachOffsetNoLine offset p = undefined
 
-data QueryValue =
+data QueryValue a =
     VLit QueryLiteral
-  | VVarIntro String
-  | VVarBinding String
-  | VVarIntroLit String QueryLiteral
+  | VVarIntro a
+  | VVarBinding a
+  | VVarIntroLit a QueryLiteral
   deriving (Show, Eq)
 
-data QueryExpr =
-    EQueryTuple [QueryValue]
-  | EQueryAnd QueryExpr QueryExpr
-  | EQueryOr QueryExpr QueryExpr
+data QueryExpr a =
+    EQueryTuple [QueryValue a]
+  | EQueryAnd (QueryExpr a) (QueryExpr a)
+  | EQueryOr (QueryExpr a) (QueryExpr a)
   deriving (Show, Eq)
 
-data HandlerBodyLine =
+data HandlerBodyLine a =
     BCodeLine String
-  | BFoxtalkExpr FoxtalkExpr
+  | BFoxtalkExpr (FoxtalkExpr a)
   deriving (Show, Eq)
 
-data FoxtalkExpr =
-    EWhen QueryExpr [HandlerBodyLine]
-  | EForAll String QueryExpr [HandlerBodyLine]
-  | EClaim [QueryValue]
+data FoxtalkExpr a =
+    EWhen (QueryExpr a) [HandlerBodyLine a]
+  | EForAll String (QueryExpr a) [HandlerBodyLine a]
+  | EClaim [(QueryValue a)]
   deriving (Show, Eq)
 
 
@@ -102,22 +102,22 @@ varIntroLit = token sym Set.empty
   where sym (TVarIntroLit s b) = Just (s, b)
         sym _                  = Nothing
 
-handlerBody :: Parser [HandlerBodyLine]
+handlerBody :: Parser [HandlerBodyLine String]
 handlerBody = bod <$> token sym Set.empty
   where
     sym (THandlerBody bod) = Just bod
     sym _                  = Nothing
 
-    bod :: String -> [HandlerBodyLine]
+    bod :: String -> [HandlerBodyLine String]
     bod src = map bodLine $ lines src
 
-    bodLine :: String -> HandlerBodyLine
+    bodLine :: String -> HandlerBodyLine String
     bodLine ln =
       case queryTokens ln >>= parseMaybe foxtalkExpr of
         Just expr -> BFoxtalkExpr expr
         Nothing   -> BCodeLine ln
 
-queryValue :: Parser QueryValue
+queryValue :: Parser (QueryValue String)
 queryValue = choice [
       VLit <$> parseLit
     , VVarIntro <$> varIntro
@@ -125,16 +125,16 @@ queryValue = choice [
     , (uncurry VVarIntroLit) <$> varIntroLit
     ]
 
-queryOper :: Parser QueryToken
+queryOper :: Parser (QueryToken String)
 queryOper = single TAnd <|> single TOr
 
-queryBranch :: Parser (QueryToken, QueryExpr)
+queryBranch :: Parser (QueryToken String, QueryExpr String)
 queryBranch = do
   oper <- queryOper
   rest <- query
   return $ (oper, rest)
 
-query :: Parser QueryExpr
+query :: Parser (QueryExpr String)
 query = do
   vals      <- some queryValue
   maybeRest <- optional $ queryBranch
@@ -144,7 +144,7 @@ query = do
     Just (TOr, rest)  -> return $ EQueryOr (EQueryTuple vals) rest
 
 -- When /x/ is a husky
-foxtalkWhen :: Parser FoxtalkExpr
+foxtalkWhen :: Parser (FoxtalkExpr String)
 foxtalkWhen =
   do
     single TWhen
@@ -153,7 +153,7 @@ foxtalkWhen =
     return $ EWhen q bod
 
 -- Forall /huskies/ When /x/ is a husky
-foxtalkForall :: Parser FoxtalkExpr
+foxtalkForall :: Parser (FoxtalkExpr String)
 foxtalkForall =
   do
     single TForAll
@@ -161,18 +161,18 @@ foxtalkForall =
     EWhen q bod <- foxtalkWhen
     return $ EForAll resultsVar q bod
 
-foxtalkClaim :: Parser FoxtalkExpr
+foxtalkClaim :: Parser (FoxtalkExpr String)
 foxtalkClaim =
   do
     single TClaim
     vals <- many queryValue
     return $ EClaim vals
 
-foxtalkExpr :: Parser FoxtalkExpr
+foxtalkExpr :: Parser (FoxtalkExpr String)
 foxtalkExpr = choice [ foxtalkClaim, foxtalkForall, foxtalkWhen ]
 
-foxtalkProgram :: Parser [FoxtalkExpr]
+foxtalkProgram :: Parser [FoxtalkExpr String]
 foxtalkProgram = some foxtalkExpr
 
-parseProgram :: String -> Maybe [FoxtalkExpr]
+parseProgram :: String -> Maybe [FoxtalkExpr String]
 parseProgram src = queryTokens src >>= parseMaybe foxtalkProgram
