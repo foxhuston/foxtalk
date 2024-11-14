@@ -20,6 +20,10 @@ import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
 import qualified Text.Megaparsec.Char.Lexer as L
 
+-- DONE: Extract Literals
+-- TODO: Make symbol types a type variable, parsers generate Strings
+-- TODO: Replace Void errors with String
+-- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
 type Parser = Parsec Void String
 
 data QueryLiteral =
