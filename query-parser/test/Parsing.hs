@@ -43,15 +43,15 @@ queryTokenTests = testGroup "Token tests"
     ]
 
     , testGroup "Variable Introduction" [
-        testCase "Symbol" $ queryTokens "/lexi:symbol/" @?= Just [TVarIntro TSymbol "lexi"]
-      , testCase "Cptr"   $ queryTokens "/lexi:ptr/" @?= Just [TVarIntro TCptr "lexi"]
-      , testCase "U64"    $ queryTokens "/lexi:u64/" @?= Just [TVarIntro TU64 "lexi"]
-      , testCase "I64"    $ queryTokens "/lexi:i64/" @?= Just [TVarIntro TI64 "lexi"]
-      , testCase "Double" $ queryTokens "/lexi:double/" @?= Just [TVarIntro TDouble "lexi"]
-      , testCase "Bytes"  $ queryTokens "/lexi:bytes/" @?= Just [TVarIntro TBytes "lexi"]
+        testCase "Untyped"            $ queryTokens "/lexi/" @?= Just [TUntypedVarIntro "lexi"]
+      , testCase "Symbol"             $ queryTokens "/lexi:symbol/" @?= Just [TVarIntro TSymbol "lexi"]
+      , testCase "Cptr"               $ queryTokens "/lexi:ptr/" @?= Just [TVarIntro TCptr "lexi"]
+      , testCase "U64"                $ queryTokens "/lexi:u64/" @?= Just [TVarIntro TU64 "lexi"]
+      , testCase "I64"                $ queryTokens "/lexi:i64/" @?= Just [TVarIntro TI64 "lexi"]
+      , testCase "Double"             $ queryTokens "/lexi:double/" @?= Just [TVarIntro TDouble "lexi"]
+      , testCase "Bytes"              $ queryTokens "/lexi:bytes/" @?= Just [TVarIntro TBytes "lexi"]
+      , testCase "Fails with Spaces"  $ queryTokens "/test with spaces:symbol/" @?= Nothing
     ]
-
-    , testCase "VarIntro 2" $ queryTokens "/test with spaces:symbol/" @?= Nothing
 
     , testCase "VarBinding 1" $ queryTokens "(lexi)" @?= Just [TVarBinding "lexi"]
 

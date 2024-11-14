@@ -30,8 +30,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- DONE: Make the type of variable identifiers a type variable, parsers generate Strings
 -- DONE: Write some tests that transform the type, just to make sure I've got all the cases
 -- DONE: Add the rest of the literals
--- TODO: Add a FoxtalkType enum
--- TODO: Add types into Bindings (tokenizer can infer for TVarIntroLit)
+-- Done: Add a FoxtalkType enum
+-- Done: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
 type Parser = Parsec Void String
@@ -108,6 +108,7 @@ parseType = choice [
   , string "u64"    $> TU64
   , string "i64"    $> TI64
   , string "double" $> TDouble
+  , string "bytes"  $> TBytes
   ]
 
 typeOfLit :: QueryLiteral -> FoxtalkType
@@ -214,8 +215,8 @@ queryToken = choice [
       try varBinding,
       lParen, rParen,
       THandlerBody <$> handlerBody,
-      try varIntro,
-      varIntroLit,
+      try varIntroLit,
+      varIntro,
       TLit <$> lit
     ]
 
