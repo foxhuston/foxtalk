@@ -34,11 +34,11 @@ impl CppFileBuilder {
                 .filter_map(|line| {
                     let out: Option<&str> = cppstd_regex.captures(line)
                         .and_then(|c| c.get(2).map(|m| m.as_str()));
-                           
+
                     out
                 }).find(|s| !s.is_empty())
                 .map(|s| s.trim().to_string());
-        
+
         cppstd.unwrap_or("26".to_string())
     }
 }
@@ -56,7 +56,7 @@ impl FileWatcherHandlers for CppFileBuilder {
             fs::create_dir_all(parent_so_path.clone()).unwrap();
             let output_so_file = output_so_path.clone() + ".so";
             let output_json_file = output_so_path.clone() + ".json";
-            
+
             let source = fs::read_to_string(full_path.clone()).unwrap();
 
             let config_regex = Regex::new(r"(//|/\*) *pkg-config:? +(.*?)(\*/)?$").unwrap();
@@ -77,7 +77,7 @@ impl FileWatcherHandlers for CppFileBuilder {
 
             debug!("In cpp handler on_create (for close_write or moved_to): Found {:?} in {:?}", packages, full_path);
 
-            
+
             fn pkg_config_args(arg: &str, package_names: &[&str]) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
                     .args([arg].iter().chain(package_names))
@@ -104,7 +104,7 @@ impl FileWatcherHandlers for CppFileBuilder {
                 };
 
             debug!("In cpp handler on_create (for close_write or moved_to): Compiling {:?} to {:?}", full_path, output_so_file);
-            
+
             let cpp_standard = CppFileBuilder::find_cpp_std_in_source(source);
             let cpp_std_str = format!("-std=c++{}", cpp_standard);
             let rest_of_args: Vec<String> = vec![
@@ -122,17 +122,28 @@ impl FileWatcherHandlers for CppFileBuilder {
             ].iter().map(|&s| s.to_string()).collect();
             let all_args = [rest_of_args, linking_args].concat();
             trace!("Running command clang++ {:?}", all_args);
-            
+
             let status = Command::new("clang++")
                 .args(all_args)
                 .status();
 
-            if status.is_err() {
-                error!("Error while compiling {:?}: {:?}", full_path, status);
-            } else {
-                info!("Compiled {:?} to {:?}", full_path, output_so_file);
+            match status {
+                Ok(s) if !s.success() => {
+                  error!("Error while compiling {:?}: {:?}", full_path, s);
+                  warn!("code is {:?}", s.code());
+                }
+                Ok(_) => {
+                  info!("Compiled {:?} to {:?}", full_path, output_so_file);
+                  commands_json_creator::regenerate_compiler_commands();
+                }
+                Err(e) if e.raw_os_error() == Some(2) => {
+                  error!("Error while compiling {:?}: {:?}", full_path, e);
+                  error!(">>>>>> Is clang++ installed? <<<<<<");
+                }
+                Err(e) => {
+                  error!("Error while compiling {:?}: {:?}", full_path, e);
+                }
             }
-            commands_json_creator::regenerate_compiler_commands();
         }
     }
 
@@ -155,7 +166,7 @@ impl FileWatcherHandlers for CppFileBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
 
     #[test]
     fn it_should_get_the_cpp_standard() {

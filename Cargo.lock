@@ -697,6 +697,7 @@ dependencies = [
  "dotenv",
  "inotify",
  "log",
+ "pkg-config",
  "reactor",
  "regex",
  "rust_tuple_reactor_serde",

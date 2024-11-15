@@ -14,7 +14,7 @@ protected:
             auto subj = i.at<std::string>(0).value();
             claim(Tuple{std::vector{TupleNoun(subj), TupleNoun("is"), TupleNoun("cool")}});
         }
-    } 
+    }
 
     void free_tuple(const Tuple &o) override
     {

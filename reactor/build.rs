@@ -44,10 +44,19 @@ fn main() {
                         ])
                         .status();
 
-                    assert_eq!(status.unwrap().success(), true);
-                    println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
-                    // println!("cargo::rerun-if-changed=tests/test_libs/out/{filename}.cpp");
-                    println!("cargo::rerun-if-changed=../foxtalk_cpp_handler/include");
+                    match status {
+                        Ok(s) if s.success() => {
+                            println!("cargo::rerun-if-changed=tests/test_libs/src/{filename}.cpp");
+                            // println!("cargo::rerun-if-changed=tests/test_libs/out/{filename}.cpp");
+                            println!("cargo::rerun-if-changed=../foxtalk_cpp_handler/include");
+                        }
+                        Ok(s) => {
+                            println!("cargo:warning=failed to compile test_libs/out/{filename}.cpp; exit status {s:?}");
+                        }
+                        Err(e) => {
+                            println!("cargo:warning=failed to compile test_libs/out/{filename}.cpp; error {e:?}");
+                        }
+                    }
                 }
             }
             _ => {}

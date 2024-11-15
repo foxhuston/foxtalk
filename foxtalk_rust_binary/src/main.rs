@@ -18,7 +18,7 @@ mod recursive_inotify;
 mod reactor_debug_tuple_writer;
 
 fn main() {
-    colog::default_builder().filter_level(LevelFilter::Debug).init();
+    colog::default_builder().filter_level(LevelFilter::Trace).init();
     dotenv::dotenv().ok();
 
     let so_path_from_env = std::env::var("SO_PATH");
