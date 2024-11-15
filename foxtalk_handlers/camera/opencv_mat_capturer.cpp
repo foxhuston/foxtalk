@@ -18,24 +18,10 @@ protected:
     cv::VideoCapture* cap = static_cast<cv::VideoCapture*>(q.at<void *>(0).value());
 
     cv::Mat frame;
-    *cap >> frame;
+    *cap >> frame; 
     
     std::cout << "Testing\n";
-
-    while (true) {
-        // Capture a new frame
-        *cap >> frame; // or cap.read(frame);
-        if (frame.empty()) {
-            std::cerr << "Error: Could not grab a frame." << std::endl;
-            break;
-        }
-
-        // Display the frame
-        cv::imshow("Camera Feed", frame);
-
-        // Wait for 30 ms and check if the user pressed 'q' to exit
-        if (cv::waitKey(30) >= 0) break;
-    }
+    
   }
     
 

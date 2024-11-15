@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::thread;
+use log::{trace, warn};
 
 pub trait FileWatcherHandlers
 where
@@ -36,7 +37,7 @@ impl RecursiveFileWatcher {
                 .watches()
                 .add(
                     watcher.base_path.clone(),
-                    WatchMask::CLOSE_WRITE | WatchMask::DELETE | WatchMask::CREATE | WatchMask::MOVED_TO | WatchMask::MOVED_FROM | WatchMask::MOVED_FROM,
+                    WatchMask::CLOSE_WRITE | WatchMask::DELETE | WatchMask::CREATE | WatchMask::MOVED_TO | WatchMask::MOVED_FROM,
                 )
                 .expect("Failed to add file watch");
             let sub_directories = std::fs::read_dir(watcher.base_path.clone()).unwrap();
@@ -105,7 +106,7 @@ impl RecursiveFileWatcher {
                     let extension = ext.to_string();
 
                     if event.mask == EventMask::DELETE || event.mask == EventMask::MOVED_FROM {
-                        // println!("Deleting file {:?}", full_path_to_file);
+                        trace!("Calling watcher handle for file deletion (or moved from) {:?}", full_path_to_file);
                         watcher.user_handlers.on_delete(
                             full_path_to_file.clone(),
                             file_name.clone(),
@@ -114,7 +115,7 @@ impl RecursiveFileWatcher {
                         continue;
                     }
                     if event.mask == EventMask::CLOSE_WRITE || event.mask == EventMask::MOVED_TO {
-                        // println!("Writing to file {:?}", full_path_to_file);
+                        trace!("Calling watcher handle for file close_write (or moved to) {:?}", full_path_to_file);
                         watcher.user_handlers.on_create(
                             full_path_to_file.clone(),
                             file_name.clone(),
@@ -126,7 +127,7 @@ impl RecursiveFileWatcher {
                         continue;
                     }
 
-                    println!(
+                    warn!(
                         "Waning: Found unhandled event {:?} for {:?}.",
                         event.mask, full_path_to_file
                     );

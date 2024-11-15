@@ -18,7 +18,7 @@ mod recursive_inotify;
 mod reactor_debug_tuple_writer;
 
 fn main() {
-    colog::default_builder().filter_level(LevelFilter::Trace).init();
+    colog::default_builder().filter_level(LevelFilter::Debug).init();
     dotenv::dotenv().ok();
 
     let so_path_from_env = std::env::var("SO_PATH");
@@ -98,7 +98,7 @@ fn main() {
                 tps.clear();
             }
         }
-        // thread::sleep(std::time::Duration::from_micros(16666));
-        thread::sleep(std::time::Duration::from_micros(100));
+        thread::sleep(std::time::Duration::from_micros(8000));
+        // thread::sleep(std::time::Duration::from_micros(100));
     }
 }

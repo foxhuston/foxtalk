@@ -24,7 +24,7 @@ protected:
         return;
       }
       retry_fd_open = false; 
-      struct v4l2_fmtdesc fmt{};
+      struct v4l2_fmtdesc fmt{}; 
       memset(&fmt, 0, sizeof(fmt));
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       while (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) == 0) {
@@ -38,6 +38,7 @@ protected:
   }
   void init() override
   {
+    std::cout << "In init pixel format handler 222222" << std::endl;
     claim({{TupleNoun::query(), {"is a"}, {"camera device"}}});
   }
 

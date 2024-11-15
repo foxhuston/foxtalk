@@ -6,6 +6,7 @@ use libloading::os::unix::{Library, Symbol, RTLD_LOCAL, RTLD_NOW};
 use rust_tuple_reactor_serde::{FoxTalkDeserializable, FoxTalkOwnedSerializable, FoxTalkSerializable};
 use rustc_hash::FxHashSet;
 use std::path::Path;
+use log::debug;
 
 #[derive(Debug)]
 pub struct DynamicallyLoadedProgram {
@@ -32,6 +33,7 @@ impl DynamicallyLoadedProgram {
     pub unsafe fn new(path: &Path) -> Result<Self> {
         // Magic 0x08 number is DEEPBIND for dlopen.
         let lib = Library::open(Some(path), RTLD_NOW | RTLD_LOCAL | 0x08)?;
+        debug!("Opened library {:?}", lib);
 
         let init: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"init")?;
         let free_tuple: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"free_tuple")?;
@@ -65,6 +67,7 @@ impl DynamicallyLoadedProgram {
 
 impl Drop for DynamicallyLoadedProgram {
     fn drop(&mut self) {
+        debug!("Dropping DynamicallyLoadedProgram {:?}", self._lib);
         (self.teardown)();
     }
 }

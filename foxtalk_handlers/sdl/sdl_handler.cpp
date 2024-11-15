@@ -81,9 +81,9 @@ public:
 
     SDL_RenderPresent(renderer);
   }
-
+//Library@0x703bb0001700
   void init() override {
-    std::cout << "Hello from SDL Handler!" << std::endl;
+    std::cout << "Hello from SDL Handler 4!" << std::endl;
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
       window =

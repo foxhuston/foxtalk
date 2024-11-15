@@ -14,7 +14,7 @@ protected:
             auto subj = i.at<std::string>(0).value();
             claim(Tuple{std::vector{TupleNoun(subj), TupleNoun("is"), TupleNoun("cool")}});
         }
-    }
+    } 
 
     void free_tuple(const Tuple &o) override
     {
@@ -24,6 +24,7 @@ protected:
 
     void init() override
     {
+        std::cout << "Init in husky handler! 33333" << std::endl;
         claim(Tuple{std::vector{
             TupleNoun::query(),
             TupleNoun("is a"),

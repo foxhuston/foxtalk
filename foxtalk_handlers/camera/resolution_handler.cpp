@@ -33,7 +33,7 @@ protected:
           claim({{ 
             {camera}, 
             {"has pixel format"},
-            {(uint64_t)pixel_format},
+            {(uint64_t)pixel_format}, 
             {"with resolution width"},
             {(uint64_t)frmsize.discrete.width},
             {"with resolution height"},
@@ -47,6 +47,7 @@ protected:
   }
   void init() override
   {
+    std::cout << "In init resolution handler ......" << std::endl;
     claim({{TupleNoun::query(), {"has pixel format"}, {TupleNoun::query()}, {TupleNoun::prefix()}}});
   }
 

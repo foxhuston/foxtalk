@@ -66,6 +66,7 @@ protected:
   }
 
   void init() override {
+    std::cout << "In init camera state watching handler 22222" << std::endl;
     fd = inotify_init1(IN_NONBLOCK);
     wd = inotify_add_watch(fd, "/dev", IN_CREATE | IN_MOVED_TO | IN_MOVED_FROM | IN_DELETE);
     for (const auto & entry : fs::directory_iterator("/dev")) {
@@ -73,7 +74,7 @@ protected:
       if (q.find("video")  != std::string::npos) {
         active_cameras.insert(q.erase(0, 5));
       }
-    }
+    } 
 
     claim({{{"foxtalk"}, {"is"}, {"running"}}});
     

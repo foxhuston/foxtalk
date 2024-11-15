@@ -27,7 +27,7 @@ protected:
       auto this_camera_score = (width/10) * (height/10) * fps;
       if (this_camera_score > best_score) {
         best_score = this_camera_score;
-        best_camera = camera;
+        best_camera = camera; 
         best_pixel_format = pixel_format;
         best_width = width;
         best_height = height;
@@ -50,6 +50,8 @@ protected:
   }
   void init() override
   {
+    //Library@0x7504780018c0
+    std::cout << "In init camera chooser four" << std::endl;
     claim({{
       TupleNoun::query(),
       {"has pixel format"},

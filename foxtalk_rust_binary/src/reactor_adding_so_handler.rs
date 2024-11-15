@@ -20,9 +20,10 @@ impl Debug for ReactorAddingSoHandler {
 }
 impl FileWatcherHandlers for ReactorAddingSoHandler {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
-        trace!("on_create {:?}", full_path);
+        trace!("on_create in so_handler: (for close_write or moved_to) {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
+                // std::thread::sleep(std::time::Duration::from_millis(1));
                 debug!("Adding handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
@@ -34,7 +35,7 @@ impl FileWatcherHandlers for ReactorAddingSoHandler {
     }
 
     fn on_delete(&self, full_path: String, _: String, extension: String) -> () {
-        trace!("on_delete {:?}", full_path);
+        trace!("on_delete in so handler: {:?}", full_path);
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path) {
                 debug!("Removing handler {:?}", tuple);

@@ -75,7 +75,7 @@ impl FileWatcherHandlers for CppFileBuilder {
                     .flatten()
                     .collect();
 
-            debug!("Found {:?} in {:?}", packages, full_path);
+            debug!("In cpp handler on_create (for close_write or moved_to): Found {:?} in {:?}", packages, full_path);
 
             
             fn pkg_config_args(arg: &str, package_names: &[&str]) -> Vec<String> {
@@ -103,7 +103,7 @@ impl FileWatcherHandlers for CppFileBuilder {
                     Vec::new()
                 };
 
-            debug!("Compiling {:?} to {:?}", full_path, output_so_file);
+            debug!("In cpp handler on_create (for close_write or moved_to): Compiling {:?} to {:?}", full_path, output_so_file);
             
             let cpp_standard = CppFileBuilder::find_cpp_std_in_source(source);
             let cpp_std_str = format!("-std=c++{}", cpp_standard);
@@ -120,8 +120,11 @@ impl FileWatcherHandlers for CppFileBuilder {
                 "-o",
                 output_so_file.as_str()
             ].iter().map(|&s| s.to_string()).collect();
+            let all_args = [rest_of_args, linking_args].concat();
+            trace!("Running command clang++ {:?}", all_args);
+            
             let status = Command::new("clang++")
-                .args([rest_of_args, linking_args].concat())
+                .args(all_args)
                 .status();
 
             if status.is_err() {
@@ -137,7 +140,7 @@ impl FileWatcherHandlers for CppFileBuilder {
         if extension == "cpp" {
             let output_so_file = self.so_path.clone() + "/" + &file_name + ".so";
             let output_json_file = self.so_path.clone() + "/" + &file_name + ".json";
-            // println!("Removing {:?} and {:?}", output_so_file, output_json_file);
+            debug!("From cpp handler on_delete (or moved_from): Removing {:?} and {:?}", output_so_file, output_json_file);
 
             if let Err(err) = fs::remove_file(output_so_file.clone()) {
                 error!("Error while removing {:?}: {:?}", output_so_file, err);

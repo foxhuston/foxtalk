@@ -37,7 +37,7 @@ protected:
           {camera}, 
           {"has pixel format"},
           {(uint64_t)pixel_format},
-          {"with resolution width"},
+          {"with resolution width"}, 
           {(uint64_t)width},
           {"with resolution height"}, 
           {(uint64_t)height},
@@ -51,6 +51,7 @@ protected:
   }
   void init() override
   {
+    std::cout << "In init framerate handler .........pp33" << std::endl;
     claim({{
       TupleNoun::query(),
       {"has pixel format"},
