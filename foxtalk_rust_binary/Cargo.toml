@@ -15,5 +15,13 @@ walkdir = "2.5.0"
 anyhow = "1.0.92"
 regex = "1.11.1"
 
+[dependencies.uuid]
+version = "1.11.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+]
+
 [build-dependencies]
 pkg-config = "0.3.31"
+

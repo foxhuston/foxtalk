@@ -29,16 +29,17 @@ protected:
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       while (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) == 0) {
         auto d = fmt.description;
+        //auto x = V4L2_PIX_FMT_YUV420
         std::string desc = std::string(d, d + sizeof(d));
         claim({{{camera}, {"has pixel format"}, {(uint64_t)fmt.pixelformat}, {"with description"}, {desc}}});
         fmt.index++;
+        std::cout << desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.mbus_code << std::endl;
       }
       close(fd);
     }
   }
   void init() override
   {
-    std::cout << "In init pixel format handler 222222" << std::endl;
     claim({{TupleNoun::query(), {"is a"}, {"camera device"}}});
   }
 

@@ -103,7 +103,7 @@ impl FileWatcherHandlers for CppFileBuilder {
                     Vec::new()
                 };
 
-            debug!("In cpp handler on_create (for close_write or moved_to): Compiling {:?} to {:?}", full_path, output_so_file);
+            info!("In cpp handler on_create (for close_write or moved_to): Compiling {:?} to {:?}", full_path, output_so_file);
 
             let cpp_standard = CppFileBuilder::find_cpp_std_in_source(source);
             let cpp_std_str = format!("-std=c++{}", cpp_standard);

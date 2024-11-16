@@ -10,9 +10,9 @@ protected:
             {"x"},
             {10ul},
             {"y"},
-            {10ul},
+            {10ul}, 
             {"width"},
-            {200ul},
+            {200ul}, 
             {"height"},
             {200ul}
     }});

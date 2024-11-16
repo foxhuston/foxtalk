@@ -18,24 +18,29 @@ mod recursive_inotify;
 mod reactor_debug_tuple_writer;
 
 fn main() {
-    colog::default_builder().filter_level(LevelFilter::Trace).init();
+    colog::default_builder().filter_level(LevelFilter::Info).init();
     dotenv::dotenv().ok();
 
     let so_path_from_env = std::env::var("SO_PATH");
     let cpp_path_from_env = std::env::var("CPP_PATH");
     let handler_path_from_env = std::env::var("HANDLER_INCLUDE_PATH");
+    let tmp_path_from_env = std::env::var("SO_TMP_PATH");
 
-    if so_path_from_env.is_err() || cpp_path_from_env.is_err() {
-        error!("Error: SO_PATH and CPP_PATH and HANDLER_INCLUDE_PATH environment variable must be set.");
+    if so_path_from_env.is_err() || cpp_path_from_env.is_err() || tmp_path_from_env.is_err() {
+        error!("Error: SO_PATH and CPP_PATH and HANDLER_INCLUDE_PATH and SO_TMP_PATH environment variable must be set.");
         std::process::exit(1);
     }
 
     let so_path = so_path_from_env.unwrap();
     let cpp_path = cpp_path_from_env.unwrap();
     let handler_path = handler_path_from_env.unwrap();
+    let tmp_path = tmp_path_from_env.unwrap();
 
     if !fs::exists(so_path.clone()).unwrap() {
         fs::create_dir_all(so_path.clone()).unwrap();
+    }
+    if !fs::exists(tmp_path.clone()).unwrap() {
+        fs::create_dir_all(tmp_path.clone()).unwrap();
     }
 
     if !fs::exists(cpp_path.clone()).unwrap() {

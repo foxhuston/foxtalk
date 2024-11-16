@@ -4,10 +4,9 @@ mod tests {
     use reactor::reactor::Reactor;
     use reactor::triples_reactor::ffi::dynamic_handler::DynamicallyLoadedProgram;
     use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
-    use std::path::PathBuf;
-    use std::time::Duration;
     use rust_tuple_reactor_serde::tuple::Tuple;
     use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
+    use std::path::PathBuf;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -68,16 +67,16 @@ mod tests {
         assert_eq!(nouns[2], TupleNoun::U64(7));
     }
     
-    #[ignore ="This shows a gui"]
-    fn rust_lib_works() {
-
-        let query_engine = TripleQueryEngine::new();
-        let mut reactor = Reactor::new(query_engine);
-        let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("libref_count_gui.so").as_path()) }.unwrap();
-        reactor.add_program(Box::new(handler));
-        reactor.tick();
-        std::thread::sleep(Duration::from_secs(5));
-    }
+    // #[ignore ="This shows a gui"]
+    // fn rust_lib_works() {
+    // 
+    //     let query_engine = TripleQueryEngine::new();
+    //     let mut reactor = Reactor::new(query_engine);
+    //     let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("libref_count_gui.so").as_path()) }.unwrap();
+    //     reactor.add_program(Box::new(handler));
+    //     reactor.tick();
+    //     std::thread::sleep(Duration::from_secs(5));
+    // }
 }
 
 //

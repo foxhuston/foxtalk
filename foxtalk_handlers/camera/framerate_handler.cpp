@@ -51,7 +51,6 @@ protected:
   }
   void init() override
   {
-    std::cout << "In init framerate handler .........pp33" << std::endl;
     claim({{
       TupleNoun::query(),
       {"has pixel format"},

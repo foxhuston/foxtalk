@@ -11,6 +11,9 @@ class CameraChooser : public Handler
 {
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
+    if (queryResults.empty()) {
+      return;
+    }
     auto best_score = 0.0;
     auto best_camera = ""s;
     auto best_pixel_format = 0ul;
@@ -51,7 +54,6 @@ protected:
   void init() override
   {
     //Library@0x7504780018c0
-    std::cout << "In init camera chooser four" << std::endl;
     claim({{
       TupleNoun::query(),
       {"has pixel format"},

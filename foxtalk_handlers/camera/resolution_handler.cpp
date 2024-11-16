@@ -47,7 +47,6 @@ protected:
   }
   void init() override
   {
-    std::cout << "In init resolution handler ......" << std::endl;
     claim({{TupleNoun::query(), {"has pixel format"}, {TupleNoun::query()}, {TupleNoun::prefix()}}});
   }
 

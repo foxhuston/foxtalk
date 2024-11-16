@@ -1,3 +1,4 @@
+use std::fs;
 use anyhow::{format_err, Result};
 
 use crate::reactor::reactor_program::Program;
@@ -7,6 +8,7 @@ use rust_tuple_reactor_serde::{FoxTalkDeserializable, FoxTalkOwnedSerializable, 
 use rustc_hash::FxHashSet;
 use std::path::Path;
 use log::debug;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct DynamicallyLoadedProgram {
@@ -18,7 +20,9 @@ pub struct DynamicallyLoadedProgram {
     teardown: Symbol<extern "C" fn() -> ()>,
     buffer: Vec<u8>,
     poll: Symbol<extern "C" fn() -> bool>,
-    query: Vec<Tuple>
+    query: Vec<Tuple>,
+    _original_path: String,
+    _copied_path: String,
 }
 
 unsafe impl Send for DynamicallyLoadedProgram {}
@@ -31,9 +35,18 @@ impl DynamicallyLoadedProgram {
         FxHashSet::from_iter(res)
     }
     pub unsafe fn new(path: &Path) -> Result<Self> {
+
+        // Copy the so to a temp location and load it from there.
+        let tmp_path = std::env::var("SO_TMP_PATH")?;
+        let id = Uuid::new_v4();
+        
+        let full_path = format!("{}/{}", tmp_path, id);
+        
+        fs::copy(path, full_path.clone())?;
+
         // Magic 0x08 number is DEEPBIND for dlopen.
-        let lib = Library::open(Some(path), RTLD_NOW | RTLD_LOCAL | 0x08)?;
-        debug!("Opened library {:?}", lib);
+        let lib = Library::open(Some(full_path.clone()), RTLD_NOW | RTLD_LOCAL | 0x08)?;
+        debug!("Opened library {:?} ({:?}) [tmp path: {:?}", path, lib, full_path.clone());
 
         let init: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"init")?;
         let free_tuple: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"free_tuple")?;
@@ -60,7 +73,9 @@ impl DynamicallyLoadedProgram {
             teardown,
             buffer,
             poll,
-            query
+            query,
+            _original_path: path.to_str().unwrap().to_string(),
+            _copied_path: full_path.clone(),
         })
     }
 }

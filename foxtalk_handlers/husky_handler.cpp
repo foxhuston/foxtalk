@@ -24,7 +24,6 @@ protected:
 
     void init() override
     {
-        std::cout << "Init in husky handler! 33333" << std::endl;
         claim(Tuple{std::vector{
             TupleNoun::query(),
             TupleNoun("is a"),

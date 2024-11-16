@@ -16,6 +16,9 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+##### DEBUG UTILS SHARED LIB #####
+add_library(debug_utils SHARED debug_utils.cpp)
+
 ##### TRIPLE TEST #####
 include_directories(include/)
 add_executable(tuple_test tuple_tests.cpp debug_utils.cpp
