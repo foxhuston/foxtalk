@@ -1,6 +1,7 @@
 // pkg-config: sdl3 opencv4
 // cppstd: 23
 
+
 #include "foxtalk_tuple.h"
 #include "opencv2/core/base.hpp"
 #include "opencv2/core/hal/interface.h"
@@ -36,6 +37,7 @@ public:
   uint8_t image_data_rgb[1920 * 1080 * 3];
   cv::Ptr<cv::SimpleBlobDetector> blob;
 
+ uint64_t last_frame_rendered = 0;
 
   bool poll() override {
     if (window == nullptr) {
@@ -160,7 +162,7 @@ public:
     }
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
-      // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+      SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
       window =
           SDL_CreateWindow("Foxtalk Debug", 640, 480, SDL_WINDOW_RESIZABLE);
 
