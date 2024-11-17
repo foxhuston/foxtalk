@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <foxtalk_handler.hpp>
 #include <linux/videodev2.h>
 #include <fcntl.h>
@@ -6,6 +7,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
+#include <cmath>
 
 class CameraChooser : public Handler
 {
@@ -20,14 +22,25 @@ protected:
     auto best_width = 0ul;
     auto best_height = 0ul;
     auto best_fps = 0.0;
+    auto best_flags = 0;
     for (auto q: queryResults) {
       auto camera = q.at<std::string>(0).value();
       auto pixel_format = q.at<uint64_t>(2).value();
-      auto width = q.at<uint64_t>(4).value();
-      auto height = q.at<uint64_t>(6).value();
-      auto fps = q.at<double_t>(8).value();
+      auto width = q.at<uint64_t>(6).value();
+      auto height = q.at<uint64_t>(8).value();
+      auto fps = q.at<double_t>(10).value();
+      auto flags = q.at<uint64_t>(4).value();
 
-      auto this_camera_score = (width/10) * (height/10) * fps;
+      // v4l2 flags are:
+      // 0 == nothing special
+      // 1 == compressed (really don't want this)
+      // 2 == emulated (really REALLY don't want this)
+      // So, taking the flags (+1) to the 10th power basically sorts it by flags asc
+      auto flags_score_modifier = pow((double)flags + 1, 10);
+
+      
+      auto this_camera_score = ((width*1.3) + (height*1.3) + (fps*20)) / flags_score_modifier;
+
       if (this_camera_score > best_score) {
         best_score = this_camera_score;
         best_camera = camera; 
@@ -35,15 +48,22 @@ protected:
         best_width = width;
         best_height = height;
         best_fps = fps;
+        best_flags = flags;
       } 
     }
-    std::cout << "chosen: " << best_camera << " with score " << best_score << std::endl;
+    std::cout << 
+    "chosen: " << best_camera << 
+    " with pxf " << best_pixel_format << 
+    "[" << best_width << "x" << best_height << "]" << 
+    "(" << best_fps << " fps)" << 
+    " with flags " << best_flags << 
+    " with score " << best_score << std::endl;
     claim({{
         {"chosen foxtalk camera"},
         {"is"},
         {best_camera}, 
         {"with pixel format"},
-        {best_pixel_format},
+        {best_pixel_format}, 
         {"with resolution width"},
         {best_width},
         {"with resolution height"},
@@ -57,6 +77,8 @@ protected:
     claim({{
       TupleNoun::query(),
       {"has pixel format"},
+      {TupleNoun::query()},
+      {"with flags"},
       {TupleNoun::query()},
       {"with resolution width"},
       {TupleNoun::query()},

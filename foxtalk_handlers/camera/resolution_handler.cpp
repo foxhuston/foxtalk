@@ -14,8 +14,10 @@ class ResolutionHandler : public Handler
 {
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
-    for (auto q: queryResults) {
+    for (auto q: queryResults) { 
+      std::cout << q << std::endl;
       auto camera = q.at<std::string>(0).value();
+      auto flags =  q.at<uint64_t>(6).value();
       auto pixel_format = q.at<uint64_t>(2).value();
       int fd = open(camera.c_str(), O_NONBLOCK);
       if (fd < 0) {
@@ -34,6 +36,8 @@ protected:
             {camera}, 
             {"has pixel format"},
             {(uint64_t)pixel_format}, 
+            {"with flags"},
+            {flags},
             {"with resolution width"},
             {(uint64_t)frmsize.discrete.width},
             {"with resolution height"},
@@ -47,9 +51,17 @@ protected:
   }
   void init() override
   {
-    claim({{TupleNoun::query(), {"has pixel format"}, {TupleNoun::query()}, {TupleNoun::prefix()}}});
+    claim({{
+      TupleNoun::query(), 
+      {"has pixel format"},
+      TupleNoun::query(),
+      {"with description"},
+      TupleNoun::query(),
+      {"with flags"},
+      TupleNoun::query()
+      }});
   }
-
+ 
 };
 
 FOXTALK_FFI_HANDLER_REG(ResolutionHandler);

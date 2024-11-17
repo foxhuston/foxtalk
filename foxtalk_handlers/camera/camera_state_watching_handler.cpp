@@ -63,7 +63,7 @@ protected:
     for (auto &q: active_cameras) {
       claim({{{"/dev/" + q}, {"is a"}, {"camera device"}}});
     }
-  }
+  } 
 
   void init() override {
     fd = inotify_init1(IN_NONBLOCK);

@@ -11,21 +11,25 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <fstream>
+
 constexpr int NUM_BUFFERS = 4;
 class RawCameraCaptureHandler : public Handler
 { 
   int fd = -1;
   bool has_setup_buffers = false;
 
-  void* buffers[NUM_BUFFERS];
-  v4l2_buffer buffer_structs[NUM_BUFFERS];
-  bool available_buffers[NUM_BUFFERS];
+  void* buffers[NUM_BUFFERS]{};
+  v4l2_buffer buffer_structs[NUM_BUFFERS]{};
+  bool available_buffers[NUM_BUFFERS]{};
   const v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   int current_buffer = -1;
  
+  bool pollme = true;
+
 public:
   ~RawCameraCaptureHandler() {
-    std::cout << "Raw camera capture dropping the fd: " << fd << std::endl;
+    // std::cout << "Raw camera capture dropping the fd: " << fd << std::endl;
 
     if (ioctl(fd, VIDIOC_STREAMOFF, &buf_type) == -1) {
       std::cerr << "Error turning stream OFF?? : " << strerror(errno) << std::endl;
@@ -39,23 +43,27 @@ public:
     usleep(100000);
   }
   bool poll() override {
-    if (!has_setup_buffers) {
-      std::cerr << "WARNING: Got to poll in raw camera capture handler, but we haven't set up the buffers?" << std::endl;
+    if (!pollme) {
       return false;
     }
+    if (!has_setup_buffers) {
+      return false; 
+    }
+    
     for (int i = 0; i < NUM_BUFFERS; i++) {
       if (!available_buffers[i]) {
         continue;
       }
+
       auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
+
       if (res == 0) {
         available_buffers[i] = false;
-        // std::cout << "Buffer index " << i << " has data in it! Dequeuing it" << std::endl;
         current_buffer = i;
         return true;
       } else {
         // std::cout << "Buffer index " << i << " dqbuf returned " << strerror(errno) << std::endl;
-        // usleep(200000);
+        // usleep(500000);
       }
     }
     return false;
@@ -85,19 +93,9 @@ protected:
       std::cerr << "Video camera " << camera << " does not have the V4L2_BUF_TYPE_VIDEO_CAPTURE capability!" << std::endl; 
       return false;
     }
-
-    // std::cout << std::boolalpha
-    //           << "has video capture: " << (bool)(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE) 
-    //           << std::endl
-    //           << "has video capture mplane: " << (bool)(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE_MPLANE) 
-    //           << std::endl
-    //           << "has audio capture: " << (bool)(cap.capabilities & V4L2_CAP_AUDIO) 
-    //           << std::endl;
-
  
     struct v4l2_format fmt {};
 
-    // Should get capabilities instead of assuming
     fmt.type = buf_type;
     fmt.fmt.pix.width = width;
     fmt.fmt.pix.height = height;
@@ -118,13 +116,12 @@ protected:
 
     req.type = buf_type;
     req.memory = V4L2_MEMORY_MMAP;
+    
 
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
         std::cerr << "Error requesting video buffers: " << strerror(errno) << std::endl;
         return false;
     }
-
-
     // std::cout << std::boolalpha
     //           << "has mmap: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP) 
     //           << std::endl
@@ -226,14 +223,11 @@ protected:
       {"has image"},
       {buffers[current_buffer]},
       {"at index"},
-      {current_buffer}
-      // {"with v4l2_buffer"},
-      // {TupleNoun::from_struct(buffer_structs[0])},
+      {current_buffer},
+      {"for frame #"},
+      {(uint64_t)buffer_structs[current_buffer].sequence}
       }});
     current_buffer = -1;
-
-
-    // TODO: This is where we get the frame data and insert a tuple (because poll will be true)
   }
 
 
@@ -244,6 +238,9 @@ protected:
     // std::cout << "Requing buffer # " << buffer_index << std::endl;
 
     // TODO: Bounds check on buffer index
+    buffer_structs[buffer_index].flags = 0;
+    buffer_structs[buffer_index].reserved2 = 0;
+    buffer_structs[buffer_index].reserved = 0;
     if (ioctl(fd, VIDIOC_QBUF, buffer_structs + buffer_index) == -1) {
       std::cerr << "Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
     }

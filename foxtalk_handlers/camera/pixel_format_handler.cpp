@@ -25,17 +25,19 @@ protected:
       }
       retry_fd_open = false; 
       struct v4l2_fmtdesc fmt{}; 
-      memset(&fmt, 0, sizeof(fmt));
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       while (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) == 0) {
         auto d = fmt.description;
-        //auto x = V4L2_PIX_FMT_YUV420
         std::string desc = std::string(d, d + sizeof(d));
-        claim({{{camera}, {"has pixel format"}, {(uint64_t)fmt.pixelformat}, {"with description"}, {desc}}});
+
+        auto flags = (uint64_t)fmt.flags;
+ 
+        claim({{{camera}, {"has pixel format"}, {(uint64_t)fmt.pixelformat}, {"with description"}, {desc}, {"with flags"}, {flags}}});
         fmt.index++;
-        std::cout << desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.mbus_code << std::endl;
+        std::cout << desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.flags  << " : " << fmt.pixelformat << std::endl;
+        fmt.flags = 0; 
       }
-      close(fd);
+      close(fd); 
     }
   }
   void init() override
