@@ -217,7 +217,7 @@ protected:
       {"with pixel format"}, 
       {pixel_format},
       {"with resolution width"},
-      {width},
+      {width}, 
       {"with resolution height"}, 
       {height},
       {"has image"},

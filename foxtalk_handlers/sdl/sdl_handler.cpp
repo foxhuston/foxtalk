@@ -51,6 +51,9 @@ public:
           break;
       }
     }
+    // temp for easy testing: Remove if you want to move the window
+    SDL_SetWindowPosition(window, 0, 0);
+
 
     if (queryResults.size() == 0) {
       // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
@@ -105,30 +108,31 @@ public:
 
     
 
-    auto channels = 2; 
+    auto channels = 4; 
     SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
                     width,
                     height,   
             SDL_PIXELFORMAT_YUY2,
                     image_buffer,
-                    width * channels      // pitch
+                    width * 2      // pitch
                     );      
+    auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
 
     auto window_surface = SDL_GetWindowSurface(window);
     SDL_Rect camera_rect {0, 0, (int)width, (int)height};
     SDL_Rect window_rect {};
     auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-    SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
+    SDL_BlitSurface(rgb_camera_surface, &camera_rect, window_surface, &window_rect);
 
     // std::cout << "image buffer " << std::endl
     //  << "  width: " << camera_surface->w << std::endl
     //  << "  height: " << camera_surface->h << std::endl
     //  << std::endl;
 
-    for(int i = 0; i < 256; i++) {
-      std::cout << (uint32_t)static_cast<uint8_t*>(window_surface->pixels)[i] << " ";
-    }
-    std::cout << std::endl;
+    // for(int i = 0; i < 32; i++) {
+    //   std::cout << (uint32_t)static_cast<uint8_t*>(camera_surface->pixels)[i] << " ";
+    // }
+    // std::cout << std::endl;
     
     //SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
