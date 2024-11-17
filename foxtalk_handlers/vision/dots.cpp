@@ -56,6 +56,13 @@ protected:
           {"size"}, {kp.size}
         }});
       }
+
+      // claim({{{"camera"}, {camera},
+      // {"has dot at"},
+      //   {"x"}, {100.0},
+      //   {"y"}, {100.0},
+      //   {"size"}, {30.0}
+      // }});
     }
 
     void init() override

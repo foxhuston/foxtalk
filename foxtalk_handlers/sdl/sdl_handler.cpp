@@ -7,6 +7,7 @@
 #include "opencv2/core/hal/interface.h"
 #include <SDL3/SDL.h>
 
+#include <SDL3/SDL_blendmode.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_oldnames.h>
@@ -73,30 +74,27 @@ public:
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
+    uint64_t width, height;
+    SDL_Surface *camera_surface, *rgb_camera_surface;
+
     bool skip_cam_image = false;
     for(auto q : queryResults) {
       if(q.at<std::string>(0).has_value() && q.at<std::string>(0).value() == "cv debug image") {
         skip_cam_image = true;
         auto image_buffer = q.at<std::vector<uint8_t>>(1).value();
-        auto width = q.at<uint64_t>(3).value();
-        auto height = q.at<uint64_t>(5).value();
+        width = q.at<uint64_t>(3).value();
+        height = q.at<uint64_t>(5).value();
 
-          SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-                      width,
-                      height,
-              SDL_PIXELFORMAT_RGB24,
-                      image_buffer.data(),
-                      width * 3
-                      );
+        camera_surface = SDL_CreateSurfaceFrom(
+                    width,
+                    height,
+            SDL_PIXELFORMAT_RGB24,
+                    image_buffer.data(),
+                    width * 3
+                    );
 
 
-          auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
-
-          SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
-          SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
-
-          SDL_DestroySurface(camera_surface);
-          SDL_DestroySurface(rgb_camera_surface);
+        rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
       }
     }
 
@@ -107,12 +105,12 @@ public:
         if(q.at<std::string>(1).has_value() && q.at<std::string>(1).value() == "with pixel format") {
           auto camera = q.at<std::string>(0).value();
           auto pixel_format = q.at<uint64_t>(2).value();
-          auto width = q.at<uint64_t>(4).value();
-          auto height = q.at<uint64_t>(6).value();
+               width = q.at<uint64_t>(4).value();
+               height = q.at<uint64_t>(6).value();
           auto image_buffer = q.at<void *>(8).value();
           auto frame_count_num = q.at<uint64_t>(12).value();
 
-          SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
+          camera_surface = SDL_CreateSurfaceFrom(
                       width,
                       height,
               SDL_PIXELFORMAT_YUY2,
@@ -121,19 +119,17 @@ public:
                       );
 
 
-          auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
-
-          SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
-          SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
-
-          SDL_DestroySurface(camera_surface);
-          SDL_DestroySurface(rgb_camera_surface);
+          rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
           break;
         }
       }
     }
 
     // Now draw everything else.
+
+    // Doing this with OpenCV is probably extremely inefficient!
+    auto draw_mat = cv::Mat(height, width, CV_8UC3, rgb_camera_surface->pixels);
+
     for(auto q : queryResults) {
       if(q.at<std::string>(2).has_value() && q.at<std::string>(2).value() == "has dot at") {
         // it's a dot!
@@ -141,15 +137,19 @@ public:
         auto y = q.at<double>(6).value();
         auto size = q.at<double>(8).value();
 
-        SDL_SetRenderDrawColor(renderer, 30, 255, 127, SDL_ALPHA_OPAQUE);
-        const SDL_FRect rect(x, y, size, size);
-        SDL_RenderFillRect(renderer, &rect);
+        cv::circle(draw_mat, {(int)x, (int)y}, (int)(size/2), CV_RGB(96, 255, 170), 2);
       }
     }
 
 
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
+    SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
+
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
+
+    SDL_DestroySurface(camera_surface);
+    SDL_DestroySurface(rgb_camera_surface);
   }
 
   void init() override {
@@ -169,6 +169,8 @@ public:
       if (window) {
         renderer = SDL_CreateRenderer(window, nullptr);
         if (renderer) {
+
+          SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
           SDL_ShowWindow(window);
           SDL_SetWindowPosition(window, 1500, 0);
