@@ -14,7 +14,7 @@ class ResolutionHandler : public Handler
 {
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
-    for (auto q: queryResults) { 
+    for (auto q: queryResults) {
       std::cout << q << std::endl;
       auto camera = q.at<std::string>(0).value();
       auto flags =  q.at<uint64_t>(6).value();
@@ -27,19 +27,19 @@ protected:
 
       struct v4l2_frmsizeenum frmsize{};
       memset(&frmsize, 0, sizeof(frmsize));
-      frmsize.pixel_format = (uint32_t)pixel_format; 
+      frmsize.pixel_format = (uint32_t)pixel_format;
 
       while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0) {
         if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
 
-          claim({{ 
-            {camera}, 
+          claim({{
+            {camera},
             {"has pixel format"},
-            {(uint64_t)pixel_format}, 
+            {(uint64_t)pixel_format},
             {"with flags"},
             {flags},
-            {"with resolution width"}, 
-            {(uint64_t)frmsize.discrete.width}, 
+            {"with resolution width"},
+            {(uint64_t)frmsize.discrete.width},
             {"with resolution height"},
             {(uint64_t)frmsize.discrete.height},}});
               // std::cout << "Resolution: " << frmsize.discrete.width << "x" << frmsize.discrete.height << "\n";
@@ -52,7 +52,7 @@ protected:
   void init() override
   {
     claim({{
-      TupleNoun::query(), 
+      TupleNoun::query(),
       {"has pixel format"},
       TupleNoun::query(),
       {"with description"},
@@ -61,7 +61,7 @@ protected:
       TupleNoun::query()
       }});
   }
- 
+
 };
 
 FOXTALK_FFI_HANDLER_REG(ResolutionHandler);

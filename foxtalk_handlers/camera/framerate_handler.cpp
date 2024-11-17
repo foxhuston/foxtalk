@@ -24,28 +24,28 @@ protected:
       if (fd < 0) {
         std::cerr << "Failed to open camera " << camera << std::endl;
         return;
-      } 
+      }
 
       // Get the supported frame intervals
       struct v4l2_frmivalenum frmival {};
       frmival.width = width; // Set width
       frmival.height = height; // Set height
       frmival.pixel_format = pixel_format; // Set pixel format
-  
+
       for (frmival.index = 0; ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == 0; frmival.index++) {
 
         auto fps = (double)frmival.discrete.denominator / (double)frmival.discrete.numerator;
         claim({{
-          {camera}, 
-          {"has pixel format"}, 
+          {camera},
+          {"has pixel format"},
           {(uint64_t)pixel_format},
-          {"with flags"}, 
+          {"with flags"},
           {flags},
-          {"with resolution width"},  
+          {"with resolution width"},
           {(uint64_t)width},
-          {"with resolution height"}, 
+          {"with resolution height"},
           {(uint64_t)height},
-          {"with fps"}, 
+          {"with fps"},
           {fps},}});
 
           // std::cout << frmival.discrete.numerator << "/" << frmival.discrete.denominator << " fps" << std::endl;
@@ -63,7 +63,7 @@ protected:
       TupleNoun::query(),
       {"with resolution width"},
       TupleNoun::query(),
-      {"with resolution height"}, 
+      {"with resolution height"},
       TupleNoun::query()
       }});
   }

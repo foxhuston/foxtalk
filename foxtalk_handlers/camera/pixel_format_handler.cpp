@@ -23,23 +23,23 @@ protected:
         retry_fd_open = true;
         return;
       }
-      retry_fd_open = false; 
-      struct v4l2_fmtdesc fmt{}; 
+      retry_fd_open = false;
+      struct v4l2_fmtdesc fmt{};
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       while (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) == 0) {
         auto d = fmt.description;
-        std::string desc = std::string(d, d + sizeof(d)); 
+        std::string desc = std::string(d, d + sizeof(d));
 
         auto flags = (uint64_t)fmt.flags;
- 
+
         claim({{{camera}, {"has pixel format"}, {(uint64_t)fmt.pixelformat}, {"with description"}, {desc}, {"with flags"}, {flags}}});
         fmt.index++;
         std::cout << desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.flags  << " : " << fmt.pixelformat << std::endl;
-        fmt.flags = 0; 
+        fmt.flags = 0;
       }
-      close(fd); 
-    } 
-  } 
+      close(fd);
+    }
+  }
   void init() override
   {
     claim({{TupleNoun::query(), {"is a"}, {"camera device"}}});

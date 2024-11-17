@@ -16,7 +16,7 @@
 
 constexpr int NUM_BUFFERS = 4;
 class RawCameraCaptureHandler : public Handler
-{ 
+{
   int fd = -1;
   bool has_setup_buffers = false;
 
@@ -25,7 +25,7 @@ class RawCameraCaptureHandler : public Handler
   bool available_buffers[NUM_BUFFERS]{};
   const v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   int current_buffer = -1;
- 
+
   bool pollme = true;
 
 public:
@@ -43,7 +43,7 @@ public:
       buffers[i] = nullptr;
       available_buffers[i] = true;
     }
-    close(fd);  
+    close(fd);
     fd = -1;
     // Let the camera chill for a (tenth of a) sec
     usleep(100000);
@@ -57,9 +57,9 @@ public:
       return false;
     }
     if (!has_setup_buffers) {
-      return false; 
+      return false;
     }
-    
+
     for (int i = 0; i < NUM_BUFFERS; i++) {
       if (!available_buffers[i]) {
         continue;
@@ -78,18 +78,18 @@ public:
     }
     return false;
   }
- 
+
 protected:
 
   // TODO: void that throws exceptions, not a bool
   bool setup_buffers(
     const std::string& camera,
-    uint64_t pixel_format, 
+    uint64_t pixel_format,
     uint64_t width,
     uint64_t height,
-    double fps) 
+    double fps)
   {
-    
+
     fd = open(camera.c_str(), O_RDWR | O_NONBLOCK);
     if (fd < 0) {
       std::cerr << "Failed to open camera " << camera << std::endl;
@@ -100,10 +100,10 @@ protected:
     ioctl(fd, VIDIOC_QUERYCAP, &cap);
 
     if (!(cap.capabilities & buf_type)) {
-      std::cerr << "Video camera " << camera << " does not have the V4L2_BUF_TYPE_VIDEO_CAPTURE capability!" << std::endl; 
+      std::cerr << "Video camera " << camera << " does not have the V4L2_BUF_TYPE_VIDEO_CAPTURE capability!" << std::endl;
       return false;
     }
- 
+
     struct v4l2_format fmt {};
 
     fmt.type = buf_type;
@@ -126,38 +126,38 @@ protected:
 
     req.type = buf_type;
     req.memory = V4L2_MEMORY_MMAP;
-    
+
 
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
         std::cerr << "Error requesting video buffers: " << strerror(errno) << std::endl;
         return false;
     }
     // std::cout << std::boolalpha
-    //           << "has mmap: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP) 
+    //           << "has mmap: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP)
     //           << std::endl
-    //           << "has userptr: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_USERPTR) 
+    //           << "has userptr: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_USERPTR)
     //           << std::endl
-    //           << "has max num buffers: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS) 
+    //           << "has max num buffers: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS)
     //           << std::endl
-    //           << "has request support: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_REQUESTS) 
+    //           << "has request support: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_REQUESTS)
     //           << std::endl
-    //           << "has dma buffer: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_DMABUF) 
+    //           << "has dma buffer: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_DMABUF)
     //           << std::endl;
 
 
     for (int i = 0; i < req.count; i++) {
         buffer_structs[i].type = buf_type;
-        buffer_structs[i].memory = V4L2_MEMORY_MMAP; 
+        buffer_structs[i].memory = V4L2_MEMORY_MMAP;
         buffer_structs[i].index = i;
         size_t length = 0;
         off_t offset = 0;
-        // buf.m.userptr = 
+        // buf.m.userptr =
 
         if (ioctl(fd, VIDIOC_QUERYBUF, buffer_structs + i) == -1) {
           std::cerr << "Error getting frame data for buffer " << strerror(errno) << std::endl;
           return false;
         }
-// 
+//
         // std::cout << "Buffer len: " << buf.length << std::endl;
         length = buffer_structs[i].length;
         offset = buffer_structs[i].m.offset;
@@ -174,16 +174,16 @@ protected:
           std::cerr << "Error mmaping frame data for buffer " << i << " | " << strerror(errno) << std::endl;
           return false;
         }
-        
+
     }
 
-  
+
     if (ioctl(fd, VIDIOC_STREAMON, &buf_type) == -1) {
       std::cerr << "Error turning stream on: " << strerror(errno) << std::endl;
       return false;
     }
 
-    
+
     for (int i = 0; i < NUM_BUFFERS; i++) {
       // buffer_structs[i] === *(buffer_structs + i)
       if (ioctl(fd, VIDIOC_QBUF, buffer_structs + i) == -1) {
@@ -202,7 +202,7 @@ protected:
       }
     }
     if (queryResults.size() != 1) {
-      return; 
+      return;
     }
     auto q = queryResults[0];
     auto camera = q.at<std::string>(2).value();
@@ -228,16 +228,16 @@ protected:
     // std::cout << "CLAIM! Buffer " << current_buffer << " contained " << buffer_structs[current_buffer].bytesused << " bytes used " << std::endl;
     // Claim /dev/video0 has image Cptr...
     // auto frame = std::vector<uint8_t>(
-    //   buffers[current_buffer], 
+    //   buffers[current_buffer],
     //   (buffers[current_buffer]) + buffer_structs[current_buffer].length);
-    
-    claim({ 
+
+    claim({
       {{camera},
-      {"with pixel format"}, 
+      {"with pixel format"},
       {pixel_format},
       {"with resolution width"},
-      {width}, 
-      {"with resolution height"}, 
+      {width},
+      {"with resolution height"},
       {height},
       {"has image"},
       {buffers[current_buffer]},
@@ -264,23 +264,23 @@ protected:
       std::cerr << "Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
     }
     available_buffers[buffer_index] = true;
-    //std::cout << t << std::endl;  
-  } 
+    //std::cout << t << std::endl;
+  }
 
   void init() override {
 
     claim({{
-      {"chosen foxtalk camera"}, 
+      {"chosen foxtalk camera"},
       {"is"},
-      {TupleNoun::query()},  
-      {"with pixel format"}, 
+      {TupleNoun::query()},
+      {"with pixel format"},
       {TupleNoun::query()},
       {"with resolution width"},
       {TupleNoun::query()},
-      {"with resolution height"}, 
+      {"with resolution height"},
       {TupleNoun::query()},
-      {"with fps"}, 
-      {TupleNoun::query()},  
+      {"with fps"},
+      {TupleNoun::query()},
     }});
   }
 };

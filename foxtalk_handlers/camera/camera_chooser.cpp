@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <cstdio>
-#include <cstring> 
+#include <cstring>
 #include <cerrno>
 #include <cmath>
 
@@ -16,7 +16,7 @@ protected:
     if (queryResults.empty()) {
       return;
     }
-    auto best_score = 0.0; 
+    auto best_score = 0.0;
     auto best_camera = ""s;
     auto best_pixel_format = 0ul;
     auto best_width = 0ul;
@@ -38,33 +38,33 @@ protected:
       // So, taking the flags (+1) to the 10th power basically sorts it by flags asc
       auto flags_score_modifier = pow((double)flags + 1, 10);
       auto is_ir_cam = pixel_format == V4L2_PIX_FMT_GREY;
- 
-      
+
+
       auto this_camera_score = ((width*1.3) + (height*1.3) + (fps*100)) / flags_score_modifier;
 
-      if (this_camera_score > best_score) { 
+      if (this_camera_score > best_score) {
         best_score = this_camera_score;
-        best_camera = camera; 
+        best_camera = camera;
         best_pixel_format = pixel_format;
         best_width = width;
         best_height = height;
         best_fps = fps;
         best_flags = flags;
-      } 
+      }
     }
-    std::cout << 
-    "chosen: " << best_camera << 
-    " with pxf " << best_pixel_format << 
-    "[" << best_width << "x" << best_height << "]" << 
-    "(" << best_fps << " fps)" << 
-    " with flags " << best_flags << 
+    std::cout <<
+    "chosen: " << best_camera <<
+    " with pxf " << best_pixel_format <<
+    "[" << best_width << "x" << best_height << "]" <<
+    "(" << best_fps << " fps)" <<
+    " with flags " << best_flags <<
     " with score " << best_score << std::endl;
     claim({{
         {"chosen foxtalk camera"},
         {"is"},
-        {best_camera}, 
+        {best_camera},
         {"with pixel format"},
-        {best_pixel_format}, 
+        {best_pixel_format},
         {"with resolution width"},
         {best_width},
         {"with resolution height"},
