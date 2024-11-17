@@ -38,8 +38,8 @@ protected:
         fmt.flags = 0; 
       }
       close(fd); 
-    }
-  }
+    } 
+  } 
   void init() override
   {
     claim({{TupleNoun::query(), {"is a"}, {"camera device"}}});

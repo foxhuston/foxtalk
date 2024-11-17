@@ -39,7 +39,7 @@ protected:
           {camera}, 
           {"has pixel format"},
           {(uint64_t)pixel_format},
-          {"with flags"},
+          {"with flags"}, 
           {flags},
           {"with resolution width"}, 
           {(uint64_t)width},

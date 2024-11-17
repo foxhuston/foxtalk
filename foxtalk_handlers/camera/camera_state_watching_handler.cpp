@@ -58,7 +58,7 @@ public:
     inotify_rm_watch(fd, wd);
     close(fd);
   }
-protected:
+protected: 
   void handle(const std::vector<Tuple> &queryResults) override {
     for (auto &q: active_cameras) {
       claim({{{"/dev/" + q}, {"is a"}, {"camera device"}}});

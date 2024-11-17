@@ -15,10 +15,11 @@
 #include <iostream>
  
 #include <foxtalk_handler.hpp>
-#include <tuple>
+#include <tuple> 
+#include <vector> 
 
 class SdlHandler : public Handler {
-public:
+public: 
   SDL_Window *window;
   SDL_Renderer *renderer;
   uint8_t image_data_rgb[1920 * 1080 * 3];
@@ -32,7 +33,7 @@ public:
     SDL_Event event {};
     while(SDL_PollEvent(&event)) {
       switch (event.type) {
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_DOWN: 
           claim({{{"mouse"}, {"button"}, {(uint64_t)event.button.button}}});
         break;
 
@@ -56,28 +57,28 @@ public:
 
 
     if (queryResults.size() == 0) {
-      // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
-      // SDL_RenderClear(renderer);
-      // SDL_RenderPresent(renderer);
+      SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
+      SDL_RenderClear(renderer);
+      SDL_RenderPresent(renderer);
       std::cout << "No query results in sdl handler" << std::endl;
       //if(SDL_WindowHasSurface(window)) {
-        auto channels = 3; 
-        SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-                        1920,
-                        1080,   
-                        SDL_PIXELFORMAT_RGB24,
-                        image_data_rgb,
-                        1920 * channels      // pitch
-                        );     
+        // auto channels = 3; 
+        // SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
+        //                 1920,
+        //                 1080,   
+        //                 SDL_PIXELFORMAT_RGB24,
+        //                 image_data_rgb,
+        //                 1920 * channels      // pitch
+        //                 );     
   
-          auto window_surface = SDL_GetWindowSurface(window);
-          std::cout << "Window surface in |q|=0 is: " << window_surface << std::endl;
-          SDL_Rect camera_rect {0, 0, 1920, 1080};
-          SDL_Rect window_rect {};
-          auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-          SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
+        //   auto window_surface = SDL_GetWindowSurface(window);
+        // std::cout << "Window surface in |q|=0 is: " << window_surface << std::endl;
+        //   SDL_Rect camera_rect {0, 0, 1920, 1080};
+        //   SDL_Rect window_rect {};
+        //   auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
+        //   SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
 
-          SDL_UpdateWindowSurface(window);
+        //   SDL_UpdateWindowSurface(window);
         //}
         return; 
       }
@@ -89,8 +90,11 @@ public:
     auto pixel_format = q.at<uint64_t>(2).value();
     auto width = q.at<uint64_t>(4).value();
     auto height = q.at<uint64_t>(6).value();
+    // auto image_buffer = q.at<std::vector<uint8_t>>(8).value();
     auto image_buffer = q.at<void *>(8).value();
-     
+    auto frame_count_num = q.at<uint64_t>(12).value();
+    // std::cout << frame_count_num << std::endl; 
+      
     // auto t = queryResults[0];
     // auto x = t.at<uint64_t>(4).value();
     // auto y = t.at<uint64_t>(6).value();
@@ -100,7 +104,7 @@ public:
 
 
     // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
-    // SDL_RenderClear(renderer);
+    SDL_RenderClear(renderer);
 
     // SDL_SetRenderDrawColor(renderer, 255, 30, 30, SDL_ALPHA_OPAQUE);
     // const SDL_FRect rect(x, y, width, height);
@@ -118,11 +122,16 @@ public:
                     );      
     auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
 
-    auto window_surface = SDL_GetWindowSurface(window);
-    SDL_Rect camera_rect {0, 0, (int)width, (int)height};
-    SDL_Rect window_rect {};
-    auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-    SDL_BlitSurface(rgb_camera_surface, &camera_rect, window_surface, &window_rect);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
+    SDL_DestroySurface(camera_surface); 
+    SDL_DestroySurface(rgb_camera_surface); 
+    SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
+
+    // auto window_surface = SDL_GetWindowSurface(window);
+    // SDL_Rect camera_rect {0, 0, (int)width, (int)height};
+    // SDL_Rect window_rect {};
+    // auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
+    // SDL_BlitSurface(rgb_camera_surface, &camera_rect, window_surface, &window_rect);
 
     // std::cout << "image buffer " << std::endl
     //  << "  width: " << camera_surface->w << std::endl
@@ -134,7 +143,7 @@ public:
     // }
     // std::cout << std::endl;
     
-    //SDL_RenderPresent(renderer);
+    SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
   }
 
@@ -148,12 +157,13 @@ public:
     }
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
+      // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
       window =
           SDL_CreateWindow("Foxtalk Debug??", 240, 240, SDL_WINDOW_RESIZABLE);
 
       if (window) {
-        //renderer = SDL_CreateRenderer(window, NULL);
-        //if (renderer) {
+        renderer = SDL_CreateRenderer(window, nullptr);
+        if (renderer) {
 
           SDL_ShowWindow(window);
                 
@@ -200,9 +210,9 @@ public:
       } else {
         std::cerr << "Couldn't initialize window!" << std::endl;
       }
-    // } else {
-    //   std::cerr << "Couldn't initialize SDL(SDL_INIT_VIDEO)!" << std::endl;
-    // } 
+    } else {
+      std::cerr << "Couldn't initialize SDL(SDL_INIT_VIDEO)!" << std::endl;
+    } 
   }
 
   ~SdlHandler() {

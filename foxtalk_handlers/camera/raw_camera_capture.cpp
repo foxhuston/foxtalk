@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <fstream>
+#include <vector>
 
 constexpr int NUM_BUFFERS = 4;
 class RawCameraCaptureHandler : public Handler
@@ -19,7 +20,7 @@ class RawCameraCaptureHandler : public Handler
   int fd = -1;
   bool has_setup_buffers = false;
 
-  void* buffers[NUM_BUFFERS]{};
+  uint8_t* buffers[NUM_BUFFERS]{};
   v4l2_buffer buffer_structs[NUM_BUFFERS]{};
   bool available_buffers[NUM_BUFFERS]{};
   const v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -28,19 +29,28 @@ class RawCameraCaptureHandler : public Handler
   bool pollme = true;
 
 public:
-  ~RawCameraCaptureHandler() {
-    // std::cout << "Raw camera capture dropping the fd: " << fd << std::endl;
+  void close_stream() {
 
     if (ioctl(fd, VIDIOC_STREAMOFF, &buf_type) == -1) {
       std::cerr << "Error turning stream OFF?? : " << strerror(errno) << std::endl;
     }
 
+    has_setup_buffers = false;
+    current_buffer = -1;
     for (auto i = 0; i < NUM_BUFFERS; i++) {
       munmap(buffers[i], buffer_structs[i].length);
+      buffer_structs[i] = {};
+      buffers[i] = nullptr;
+      available_buffers[i] = true;
     }
     close(fd);  
+    fd = -1;
     // Let the camera chill for a (tenth of a) sec
     usleep(100000);
+  }
+  ~RawCameraCaptureHandler() {
+    // std::cout << "Raw camera capture dropping the fd: " << fd << std::endl;
+    close_stream();
   }
   bool poll() override {
     if (!pollme) {
@@ -68,7 +78,7 @@ public:
     }
     return false;
   }
-
+ 
 protected:
 
   // TODO: void that throws exceptions, not a bool
@@ -155,11 +165,11 @@ protected:
         // std::cout << "length: " << length << " offset: " << offset << std::endl;
 
         buffers[i] =
-                mmap(nullptr /* start anywhere */,
+                static_cast<uint8_t *>(mmap(nullptr /* start anywhere */,
                      length,
                      PROT_READ /* required */,
                      MAP_SHARED /* recommended */,
-                     fd, offset);
+                     fd, offset));
         if (buffers[0] == MAP_FAILED) {
           std::cerr << "Error mmaping frame data for buffer " << i << " | " << strerror(errno) << std::endl;
           return false;
@@ -186,6 +196,11 @@ protected:
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
+    if (queryResults.size() == 0) {
+      if (has_setup_buffers) {
+        close_stream();
+      }
+    }
     if (queryResults.size() != 1) {
       return;
     }
@@ -212,7 +227,11 @@ protected:
 
     // std::cout << "CLAIM! Buffer " << current_buffer << " contained " << buffer_structs[current_buffer].bytesused << " bytes used " << std::endl;
     // Claim /dev/video0 has image Cptr...
-    claim({
+    // auto frame = std::vector<uint8_t>(
+    //   buffers[current_buffer], 
+    //   (buffers[current_buffer]) + buffer_structs[current_buffer].length);
+    
+    claim({ 
       {{camera},
       {"with pixel format"}, 
       {pixel_format},

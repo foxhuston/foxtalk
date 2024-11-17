@@ -38,7 +38,7 @@ protected:
             {(uint64_t)pixel_format}, 
             {"with flags"},
             {flags},
-            {"with resolution width"},
+            {"with resolution width"}, 
             {(uint64_t)frmsize.discrete.width},
             {"with resolution height"},
             {(uint64_t)frmsize.discrete.height},}});

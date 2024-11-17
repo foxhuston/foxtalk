@@ -39,8 +39,9 @@ impl DynamicallyLoadedProgram {
         // Copy the so to a temp location and load it from there.
         let tmp_path = std::env::var("SO_TMP_PATH")?;
         let id = Uuid::new_v4();
+        let original_file_name = path.file_name().unwrap().to_str().unwrap_or("unknown");
         
-        let full_path = format!("{}/{}", tmp_path, id);
+        let full_path = format!("{}/{}-{}", tmp_path, id.as_u128()%1000000000, original_file_name);
         
         fs::copy(path, full_path.clone())?;
 

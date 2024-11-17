@@ -103,7 +103,7 @@ fn main() {
                 tps.clear();
             }
         }
-        thread::sleep(std::time::Duration::from_micros(8000));
+        thread::sleep(std::time::Duration::from_micros(1000));
         // thread::sleep(std::time::Duration::from_micros(100));
     }
 }
