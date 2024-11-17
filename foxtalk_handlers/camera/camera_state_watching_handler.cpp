@@ -62,7 +62,7 @@ protected:
   void handle(const std::vector<Tuple> &queryResults) override {
     for (auto &q: active_cameras) {
       claim({{{"/dev/" + q}, {"is a"}, {"camera device"}}});
-    }
+    } 
   } 
 
   void init() override {

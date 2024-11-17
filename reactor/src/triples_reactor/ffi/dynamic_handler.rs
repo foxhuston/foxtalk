@@ -49,12 +49,12 @@ impl DynamicallyLoadedProgram {
         let lib = Library::open(Some(full_path.clone()), RTLD_NOW | RTLD_LOCAL | 0x08)?;
         debug!("Opened library {:?} ({:?}) [tmp path: {:?}", path, lib, full_path.clone());
 
-        let init: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"init")?;
-        let free_tuple: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"free_tuple")?;
-        let register_initial_tuples: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"register_initial_tuples")?;
-        let handle: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"handle")?;
-        let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"teardown")?;
-        let poll: Symbol<extern "C" fn() -> bool> = lib.get(b"poll")?;
+        let init: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"foxtalk_init")?;
+        let free_tuple: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"foxtalk_free_tuple")?;
+        let register_initial_tuples: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"foxtalk_register_initial_tuples")?;
+        let handle: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"foxtalk_handle")?;
+        let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"foxtalk_teardown")?;
+        let poll: Symbol<extern "C" fn() -> bool> = lib.get(b"foxtalk_poll")?;
         let mut buffer = vec![0; BUFFER_SIZE];
         init(buffer.as_mut_ptr());
         let (query, _) = Vec::<Tuple>::read_from_buffer(&buffer, 0);

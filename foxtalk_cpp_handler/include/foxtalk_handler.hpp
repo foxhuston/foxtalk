@@ -69,7 +69,7 @@ public:
 
 #define FOXTALK_FFI_HANDLER_REG(T)                                             \
     static T *T##_instance = nullptr;                                          \
-    void init(uint8_t *buffer)                                                                \
+    void foxtalk_init(uint8_t *buffer)                                                                \
     {                                                                          \
         try                                                                    \
         {                                                                      \
@@ -85,7 +85,7 @@ public:
             std::cerr << "CRASH in init()" << std::endl;                       \
         }                                                                      \
     }                                                                          \
-    void free_tuple(uint8_t *buffer)                                                          \
+    void foxtalk_free_tuple(uint8_t *buffer)                                                          \
     {                                                                          \
         try                                                                    \
         {                                                                      \
@@ -100,7 +100,7 @@ public:
             std::cerr << "CRASH in free_tuple()" << std::endl;                 \
         }                                                                      \
     }                                                                          \
-    void handle(uint8_t *buffer)                                                              \
+    void foxtalk_handle(uint8_t *buffer)                                                              \
     {                                                                          \
         try                                                                    \
         {                                                                      \
@@ -115,7 +115,7 @@ public:
             std::cerr << "CRASH in handle()" << std::endl;                     \
         }                                                                      \
     }                                                                          \
-    void register_initial_tuples(uint8_t *buffer)                                             \
+    void foxtalk_register_initial_tuples(uint8_t *buffer)                                             \
     {                                                                          \
         try                                                                    \
         {                                                                      \
@@ -130,7 +130,7 @@ public:
             std::cerr << "CRASH in register_init()" << std::endl;              \
         }                                                                      \
     }                                                                          \
-    void teardown()                                                            \
+    void foxtalk_teardown()                                                            \
     {                                                                          \
         try                                                                    \
         {                                                                      \
@@ -145,7 +145,7 @@ public:
             std::cerr << "CRASH in teardown()" << std::endl;                   \
         }                                                                      \
     }                                                                          \
-    bool poll()                                                                \
+    bool foxtalk_poll()                                                                \
     {                                                                          \
         try                                                                    \
         {                                                                      \

@@ -28,7 +28,7 @@ protected:
       fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
       while (ioctl(fd, VIDIOC_ENUM_FMT, &fmt) == 0) {
         auto d = fmt.description;
-        std::string desc = std::string(d, d + sizeof(d));
+        std::string desc = std::string(d, d + sizeof(d)); 
 
         auto flags = (uint64_t)fmt.flags;
  

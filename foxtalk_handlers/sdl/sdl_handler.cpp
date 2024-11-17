@@ -1,4 +1,5 @@
-// pkg-config: sdl3
+// pkg-config: sdl3 opencv4
+// cppstd: 23
 
 #include "foxtalk_tuple.h"
 #include <SDL3/SDL.h>
@@ -8,7 +9,7 @@
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_render.h> 
 #include <SDL3/SDL_video.h>
 #include <cstdint>
 #include <cstdlib>
@@ -24,14 +25,17 @@ public:
   SDL_Renderer *renderer;
   uint8_t image_data_rgb[1920 * 1080 * 3];
 
-
+ 
   bool poll() override {
+    if (window == nullptr) {
+      return false;
+    }
     return SDL_PollEvent(nullptr);
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
     SDL_Event event {};
-    while(SDL_PollEvent(&event)) {
+    while(SDL_PollEvent(&event)) { 
       switch (event.type) {
         case SDL_EVENT_MOUSE_BUTTON_DOWN: 
           claim({{{"mouse"}, {"button"}, {(uint64_t)event.button.button}}});

@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <cstdio>
-#include <cstring>
+#include <cstring> 
 #include <cerrno>
 #include <cmath>
 
@@ -16,7 +16,7 @@ protected:
     if (queryResults.empty()) {
       return;
     }
-    auto best_score = 0.0;
+    auto best_score = 0.0; 
     auto best_camera = ""s;
     auto best_pixel_format = 0ul;
     auto best_width = 0ul;

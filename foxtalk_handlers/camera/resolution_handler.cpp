@@ -39,7 +39,7 @@ protected:
             {"with flags"},
             {flags},
             {"with resolution width"}, 
-            {(uint64_t)frmsize.discrete.width},
+            {(uint64_t)frmsize.discrete.width}, 
             {"with resolution height"},
             {(uint64_t)frmsize.discrete.height},}});
               // std::cout << "Resolution: " << frmsize.discrete.width << "x" << frmsize.discrete.height << "\n";
