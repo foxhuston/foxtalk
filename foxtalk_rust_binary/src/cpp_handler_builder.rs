@@ -110,6 +110,7 @@ impl FileWatcherHandlers for CppFileBuilder {
             let rest_of_args: Vec<String> = vec![
                 "-shared",
                 "-O0",
+                "-g",
                 cpp_std_str.as_str(),
                 "-I",
                 self.include_path.as_str(),

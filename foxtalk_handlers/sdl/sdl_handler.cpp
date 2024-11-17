@@ -21,61 +21,14 @@ class SdlHandler : public Handler {
 public:
   SDL_Window *window;
   SDL_Renderer *renderer;
+  uint8_t image_data_rgb[1920 * 1080 * 3];
+
 
   bool poll() override {
     return SDL_PollEvent(nullptr);
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() == 0) {
-      // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
-      // SDL_RenderClear(renderer);
-      // SDL_RenderPresent(renderer);
-
-    if(SDL_WindowHasSurface(window)) {
-      uint8_t image_data_rgb[1920 * 1080 * 3];
-
-      for(int i = 0; i < 1920 * 1080; i++) {
-        image_data_rgb[i * 3    ] = 0x00;
-        image_data_rgb[i * 3 + 1] = 0xAA;
-        image_data_rgb[i * 3 + 2] = 0xFF; 
-      }
-      
-      auto channels = 3; 
-      SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-                      1920,
-                      1080,   
-                      SDL_PIXELFORMAT_RGB24,
-                      image_data_rgb,
-                      1080 * channels      // pitch
-                      );     
-
-        auto window_surface = SDL_GetWindowSurface(window);
-        SDL_Rect camera_rect {0, 0, 1920, 1080};
-        SDL_Rect window_rect {};
-        auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-        SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
-
-        SDL_UpdateWindowSurface(window);
-      }
-      return;
-    }
-
-    assert(queryResults.size() == 1);
-
-    auto q = queryResults[0];
-    auto camera = q.at<std::string>(0).value();
-    auto pixel_format = q.at<uint64_t>(2).value();
-    auto width = q.at<uint64_t>(4).value();
-    auto height = q.at<uint64_t>(6).value();
-    auto image_buffer = q.at<void *>(8).value();
-    
-    // auto t = queryResults[0];
-    // auto x = t.at<uint64_t>(4).value();
-    // auto y = t.at<uint64_t>(6).value();
-    // auto width = t.at<uint64_t>(8).value();
-    // auto height = t.at<uint64_t>(10).value();
-
     SDL_Event event {};
     while(SDL_PollEvent(&event)) {
       switch (event.type) {
@@ -99,6 +52,50 @@ public:
       }
     }
 
+    if (queryResults.size() == 0) {
+      // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
+      // SDL_RenderClear(renderer);
+      // SDL_RenderPresent(renderer);
+      std::cout << "No query results in sdl handler" << std::endl;
+      //if(SDL_WindowHasSurface(window)) {
+        auto channels = 3; 
+        SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
+                        1920,
+                        1080,   
+                        SDL_PIXELFORMAT_RGB24,
+                        image_data_rgb,
+                        1920 * channels      // pitch
+                        );     
+  
+          auto window_surface = SDL_GetWindowSurface(window);
+          std::cout << "Window surface in |q|=0 is: " << window_surface << std::endl;
+          SDL_Rect camera_rect {0, 0, 1920, 1080};
+          SDL_Rect window_rect {};
+          auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
+          SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
+
+          SDL_UpdateWindowSurface(window);
+        //}
+        return; 
+      }
+  
+    assert(queryResults.size() == 1);
+
+    auto q = queryResults[0];
+    auto camera = q.at<std::string>(0).value();
+    auto pixel_format = q.at<uint64_t>(2).value();
+    auto width = q.at<uint64_t>(4).value();
+    auto height = q.at<uint64_t>(6).value();
+    auto image_buffer = q.at<void *>(8).value();
+     
+    // auto t = queryResults[0];
+    // auto x = t.at<uint64_t>(4).value();
+    // auto y = t.at<uint64_t>(6).value();
+    // auto width = t.at<uint64_t>(8).value();
+    // auto height = t.at<uint64_t>(10).value(); 
+
+
+
     // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     // SDL_RenderClear(renderer);
 
@@ -106,20 +103,13 @@ public:
     // const SDL_FRect rect(x, y, width, height);
     // SDL_RenderFillRect(renderer, &rect);
 
-    uint8_t image_data_rgb[1920 * 1080 * 3];
-
-    for(int i = 0; i < 1920 * 1080; i++) {
-      image_data_rgb[i * 3    ] = 0x00;
-      image_data_rgb[i * 3 + 1] = 0xAA;
-      image_data_rgb[i * 3 + 2] = 0xFF; 
-    }
     
 
     auto channels = 2; 
     SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
                     width,
                     height,   
-                    SDL_PIXELFORMAT_YUY2,
+            SDL_PIXELFORMAT_YUY2,
                     image_buffer,
                     width * channels      // pitch
                     );      
@@ -147,13 +137,22 @@ public:
   void init() override {
     std::cout << "Hello from SDL Handler 4!" << std::endl;
 
+    for(int i = 0; i < 1920 * 1080; i++) {
+      image_data_rgb[i * 3    ] = 0x00;
+      image_data_rgb[i * 3 + 1] = 0xAA;
+      image_data_rgb[i * 3 + 2] = 0xFF; 
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO)) {
       window =
           SDL_CreateWindow("Foxtalk Debug??", 240, 240, SDL_WINDOW_RESIZABLE);
+
       if (window) {
         //renderer = SDL_CreateRenderer(window, NULL);
         //if (renderer) {
+
           SDL_ShowWindow(window);
+                
           {
             int width, height, bbwidth, bbheight;
             SDL_GetWindowSize(window, &width, &height);
@@ -189,9 +188,9 @@ public:
             {"with resolution height"}, 
             TupleNoun::query(),
             {"has image"},
-            TupleNoun::query(),
+            TupleNoun::prefix(),
           }});
-        } else {
+        } else { 
           std::cerr << "Couldn't initialize renderer!" << std::endl;
         }
       } else {
@@ -199,7 +198,7 @@ public:
       }
     // } else {
     //   std::cerr << "Couldn't initialize SDL(SDL_INIT_VIDEO)!" << std::endl;
-    // }
+    // } 
   }
 
   ~SdlHandler() {
