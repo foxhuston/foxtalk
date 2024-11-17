@@ -35,35 +35,35 @@ public:
           auto *event = (struct inotify_event *)&buffer[i];
           if (strncmp(event->name, "video", 5) == 0) {
             if (event->mask & IN_CREATE || event->mask & IN_MOVED_TO) {
-                
+
               std::cout << "New camera detected: " << event->name << std::endl;
               active_cameras.insert(event->name);
               to_ret = true;
             }
             if (event->mask & IN_DELETE || event->mask & IN_MOVED_FROM) {
-                
+
               std::cout << "Camera removed: " << event->name << std::endl;
               active_cameras.erase(event->name);
               to_ret = true;
             }
           }
-          
+
           i += sizeof(struct inotify_event) + event->len;
       }
       return to_ret;
-    
+
   }
 
   ~CameraStateWatchingHandler() {
     inotify_rm_watch(fd, wd);
     close(fd);
   }
-protected: 
+protected:
   void handle(const std::vector<Tuple> &queryResults) override {
     for (auto &q: active_cameras) {
       claim({{{"/dev/" + q}, {"is a"}, {"camera device"}}});
-    } 
-  } 
+    }
+  }
 
   void init() override {
     fd = inotify_init1(IN_NONBLOCK);
@@ -73,10 +73,10 @@ protected:
       if (q.find("video")  != std::string::npos) {
         active_cameras.insert(q.erase(0, 5));
       }
-    } 
+    }
 
     claim({{{"foxtalk"}, {"is"}, {"running"}}});
-    
+
   }
 
 
