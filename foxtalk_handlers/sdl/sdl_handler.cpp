@@ -14,6 +14,7 @@
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/features2d.hpp>
@@ -24,6 +25,7 @@
 #include <iostream>
 
 #include <foxtalk_handler.hpp>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -65,107 +67,84 @@ public:
           break;
       }
     }
-    // temp for easy testing: Remove if you want to move the window
-    // SDL_SetWindowPosition(window, 0, 0);
 
-
-    if (queryResults.size() == 0) {
-      SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
-      SDL_RenderClear(renderer);
-      SDL_RenderPresent(renderer);
-      std::cout << "No query results in sdl handler" << std::endl;
-      //if(SDL_WindowHasSurface(window)) {
-        // auto channels = 3;
-        // SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-        //                 1920,
-        //                 1080,
-        //                 SDL_PIXELFORMAT_RGB24,
-        //                 image_data_rgb,
-        //                 1920 * channels      // pitch
-        //                 );
-
-        //   auto window_surface = SDL_GetWindowSurface(window);
-        // std::cout << "Window surface in |q|=0 is: " << window_surface << std::endl;
-        //   SDL_Rect camera_rect {0, 0, 1920, 1080};
-        //   SDL_Rect window_rect {};
-        //   auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-        //   SDL_BlitSurface(camera_surface, &camera_rect, window_surface, &window_rect);
-
-        //   SDL_UpdateWindowSurface(window);
-        //}
-        return;
-      }
-
-    assert(queryResults.size() == 1);
-
-    auto q = queryResults[0];
-    auto camera = q.at<std::string>(0).value();
-    auto pixel_format = q.at<uint64_t>(2).value();
-    auto width = q.at<uint64_t>(4).value();
-    auto height = q.at<uint64_t>(6).value();
-    // auto image_buffer = q.at<std::vector<uint8_t>>(8).value();
-    auto image_buffer = q.at<void *>(8).value();
-    auto frame_count_num = q.at<uint64_t>(12).value();
-    // std::cout << frame_count_num << std::endl;
-
-    // auto t = queryResults[0];
-    // auto x = t.at<uint64_t>(4).value();
-    // auto y = t.at<uint64_t>(6).value();
-    // auto width = t.at<uint64_t>(8).value();
-    // auto height = t.at<uint64_t>(10).value();
-
-
-
-    // SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
-    SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-                    width,
-                    height,
-            SDL_PIXELFORMAT_YUY2,
-                    image_buffer,
-                    width * 2
-                    );
+    bool skip_cam_image = false;
+    for(auto q : queryResults) {
+      if(q.at<std::string>(0).has_value() && q.at<std::string>(0).value() == "cv debug image") {
+        skip_cam_image = true;
+        auto image_buffer = q.at<std::vector<uint8_t>>(1).value();
+        auto width = q.at<uint64_t>(3).value();
+        auto height = q.at<uint64_t>(5).value();
 
-    auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
+          SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
+                      width,
+                      height,
+              SDL_PIXELFORMAT_RGB24,
+                      image_buffer.data(),
+                      width * 3
+                      );
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
-    SDL_DestroySurface(camera_surface);
-    SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
 
-    cv::Mat img(height, width, CV_8UC3, rgb_camera_surface->pixels);
-    cv::Mat gray, jet;
-    cv::cvtColor(img, gray, cv::COLOR_RGB2GRAY);
+          auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
 
-    cv::GaussianBlur(gray, gray, {5, 5}, 4);
+          SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
+          SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
 
-    std::vector<cv::KeyPoint> keypoints;
-    blob->detect(gray, keypoints);
-
-    // // std::cout << "Found " << keypoints.size() << " keypoint(s)" << std::endl;
-
-    SDL_SetRenderDrawColor(renderer, 255, 30, 30, 127);
-    for(auto kp : keypoints) {
-      const SDL_FRect rect(kp.pt.x, kp.pt.y, kp.size, kp.size);
-      SDL_RenderFillRect(renderer, &rect);
+          SDL_DestroySurface(camera_surface);
+          SDL_DestroySurface(rgb_camera_surface);
+      }
     }
 
 
-    // auto window_surface = SDL_GetWindowSurface(window);
-    // SDL_Rect camera_rect {0, 0, (int)width, (int)height};
-    // SDL_Rect window_rect {};
-    // auto xs = SDL_GetWindowSize(window, &window_rect.w, &window_rect.h);
-    // SDL_BlitSurface(rgb_camera_surface, &camera_rect, window_surface, &window_rect);
+    // First find the camera image, and draw that as the base.
+    if(!skip_cam_image) {
+      for(auto q : queryResults) {
+        if(q.at<std::string>(1).has_value() && q.at<std::string>(1).value() == "with pixel format") {
+          auto camera = q.at<std::string>(0).value();
+          auto pixel_format = q.at<uint64_t>(2).value();
+          auto width = q.at<uint64_t>(4).value();
+          auto height = q.at<uint64_t>(6).value();
+          auto image_buffer = q.at<void *>(8).value();
+          auto frame_count_num = q.at<uint64_t>(12).value();
 
-    // std::cout << "image buffer " << std::endl
-    //  << "  width: " << camera_surface->w << std::endl
-    //  << "  height: " << camera_surface->h << std::endl
-    //  << std::endl;
+          SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
+                      width,
+                      height,
+              SDL_PIXELFORMAT_YUY2,
+                      image_buffer,
+                      width * 2
+                      );
 
-    // for(int i = 0; i < 32; i++) {
-    //   std::cout << (uint32_t)static_cast<uint8_t*>(camera_surface->pixels)[i] << " ";
-    // }
-    // std::cout << std::endl;
+
+          auto rgb_camera_surface = SDL_ConvertSurface(camera_surface, SDL_PIXELFORMAT_RGB24);
+
+          SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, rgb_camera_surface);
+          SDL_RenderTexture(renderer, texture, nullptr, nullptr); // These nulls can be the rects
+
+          SDL_DestroySurface(camera_surface);
+          SDL_DestroySurface(rgb_camera_surface);
+          break;
+        }
+      }
+    }
+
+    // Now draw everything else.
+    for(auto q : queryResults) {
+      if(q.at<std::string>(2).has_value() && q.at<std::string>(2).value() == "has dot at") {
+        // it's a dot!
+        auto x = q.at<double>(4).value();
+        auto y = q.at<double>(6).value();
+        auto size = q.at<double>(8).value();
+
+        SDL_SetRenderDrawColor(renderer, 30, 255, 127, SDL_ALPHA_OPAQUE);
+        const SDL_FRect rect(x, y, size, size);
+        SDL_RenderFillRect(renderer, &rect);
+      }
+    }
+
 
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
@@ -211,20 +190,14 @@ public:
 
           blob = cv::SimpleBlobDetector::create(params);
 
-
-          // claim({{{"foxtalk reactor"}, {"sees tuples"},
-          // TupleNoun::query()}});
-          // claim({{{"illumination"},
-          //         {"rectangle"},
-          //         {"at"},
-          //         {"x"},
-          //         TupleNoun::query(),
-          //         {"y"},
-          //         TupleNoun::query(),
-          //         {"width"},
-          //         TupleNoun::query(),
-          //         {"height"},
-          //         TupleNoun::query()}});
+          claim({{
+            {"cv debug image"},
+            TupleNoun::query(),
+            {"width"},
+            TupleNoun::query(),
+            {"height"},
+            TupleNoun::query()
+          }});
 
           claim({
             {TupleNoun::query(),
@@ -235,8 +208,25 @@ public:
             {"with resolution height"},
             TupleNoun::query(),
             {"has image"},
-            TupleNoun::prefix(),
+            TupleNoun::query(),
+            TupleNoun::query(),
+            TupleNoun::query(),
+            TupleNoun::query(),
+            TupleNoun::query(),
           }});
+
+          claim({{
+            {"camera"},
+            TupleNoun::query(),
+            {"has dot at"},
+            {"x"},
+            TupleNoun::query(),
+            {"y"},
+            TupleNoun::query(),
+            {"size"},
+            TupleNoun::query(),
+          }});
+
         } else {
           std::cerr << "Couldn't initialize renderer!" << std::endl;
         }

@@ -3,19 +3,19 @@
 class ReactorDbPrintingHandler : public Handler
 {
 
-protected: 
+protected:
   void handle(const std::vector<Tuple> &queryResults) override
   {
     if (queryResults.size() >= 1)
     {
       claims.clear();
-      auto t = queryResults[0]; 
+      auto t = queryResults[0];
       auto all_tuples = t.at<std::string>(2);
       if (all_tuples.has_value())
-      {  
+      {
         std::cout << all_tuples.value() << std::endl;
         std::cout << "============================" << std::endl;
-      } 
+      }
     }
   }
 
@@ -25,4 +25,4 @@ protected:
   }
 };
 
-FOXTALK_FFI_HANDLER_REG(ReactorDbPrintingHandler); 
+FOXTALK_FFI_HANDLER_REG(ReactorDbPrintingHandler);
