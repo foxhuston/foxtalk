@@ -1,5 +1,5 @@
-// pkg-config: sdl3 opencv4
-// cppstd: 23
+// pkg-config: sdl3 
+
 
 #include "foxtalk_tuple.h"
 #include <SDL3/SDL.h>
@@ -25,6 +25,7 @@ public:
   SDL_Renderer *renderer;
   uint8_t image_data_rgb[1920 * 1080 * 3];
 
+  uint64_t last_frame_rendered = 0;
  
   bool poll() override {
     if (window == nullptr) {
@@ -56,9 +57,6 @@ public:
           break;
       }
     }
-    // temp for easy testing: Remove if you want to move the window
-    SDL_SetWindowPosition(window, 0, 0);
-
 
     if (queryResults.size() == 0) {
       SDL_SetRenderDrawColor(renderer, 30, 30, 30, SDL_ALPHA_OPAQUE);
@@ -68,7 +66,7 @@ public:
       //if(SDL_WindowHasSurface(window)) {
         // auto channels = 3; 
         // SDL_Surface *camera_surface = SDL_CreateSurfaceFrom(
-        //                 1920,
+        //                 1920, 
         //                 1080,   
         //                 SDL_PIXELFORMAT_RGB24,
         //                 image_data_rgb,
@@ -97,7 +95,16 @@ public:
     // auto image_buffer = q.at<std::vector<uint8_t>>(8).value();
     auto image_buffer = q.at<void *>(8).value();
     auto frame_count_num = q.at<uint64_t>(12).value();
-    // std::cout << frame_count_num << std::endl; 
+
+    if (frame_count_num <= last_frame_rendered) {
+      // std::cout << "Skipping rendering of the same data";
+
+      SDL_RenderPresent(renderer);
+      SDL_UpdateWindowSurface(window);
+      return; 
+    }
+    last_frame_rendered = frame_count_num;
+    // std::cout << frame_count_num << " || " << last_frame_rendered << std::endl; 
       
     // auto t = queryResults[0];
     // auto x = t.at<uint64_t>(4).value();
@@ -161,7 +168,7 @@ public:
     }
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
-      // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+      SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
       window =
           SDL_CreateWindow("Foxtalk Debug??", 240, 240, SDL_WINDOW_RESIZABLE);
 

@@ -17,7 +17,7 @@ protected:
     if (queryResults.size() != 1) {
       return;
     }
-    auto q = queryResults[0];
+    auto q = queryResults[0]; 
     auto camera = q.at<std::string>(2).value();
     std::cout << "Testing 6!" << camera << std::endl;
      
