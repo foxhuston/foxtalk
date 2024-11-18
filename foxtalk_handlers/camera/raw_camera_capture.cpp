@@ -65,16 +65,26 @@ public:
         continue;
       }
 
-      auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
+      // auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
+      v4l2_buffer buff {};
+      buff.index = i;
+      buff.type = buffer_structs[i].type;
 
-      if (res == 0) {
+      auto res = ioctl(fd, VIDIOC_QUERYBUF, &buff);
+      if(res == 0 && buff.flags & V4L2_BUF_FLAG_DONE) {
         available_buffers[i] = false;
         current_buffer = i;
         return true;
-      } else {
-        // std::cout << "Buffer index " << i << " dqbuf returned " << strerror(errno) << std::endl;
-        // usleep(500000);
       }
+
+      // if (res == 0 && buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) {
+      //   available_buffers[i] = false;
+      //   current_buffer = i;
+      //   return true;
+      // } else {
+      //   // std::cout << "Buffer index " << i << " dqbuf returned " << strerror(errno) << std::endl;
+      //   // usleep(500000);
+      // }
     }
     return false;
   }
@@ -167,7 +177,7 @@ protected:
         buffers[i] =
                 static_cast<uint8_t *>(mmap(nullptr /* start anywhere */,
                      length,
-                     PROT_READ /* required */,
+                     PROT_READ | PROT_WRITE /* required */,
                      MAP_SHARED /* recommended */,
                      fd, offset));
         if (buffers[0] == MAP_FAILED) {
@@ -187,7 +197,7 @@ protected:
     for (int i = 0; i < NUM_BUFFERS; i++) {
       // buffer_structs[i] === *(buffer_structs + i)
       if (ioctl(fd, VIDIOC_QBUF, buffer_structs + i) == -1) {
-        std::cerr << "Error queueing buffer " << i << " | " << strerror(errno) << std::endl;
+        std::cerr << "[setup_buffers] Error queueing buffer " << i << " | " << strerror(errno) << std::endl;
         return false;
       }
       available_buffers[i] = true;
@@ -231,21 +241,42 @@ protected:
     //   buffers[current_buffer],
     //   (buffers[current_buffer]) + buffer_structs[current_buffer].length);
 
-    claim({
-      {{camera},
-      {"with pixel format"},
-      {pixel_format},
-      {"with resolution width"},
-      {width},
-      {"with resolution height"},
-      {height},
-      {"has image"},
-      {buffers[current_buffer]},
-      {"at index"},
-      {current_buffer},
-      {"for frame #"},
-      {(uint64_t)buffer_structs[current_buffer].sequence}
-      }});
+    // int buffer_idx = -1;
+    // for(int i = 0; i < NUM_BUFFERS; i++) {
+    //   std::cout << std::boolalpha
+    //     << "[handle] Buff done? " << (bool)(buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) << std::endl;
+
+    //   if(buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) {
+    //     std::cout << "[handle] Buff done! " << i << std::endl;
+    //     auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
+    //     if(res == 0) {
+    //       buffer_idx = i;
+    //       break;
+    //     }
+    //   }
+    // }
+
+    // if(buffer_idx > 1) {
+
+    auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + current_buffer);
+    if(res == 0) {
+      claim({
+        {{camera},
+        {"with pixel format"},
+        {pixel_format},
+        {"with resolution width"},
+        {width},
+        {"with resolution height"},
+        {height},
+        {"has image"},
+        {buffers[current_buffer]},
+        {"at index"},
+        {current_buffer},
+        {"for frame #"},
+        {(uint64_t)buffer_structs[current_buffer].sequence}
+        }});
+    }
+
     current_buffer = -1;
   }
 
@@ -261,7 +292,7 @@ protected:
     buffer_structs[buffer_index].reserved2 = 0;
     buffer_structs[buffer_index].reserved = 0;
     if (ioctl(fd, VIDIOC_QBUF, buffer_structs + buffer_index) == -1) {
-      std::cerr << "Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
+      std::cerr << "[free_tuple] Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
     }
     available_buffers[buffer_index] = true;
     //std::cout << t << std::endl;
