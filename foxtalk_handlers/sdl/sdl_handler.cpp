@@ -75,7 +75,7 @@ public:
     SDL_RenderClear(renderer);
 
     uint64_t width, height;
-    SDL_Surface *camera_surface, *rgb_camera_surface;
+    SDL_Surface *camera_surface = nullptr, *rgb_camera_surface = nullptr;
 
     bool skip_cam_image = false;
     for(auto q : queryResults) {
@@ -128,7 +128,13 @@ public:
     // Now draw everything else.
 
     // Doing this with OpenCV is probably extremely inefficient!
-    auto draw_mat = cv::Mat(height, width, CV_8UC3, rgb_camera_surface->pixels);
+    cv::Mat draw_mat;
+    if(rgb_camera_surface != nullptr) {
+      draw_mat = cv::Mat(height, width, CV_8UC3, rgb_camera_surface->pixels);
+    } else {
+      draw_mat = cv::Mat(1920, 1080, CV_8UC3);
+      cv::rectangle(draw_mat, {0, 0, (int)height, (int)width}, CV_RGB(30, 30, 30), -1);
+    }
 
     for(auto q : queryResults) {
       if(q.at<std::string>(2).has_value() && q.at<std::string>(2).value() == "has dot at") {
@@ -148,8 +154,8 @@ public:
     SDL_RenderPresent(renderer);
     SDL_UpdateWindowSurface(window);
 
-    SDL_DestroySurface(camera_surface);
-    SDL_DestroySurface(rgb_camera_surface);
+    if(camera_surface != nullptr) { SDL_DestroySurface(camera_surface); }
+    if(rgb_camera_surface != nullptr) { SDL_DestroySurface(rgb_camera_surface); }
   }
 
   void init() override {
