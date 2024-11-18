@@ -36,7 +36,7 @@ protected:
       // 1 == compressed (really don't want this)
       // 2 == emulated (really REALLY don't want this)
       // So, taking the flags (+1) to the 10th power basically sorts it by flags asc
-      auto flags_score_modifier = pow((double)flags + 1, 10);
+      auto flags_score_modifier = pow((double)flags + 1, 100);
       auto is_ir_cam = pixel_format == V4L2_PIX_FMT_GREY;
 
 

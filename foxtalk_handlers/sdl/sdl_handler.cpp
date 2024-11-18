@@ -179,7 +179,7 @@ public:
           SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
           SDL_ShowWindow(window);
-          SDL_SetWindowPosition(window, 1500, 0);
+          SDL_SetWindowPosition(window, 0, 0);
 
           {
             int width, height, bbwidth, bbheight;
