@@ -27,7 +27,7 @@ pub struct DynamicallyLoadedProgram {
 
 unsafe impl Send for DynamicallyLoadedProgram {}
 
-static BUFFER_SIZE: usize = 10 * 1024 * 1024;
+static BUFFER_SIZE: usize = 50 * 1024 * 1024;
 
 impl DynamicallyLoadedProgram {
     pub fn get_bootstrap_output(&self) -> FxHashSet<Tuple> {
@@ -40,13 +40,15 @@ impl DynamicallyLoadedProgram {
         let tmp_path = std::env::var("SO_TMP_PATH")?;
         let id = Uuid::new_v4();
         let original_file_name = path.file_name().unwrap().to_str().unwrap_or("unknown");
-        
+
         let full_path = format!("{}/{}-{}", tmp_path, id.as_u128()%1000000000, original_file_name);
-        
+
         fs::copy(path, full_path.clone())?;
 
         // Magic 0x08 number is DEEPBIND for dlopen.
-        let lib = Library::open(Some(full_path.clone()), RTLD_NOW | RTLD_LOCAL | 0x08)?;
+        // let lib = Library::open(Some(full_path.clone()), RTLD_NOW | RTLD_LOCAL | 0x08)?;
+        // Update: Deepbind is incompatible with sanitizers...
+        let lib = Library::open(Some(full_path.clone()), RTLD_NOW | RTLD_LOCAL)?;
         debug!("Opened library {:?} ({:?}) [tmp path: {:?}", path, lib, full_path.clone());
 
         let init: Symbol<extern "C" fn(*mut u8) -> ()> = lib.get(b"foxtalk_init")?;
