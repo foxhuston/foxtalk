@@ -5,28 +5,30 @@
 #include <iostream>
 
 #include <foxtalk_handler.hpp>
-// #include <debug_utils.h>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <fstream>
 #include <vector>
 
+
+struct cam_buffer {
+  void* mem;
+  size_t length;
+};
+
 constexpr int NUM_BUFFERS = 4;
+constexpr v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
 class RawCameraCaptureHandler : public Handler
 {
   int fd = -1;
   bool has_setup_buffers = false;
 
-  uint8_t* buffers[NUM_BUFFERS]{};
-  v4l2_buffer buffer_structs[NUM_BUFFERS]{};
-  bool available_buffers[NUM_BUFFERS]{};
-  const v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  int current_buffer = -1;
+  cam_buffer buffers[NUM_BUFFERS]{};
+  bool currently_queued_buffers[NUM_BUFFERS]{};
 
-  bool pollme = true;
+  int current_buffer_index = -1;
 
 public:
   void close_stream() {
@@ -34,14 +36,10 @@ public:
     if (ioctl(fd, VIDIOC_STREAMOFF, &buf_type) == -1) {
       std::cerr << "Error turning stream OFF?? : " << strerror(errno) << std::endl;
     }
-
     has_setup_buffers = false;
-    current_buffer = -1;
-    for (auto i = 0; i < NUM_BUFFERS; i++) {
-      munmap(buffers[i], buffer_structs[i].length);
-      buffer_structs[i] = {};
-      buffers[i] = nullptr;
-      available_buffers[i] = true;
+    current_buffer_index = -1;
+    for (auto & buffer : buffers) {
+      munmap(buffer.mem, buffer.length);
     }
     close(fd);
     fd = -1;
@@ -53,38 +51,20 @@ public:
     close_stream();
   }
   bool poll() override {
-    if (!pollme) {
-      return false;
-    }
     if (!has_setup_buffers) {
       return false;
     }
 
     for (int i = 0; i < NUM_BUFFERS; i++) {
-      if (!available_buffers[i]) {
-        continue;
-      }
-
-      // auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
       v4l2_buffer buff {};
       buff.index = i;
-      buff.type = buffer_structs[i].type;
+      buff.type = buf_type;
 
       auto res = ioctl(fd, VIDIOC_QUERYBUF, &buff);
       if(res == 0 && buff.flags & V4L2_BUF_FLAG_DONE) {
-        available_buffers[i] = false;
-        current_buffer = i;
+        current_buffer_index = i;
         return true;
       }
-
-      // if (res == 0 && buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) {
-      //   available_buffers[i] = false;
-      //   current_buffer = i;
-      //   return true;
-      // } else {
-      //   // std::cout << "Buffer index " << i << " dqbuf returned " << strerror(errno) << std::endl;
-      //   // usleep(500000);
-      // }
     }
     return false;
   }
@@ -121,8 +101,6 @@ protected:
     fmt.fmt.pix.height = height;
     fmt.fmt.pix.pixelformat = pixel_format;
 
-    // Should get this from ioctl instead of assuming
-
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
         std::cerr << "Error setting video format for " << camera << ": " << strerror(errno) << std::endl;
         return false;
@@ -130,10 +108,7 @@ protected:
 
     struct v4l2_requestbuffers req {};
 
-
-    // Get capabilities from ioctl, instead of assuming
-    req.count = NUM_BUFFERS; // I think this is just four different buffers containing all frame data
-
+    req.count = NUM_BUFFERS; 
     req.type = buf_type;
     req.memory = V4L2_MEMORY_MMAP;
 
@@ -142,48 +117,37 @@ protected:
         std::cerr << "Error requesting video buffers: " << strerror(errno) << std::endl;
         return false;
     }
-    // std::cout << std::boolalpha
-    //           << "has mmap: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP)
-    //           << std::endl
-    //           << "has userptr: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_USERPTR)
-    //           << std::endl
-    //           << "has max num buffers: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS)
-    //           << std::endl
-    //           << "has request support: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_REQUESTS)
-    //           << std::endl
-    //           << "has dma buffer: " << (bool)(req.capabilities & V4L2_BUF_CAP_SUPPORTS_DMABUF)
-    //           << std::endl;
-
 
     for (int i = 0; i < req.count; i++) {
-        buffer_structs[i].type = buf_type;
-        buffer_structs[i].memory = V4L2_MEMORY_MMAP;
-        buffer_structs[i].index = i;
-        size_t length = 0;
-        off_t offset = 0;
-        // buf.m.userptr =
+    
+      v4l2_buffer buf {};
+      buf.type = buf_type;
+      buf.memory = V4L2_MEMORY_MMAP;
+      buf.index = i;
+      size_t length = 0;
+      off_t offset = 0;
 
-        if (ioctl(fd, VIDIOC_QUERYBUF, buffer_structs + i) == -1) {
-          std::cerr << "Error getting frame data for buffer " << strerror(errno) << std::endl;
-          return false;
-        }
-//
-        // std::cout << "Buffer len: " << buf.length << std::endl;
-        length = buffer_structs[i].length;
-        offset = buffer_structs[i].m.offset;
+      if (ioctl(fd, VIDIOC_QUERYBUF, &buf) == -1) {
+        std::cerr << "Error getting frame data for buffer " << strerror(errno) << std::endl;
+        return false;
+      }
 
-        // std::cout << "length: " << length << " offset: " << offset << std::endl;
+      length = buf.length;
+      offset = buf.m.offset;
 
-        buffers[i] =
-                static_cast<uint8_t *>(mmap(nullptr /* start anywhere */,
-                     length,
-                     PROT_READ | PROT_WRITE /* required */,
-                     MAP_SHARED /* recommended */,
-                     fd, offset));
-        if (buffers[0] == MAP_FAILED) {
-          std::cerr << "Error mmaping frame data for buffer " << i << " | " << strerror(errno) << std::endl;
-          return false;
-        }
+      buffers[i].mem = mmap(nullptr /* start anywhere */,
+                    length,
+                    PROT_READ | PROT_WRITE /* required */,
+                    MAP_SHARED /* recommended */,
+                    fd, offset);
+
+      buffers[i].length = length;
+
+      if (buffers[i].mem == MAP_FAILED) {
+        std::cerr << "Error mmaping frame data for buffer " << i << " | " << strerror(errno) << std::endl;
+        return false;
+      }
+      
 
     }
 
@@ -195,12 +159,19 @@ protected:
 
 
     for (int i = 0; i < NUM_BUFFERS; i++) {
-      // buffer_structs[i] === *(buffer_structs + i)
-      if (ioctl(fd, VIDIOC_QBUF, buffer_structs + i) == -1) {
+      
+      v4l2_buffer buf {};
+      buf.type = buf_type;
+      buf.memory = V4L2_MEMORY_MMAP;
+      buf.index = i;
+
+      if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
         std::cerr << "[setup_buffers] Error queueing buffer " << i << " | " << strerror(errno) << std::endl;
         return false;
-      }
-      available_buffers[i] = true;
+      } 
+      // std::cout << "Setting queued to true for " << i << std::endl;
+      currently_queued_buffers[i] = true;
+      
     }
     return true;
   }
@@ -214,7 +185,7 @@ protected:
     if (queryResults.size() != 1) {
       return;
     }
-    auto q = queryResults[0];
+    const auto& q = queryResults[0];
     auto camera = q.at<std::string>(2).value();
     auto pixel_format = q.at<uint64_t>(4).value();
     auto width = q.at<uint64_t>(6).value();
@@ -226,40 +197,22 @@ protected:
         has_setup_buffers = true;
       } else {
         std::cerr << "Error setting up buffers!" << std::endl;
-
         return;
       }
     }
-    if (current_buffer < 0) {
+
+    if (current_buffer_index < 0) {
       return;
     }
-    // now, some buffer has data!
 
-    // std::cout << "CLAIM! Buffer " << current_buffer << " contained " << buffer_structs[current_buffer].bytesused << " bytes used " << std::endl;
-    // Claim /dev/video0 has image Cptr...
-    // auto frame = std::vector<uint8_t>(
-    //   buffers[current_buffer],
-    //   (buffers[current_buffer]) + buffer_structs[current_buffer].length);
+    v4l2_buffer buf {};
+    buf.index = current_buffer_index;
+    buf.type = buf_type;
 
-    // int buffer_idx = -1;
-    // for(int i = 0; i < NUM_BUFFERS; i++) {
-    //   std::cout << std::boolalpha
-    //     << "[handle] Buff done? " << (bool)(buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) << std::endl;
-
-    //   if(buffer_structs[i].flags & V4L2_BUF_FLAG_DONE) {
-    //     std::cout << "[handle] Buff done! " << i << std::endl;
-    //     auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + i);
-    //     if(res == 0) {
-    //       buffer_idx = i;
-    //       break;
-    //     }
-    //   }
-    // }
-
-    // if(buffer_idx > 1) {
-
-    auto res = ioctl(fd, VIDIOC_DQBUF, buffer_structs + current_buffer);
+    auto res = ioctl(fd, VIDIOC_DQBUF, &buf);
     if(res == 0) {
+      // std::cout << "Setting queued to false for " << current_buffer_index << std::endl;
+      currently_queued_buffers[current_buffer_index] = false;
       claim({
         {{camera},
         {"with pixel format"},
@@ -269,15 +222,19 @@ protected:
         {"with resolution height"},
         {height},
         {"has image"},
-        {buffers[current_buffer]},
+        {buffers[current_buffer_index].mem},
         {"at index"},
-        {current_buffer},
+        {current_buffer_index},
         {"for frame #"},
-        {(uint64_t)buffer_structs[current_buffer].sequence}
+        {(uint64_t)buf.sequence}
         }});
     }
+    else {
+      std::cerr << "[handle] Error dequeueing buffer " << current_buffer_index << " | " << strerror(errno) << std::endl;
+    }
+    
 
-    current_buffer = -1;
+    current_buffer_index = -1;
   }
 
 
@@ -288,14 +245,22 @@ protected:
     // std::cout << "Requing buffer # " << buffer_index << std::endl;
 
     // TODO: Bounds check on buffer index
-    buffer_structs[buffer_index].flags = 0;
-    buffer_structs[buffer_index].reserved2 = 0;
-    buffer_structs[buffer_index].reserved = 0;
-    if (ioctl(fd, VIDIOC_QBUF, buffer_structs + buffer_index) == -1) {
-      std::cerr << "[free_tuple] Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
+    
+    if (!currently_queued_buffers[buffer_index]) {
+      v4l2_buffer buf {};
+      buf.type = buf_type;
+      buf.memory = V4L2_MEMORY_MMAP;
+      buf.index = buffer_index;
+
+      if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
+        std::cerr << "[free_tuple] Error queueing buffer " << buffer_index << " | " << strerror(errno) << std::endl;
+        return;
+      }
+      // std::cout << "Setting queued to true for " << buffer_index << std::endl;
+      currently_queued_buffers[buffer_index] = true;
+      
     }
-    available_buffers[buffer_index] = true;
-    //std::cout << t << std::endl;
+    
   }
 
   void init() override {
