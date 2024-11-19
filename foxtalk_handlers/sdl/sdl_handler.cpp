@@ -36,9 +36,8 @@ public:
   SDL_Window *window;
   SDL_Renderer *renderer;
   uint8_t image_data_rgb[1920 * 1080 * 3];
-  cv::Ptr<cv::SimpleBlobDetector> blob;
 
- uint64_t last_frame_rendered = 0;
+  uint64_t last_frame_rendered = 0;
 
   bool poll() override {
     if (window == nullptr) {
@@ -80,10 +79,31 @@ public:
     bool skip_cam_image = false;
     for(auto q : queryResults) {
       if(q.at<std::string>(0).has_value() && q.at<std::string>(0).value() == "cv debug image") {
+
         skip_cam_image = true;
-        auto image_buffer = q.at<std::vector<uint8_t>>(1).value();
-        width = q.at<uint64_t>(3).value();
-        height = q.at<uint64_t>(5).value();
+
+        auto mib = q.at<std::vector<uint8_t>>(1);
+        auto mw  = q.at<int64_t>(3);
+        auto mh  = q.at<int64_t>(5);
+
+        if(!mib.has_value()) {
+          std::cout << "Error! SDL Handler found a debug image without image data..." << std::endl;
+          return;
+        }
+
+        if(!mw.has_value()) {
+          std::cout << "Error! SDL Handler found a debug image without a width!" << std::endl;
+          return;
+        }
+
+        if(!mw.has_value()) {
+          std::cout << "Error! SDL Handler found a debug image without a height!" << std::endl;
+          return;
+        }
+
+        auto image_buffer = mib.value();
+        width = mw.value();
+        height = mh.value();
 
         camera_surface = SDL_CreateSurfaceFrom(
                     width,
@@ -193,13 +213,6 @@ public:
 
           }
 
-          cv::SimpleBlobDetector::Params params {};
-          params.minArea = 150;
-          params.filterByCircularity = true;
-          params.minCircularity = 0.75;
-
-          blob = cv::SimpleBlobDetector::create(params);
-
           claim({{
             {"cv debug image"},
             TupleNoun::query(),
@@ -250,6 +263,11 @@ public:
 
   ~SdlHandler() {
     std::cout << "SdlHandler destructor called..." << std::endl;
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
+
     SDL_Quit();
   }
 };
