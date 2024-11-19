@@ -60,10 +60,11 @@ impl FileWatcherHandlers for CppFileBuilder {
             let source = fs::read_to_string(full_path.clone()).unwrap();
 
             let config_regex = Regex::new(r"(//|/\*) *pkg-config:? +(.*?)(\*/)?$").unwrap();
+            let sanitize_regex = Regex::new(r"(//|/\*) foxtalk: sanitize *$").unwrap();
 
+            let lines: Vec<&str> = source.split("\n").collect();
 
-            let packages: Vec<&str> =
-                source.split("\n")
+            let packages: Vec<&str> = lines.iter()
                     .filter_map(|line| {
                         let out: Option<Vec<&str>> = config_regex.captures(line)
                             .and_then(|c| c.get(2)
@@ -77,6 +78,7 @@ impl FileWatcherHandlers for CppFileBuilder {
 
             debug!("In cpp handler on_create (for close_write or moved_to): Found {:?} in {:?}", packages, full_path);
 
+            let should_sanitize = lines.iter().any(|line| sanitize_regex.is_match(line));
 
             fn pkg_config_args(arg: &str, package_names: &[&str]) -> Vec<String> {
                 if let Ok(pkg_libs_cmd) = Command::new("pkg-config")
@@ -107,22 +109,28 @@ impl FileWatcherHandlers for CppFileBuilder {
 
             let cpp_standard = CppFileBuilder::find_cpp_std_in_source(source);
             let cpp_std_str = format!("-std=c++{}", cpp_standard);
+
+            let sanitize_arg = if should_sanitize {
+                vec!["-fsanitize=address".to_string()]
+            } else {
+                vec![]
+            };
+
             let rest_of_args: Vec<String> = vec![
-                "-shared",
-                "-O0",
-                // "-lopencv_core",
-                "-g",
-                cpp_std_str.as_str(),
-                "-I",
-                self.include_path.as_str(),
-                "-fPIC",
-                "-MJ",
-                output_json_file.as_str(),
-                &full_path,
-                "-o",
-                output_so_file.as_str()
+              "-shared",
+              "-O0",
+              "-g",
+              cpp_std_str.as_str(),
+              "-I",
+              self.include_path.as_str(),
+              "-fPIC",
+              "-MJ",
+              output_json_file.as_str(),
+              &full_path,
+              "-o",
+              output_so_file.as_str()
             ].iter().map(|&s| s.to_string()).collect();
-            let all_args = [rest_of_args, linking_args].concat();
+            let all_args = [sanitize_arg, rest_of_args, linking_args].concat();
             trace!("Running command clang++ {:?}", all_args);
 
             let status = Command::new("clang++")
