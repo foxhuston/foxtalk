@@ -1,3 +1,5 @@
+// pkg-config: vulkan
+
 #include <foxtalk_handler.hpp>
 #include <vulkan/vulkan.hpp>
 
@@ -9,12 +11,12 @@ protected:
 
     if (queryResults.size() == 0) { return; }
     auto result = queryResults[0];
-    auto chosen_queue_family = result.at<uint64_t>(4);
+    auto chosen_queue_family = result.at<uint64_t>(4).value();
     auto queue_count = result.at<uint64_t>(6);
 
     VkDeviceQueueCreateInfo queueCreateInfo{};
     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = chosen_queue_family.value();
+    queueCreateInfo.queueFamilyIndex = chosen_queue_family;
     queueCreateInfo.queueCount = 1;
     float queuePriority = 1.0f;
     queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -40,18 +42,18 @@ protected:
     }
 
     VkQueue graphicsQueue;
-    vkGetDeviceQueue(logical_device, chosen_queue_family.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(logical_device, chosen_queue_family, 0, &graphicsQueue);
 
      
     claim({{
-      {logical_device}, {"is the"}, {"vulkan logical device"}, {"with graphics queue"}, {graphicsQueue}
+      {logical_device}, {"is the"}, {"vulkan logical device"}, {"with graphics queue"}, {graphicsQueue}, {"with queue family index"}, { chosen_queue_family },
     }});
   }
 
   void init() override {
     
     claim({{
-      TupleNoun::query(), {"is the"}, {"vulkan physical device"}, TupleNoun::prefix()
+      TupleNoun::query(), {"is the"}, {"chosen vulkan physical device"}, {"with queue family index"}, TupleNoun::query(), TupleNoun::prefix()
     }});
   }
 };

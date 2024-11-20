@@ -40,6 +40,7 @@ impl ReactorDebugTupleWriter {
                 !is_sees_tuples_tuple
             })
             .map(|(k, v)| format!("{:?} [{:?}]", k, v))
+            .filter(|s| !s.contains("Symbol(handler)"))
             .collect();
         
         strings.sort();

@@ -1,4 +1,8 @@
-//foxtalk-link vulkan
+// write camera data to a texture
+// assign texture to a quad (making a material)
+// render a quad
+
+// pkg-config: vulkan
 
 #include <iostream>
 #include <vulkan/vulkan.h>

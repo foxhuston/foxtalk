@@ -13,7 +13,7 @@ protected:
       auto result = queryResults[0];
 
       claim({{
-        {result.at<void*>(0).value()}, {"is the"}, {"vulkan physical device"}
+        {result.at<void*>(0).value()}, {"is the"}, {"chosen vulkan physical device"}
       }});
       return;
     }

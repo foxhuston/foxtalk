@@ -34,11 +34,11 @@ protected:
       if(image_buffer == nullptr) return;
       // std::cout << "Got w " << width << " h " << height << std::endl;
 
-      cv::Mat img(height, width, CV_8UC2, image_buffer);
+      // cv::Mat img(height, width, CV_8UC2, image_buffer);
 
-      cv::Mat color, lab;
-      cv::cvtColor(img, color, cv::COLOR_YUV2RGB_YUY2);
-      cv::cvtColor(color, lab, cv::COLOR_RGB2Lab);
+      // cv::Mat color, lab;
+      // cv::cvtColor(img, color, cv::COLOR_YUV2RGB_YUY2);
+      // cv::cvtColor(color, lab, cv::COLOR_RGB2Lab);
 
       // cv::Mat channels[3] {};
       // cv::split(lab, channels);

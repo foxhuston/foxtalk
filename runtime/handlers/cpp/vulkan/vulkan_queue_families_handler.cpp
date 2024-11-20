@@ -1,4 +1,4 @@
-//foxtalk-link vulkan
+// pkg-config: vulkan
 #include <foxtalk_handler.hpp>
 
 #include <vulkan/vulkan.hpp>
@@ -37,10 +37,11 @@ protected:
       
     }
     else {
+
       claim({{
         {device},
         {"is the"},
-        {"vulkan physical device"},
+        {"chosen vulkan physical device"},
         {"with queue family index"},
         {static_cast<uint64_t>(chosen_queue_family.value())},
         {"with queue count"},
@@ -53,7 +54,7 @@ protected:
   void init() override {
 
     claim({{
-      TupleNoun::query(), {"is the"}, {"vulkan physical device"}
+      TupleNoun::query(), {"is the"}, {"chosen vulkan physical device"}
     }});
   }
 };

@@ -1,4 +1,5 @@
 #include <foxtalk_handler.hpp>
+#include <fstream>
 
 class ReactorDbPrintingHandler : public Handler
 {
@@ -13,8 +14,14 @@ protected:
       auto all_tuples = t.at<std::string>(2);
       if (all_tuples.has_value())
       {
-        std::cout << all_tuples.value() << std::endl;
-        std::cout << "============================" << std::endl;
+        // std::cout << "Testing" << std::endl;
+        std::string filename("/home/lexi/work/foxtalk/runtime/handlers/cpp/tuples.txt");
+        std::ofstream stream (filename);
+        if (!stream.is_open()) {
+          std::cerr << "Can't open file " << filename << std::endl;
+          return;
+        }
+        stream << all_tuples.value() << std::endl;
       }
     }
   }

@@ -1,4 +1,4 @@
-//foxtalk-link vulkan
+// pkg-config: vulkan
 
 #include <iostream>
 #include <vector>

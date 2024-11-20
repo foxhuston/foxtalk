@@ -361,10 +361,12 @@ struct TupleNoun
 
 struct Tuple
 {
-private:
-    std::vector<TupleNoun> nouns_;
+// private:
+//     std::vector<TupleNoun> nouns_;
 
 public:
+
+    std::vector<TupleNoun> nouns_;
     //// CONSTRUCTORS ////
 
     // TODO: During performance testing, see if we're copying triples and triplenouns like crazy
