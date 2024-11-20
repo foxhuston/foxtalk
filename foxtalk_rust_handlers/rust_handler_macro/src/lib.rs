@@ -32,7 +32,7 @@ macro_rules! foxtalk_handler {
         static BUFFER_SIZE: usize = 10 * 1024 * 1024;
 
         #[no_mangle]
-        pub extern "C" fn init(buffer: *mut u8) {
+        pub extern "C" fn foxtalk_init(buffer: *mut u8) {
             let tuples = HANDLER.query();
             unsafe {
                 match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
@@ -42,19 +42,19 @@ macro_rules! foxtalk_handler {
             };
         }
         #[no_mangle]
-        pub extern "C" fn free_tuple(buffer: *mut u8) {
+        pub extern "C" fn foxtalk_free_tuple(buffer: *mut u8) {
             unsafe {
                 match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
                     None => { eprintln!("Slice from raw parts failed") }
                     Some(buf) => {
-                        let (tuple, _) = unsafe { Tuple::read_from_buffer(buf, 0) };
+                        let (tuple, _) = Tuple::read_from_buffer(buf, 0);
                         HANDLER.free_tuple(tuple);
                     }
                 }
             };
         }
         #[no_mangle]
-        pub extern "C" fn handle(buffer: *mut u8) {
+        pub extern "C" fn foxtalk_handle(buffer: *mut u8) {
             unsafe {
                 match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
                     None => { eprintln!("Slice from raw parts failed") }
@@ -73,7 +73,7 @@ macro_rules! foxtalk_handler {
             };
         }
         #[no_mangle]
-        pub extern "C" fn register_initial_tuples(buffer: *mut u8) {
+        pub extern "C" fn foxtalk_register_initial_tuples(buffer: *mut u8) {
             if let Some(tuples) = HANDLER.initial_tuples() {
                 unsafe {
                     match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
@@ -84,11 +84,11 @@ macro_rules! foxtalk_handler {
             }
         }
         #[no_mangle]
-        pub extern "C" fn teardown() {
+        pub extern "C" fn foxtalk_teardown() {
             HANDLER.teardown()
         }
         #[no_mangle]
-        pub extern "C" fn poll() -> bool {
+        pub extern "C" fn foxtalk_poll() -> bool {
             HANDLER.poll()
         }
 

@@ -40,7 +40,7 @@ protected:
       auto is_ir_cam = pixel_format == V4L2_PIX_FMT_GREY;
 
 
-      auto this_camera_score = ((width*1.3) + (height*1.3) + (fps*100)) / flags_score_modifier;
+      auto this_camera_score = ((width*2.3) + (height*2.3) + (fps*10)) / flags_score_modifier;
 
       if (this_camera_score > best_score) {
         best_score = this_camera_score;

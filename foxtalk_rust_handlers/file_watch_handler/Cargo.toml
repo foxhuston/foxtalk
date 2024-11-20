@@ -5,9 +5,10 @@ edition = "2021"
 
 
 [dependencies]
-log = "0.4.22"
 inotify = "0.11.0"
 rust_tuple_reactor_serde = { path = "../../rust_tuple_reactor_serde" }
+rust_handler_macro = { path = "../rust_handler_macro" }
+env_logger = "0.11.5"
 walkdir = "2.5.0"
 
 [lib]
