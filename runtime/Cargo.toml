@@ -3,8 +3,9 @@
 resolver = "2"
 
 members = [
-    "reactor",
-    "foxtalk_rust_binary",
-    "rust_tuple_reactor_serde",
-    "foxtalk_rust_handlers/file_watch_handler", "foxtalk_rust_handlers/rust_handler_macro", "foxtalk_rust_handlers/example_rust_handler_v1",
+    "lib/rust/reactor",
+    "lib/rust/tuple",
+    "handlers/rust/file_watch_handler",
+    "handlers/rust/rust_handler_macro",
+    "handlers/rust/example_rust_handler_v1",
 ]
