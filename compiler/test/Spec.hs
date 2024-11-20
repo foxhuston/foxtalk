@@ -1,7 +1,7 @@
 import Test.Tasty
 
 import Parsing (parsingTests)
-import CodeGeneration (codeGenerationTests)
+import CodeGenTests (codeGenerationTests)
 
 main :: IO ()
 main = defaultMain tests
