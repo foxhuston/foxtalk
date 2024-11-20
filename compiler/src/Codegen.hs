@@ -1,9 +1,14 @@
 module Codegen (
     exprToHandlerQuery
   , exprToClaim
+  , foxtalkExprToLookup
+  -- , genProg
+  , genHandleBody
 
   , queryValueToTupleEntry -- for testing only
+  , queryExprToLookup -- for testing only
   , foxtalkExprToPosition -- for testing only
+  , queryValuePosToLookup -- for testing only
 ) where
 
 import Data.List (intercalate)
@@ -12,10 +17,14 @@ import Parse (
     QueryLiteral (..)
   , QueryValue (..)
   , QueryExpr (..)
+  , QueryExprF (..)
   , HandlerBodyLine (..)
   , FoxtalkExpr (..)
-  , FoxtalkType (..)
+  , FoxtalkExprF (..)
+  , FoxtalkType (..),
   )
+import Data.Functor.Foldable (cata)
+import Data.Maybe (mapMaybe)
 
 type CExpr = String
 
@@ -73,6 +82,29 @@ generateLookupVar queryResult t varName varIndex =
   "auto " ++ varName ++ " = " ++ queryResult
     ++ ".at<" ++ foxtalkTypeToCType t ++ ">(" ++ show varIndex ++ ")"
 
+queryValuePosToLookup :: String -> QueryValue (Int, String) -> Maybe CExpr
+queryValuePosToLookup _  (VLit _)                       = Nothing
+queryValuePosToLookup qr (VVarIntro t (idx, name))      = Just $ generateLookupVar qr t name idx
+queryValuePosToLookup _  (VVarBinding _)                = Nothing
+queryValuePosToLookup qr (VVarIntroLit t (idx, name) _) = Just $ generateLookupVar qr t name idx
+
+queryExprToLookup :: String -> QueryExpr (Int, String) -> [CExpr]
+queryExprToLookup qr = cata go
+  where
+    -- Tbh, I'm not sure this is better... It's pretty cool, though.
+    go :: QueryExprF (Int, String) [CExpr] -> [CExpr]
+    go (EQueryTupleF exprs) = mapMaybe (queryValuePosToLookup qr) exprs
+    go (EQueryAndF l r) = l ++ r
+    go (EQueryOrF l r) = l ++ r
+
+foxtalkExprToLookup :: String -> FoxtalkExpr String -> [CExpr]
+foxtalkExprToLookup qr = go . foxtalkExprToPosition
+  where
+    go (EWhen q _)     = queryExprToLookup qr q
+    -- TODO: Correctly do ForAll
+    go (EForAll _ _ _) = undefined
+    go (EClaim _)      = []
+
 ----- TO POSITON -----
 queryValuesToPosition :: [QueryValue a] -> [QueryValue (Int, a)]
 queryValuesToPosition = posn 0
@@ -97,3 +129,25 @@ foxtalkExprToPosition :: FoxtalkExpr a -> FoxtalkExpr (Int, a)
 foxtalkExprToPosition (EWhen q h)     = EWhen (queryExprToPosition q) (map handlerBodyLineToPosition h)
 foxtalkExprToPosition (EForAll a q h) = EForAll (-1, a) (queryExprToPosition q) (map handlerBodyLineToPosition h)
 foxtalkExprToPosition (EClaim vs)     = EClaim $ queryValuesToPosition vs
+
+
+----- Genprog -----
+
+genHandleBody :: Int -> FoxtalkExpr String -> [CExpr]
+genHandleBody _ (EClaim _) = []
+genHandleBody n (EWhen q bod) =
+  let qr = "queryResults" ++ show n
+  in
+    [
+        "void handle(const std::vector<Tuple> &" ++ qr ++ ") override"
+      , "{"
+    ] ++
+    map ((++";") . ("  "++)) (queryExprToLookup qr (queryExprToPosition q)) ++
+    ["}"]
+
+genHandleBody _ (EForAll qr q bod) = undefined
+
+
+-- genProg :: String -> [FoxtalkExpr String] -> String
+-- genProg handlerName expr =
+--   unlines $ genHandle expr
