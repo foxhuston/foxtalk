@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rust_tuple_reactor_serde = { path = "../../rust_tuple_reactor_serde" }
+rust_tuple_reactor_serde = { path = "../../../lib/rust/tuple" }
 rust_handler_macro = { path = "../rust_handler_macro" }
 env_logger = "0.11.5"
 
