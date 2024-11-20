@@ -30,7 +30,7 @@ protected:
 
       cv::Mat gray;
       cv::cvtColor(img, gray, cv::COLOR_YUV2GRAY_YUY2);
-      cv::GaussianBlur(gray, gray, {5, 5}, 4);
+      cv::GaussianBlur(gray, gray, {3, 3}, 4);
 
       // cv::Mat debug;
       // cv::cvtColor(gray, debug, cv::COLOR_GRAY2RGB);
@@ -69,7 +69,13 @@ protected:
     {
         cv::SimpleBlobDetector::Params params {};
 
-        params.minArea = 150;
+        // Big dots
+        // params.minArea = 150;
+
+        // Tiny dots
+        params.minArea = 70;
+        params.maxArea = 600;
+
         params.filterByCircularity = true;
         params.minCircularity = 0.75;
 
