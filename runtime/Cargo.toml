@@ -3,6 +3,7 @@
 resolver = "2"
 
 members = [
+    "foxtalk",
     "lib/rust/reactor",
     "lib/rust/tuple",
     "handlers/rust/file_watch_handler",
