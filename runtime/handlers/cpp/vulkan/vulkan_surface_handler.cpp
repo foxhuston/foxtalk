@@ -5,10 +5,19 @@
 #include <foxtalk_handler.hpp>
 #include <vector>
 #include <vulkan/vulkan.h>
+#include "wayland-client.h"
+
 #include <vulkan/vulkan_wayland.h>
+#include <wayland-client-core.h>
+#include <wayland-client-protocol.h>
 
 class VulkanSurfaceHandler : public Handler
 {
+
+  std::vector<std::string> extensions = {
+    "VK_KHR_surface",
+    "VK_KHR_wayland_surface",
+  };
 
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
@@ -16,8 +25,6 @@ protected:
     // std::cout << "Hello" << std::endl;
     if (queryResults.size() != 2) { return; }
 
-    
-    
     auto instance_tuple = std::find_if(
       queryResults.begin(),
       queryResults.end(),
@@ -34,9 +41,25 @@ protected:
 
 
     VkSurfaceKHR surface {};
-
-    // glfwCreateWindowSurface(instance, window, nullptr, &surface);
     
+    
+    // VkWaylandSurfaceCreateInfoKHR creationInfo{
+    //   .sType = VkStructureType::VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+    //   .pNext = nullptr,
+    //   .flags = 0,
+    //   .display = display,
+    //   .surface = surface
+    // };
+
+    // auto surface_ret = vkCreateWaylandSurfaceKHR(instance, &creationInfo, nullptr, &surface);
+    // std::cout << surface_ret << std::endl;
+    // std::cout << "Wayland display connected" << std::endl;
+  }
+
+  void free_tuple(const Tuple &t) override {
+    // auto display = static_cast<wl_display*>(t.at<void *>(0).value());
+    // wl_display_disconnect(display);
+    // std::cout << "Disconnecting wayland display" << std::endl;
   }
 
   void init() override {
