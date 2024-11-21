@@ -36,13 +36,16 @@ ghc-options:
 library:
   source-dirs: src
   default-extensions:
+    - DeriveFunctor
+    - DeriveFoldable
     - DeriveTraversable
+    - TypeFamilies
   dependencies:
     - megaparsec
     - containers
     - scientific
+    - recursion-schemes
     # - text
-    # - attoparsec
 
 executables:
   query-parser-exe:

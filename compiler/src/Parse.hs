@@ -1,12 +1,20 @@
-{-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances, TemplateHaskell #-}
 
 module Parse (
     QueryLiteral(..)
+
   , QueryValue(..)
+
   , QueryExpr(..)
+  , QueryExprF(..)
+
   , HandlerBodyLine(..)
-  , FoxtalkType(..)
+  , HandlerBodyLineF(..)
+
   , FoxtalkExpr(..)
+  , FoxtalkExprF(..)
+
+  , FoxtalkType(..)
 
   , parseProgram
 
@@ -21,6 +29,7 @@ module Parse (
 
 import Data.Void
 import Data.Functor
+import Data.Functor.Foldable.TH (makeBaseFunctor)
 
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy (..))
@@ -86,6 +95,11 @@ data FoxtalkExpr a =
   | EForAll a (QueryExpr a) [HandlerBodyLine a]
   | EClaim [(QueryValue a)]
   deriving (Show, Eq, Functor, Foldable, Traversable)
+
+
+makeBaseFunctor ''QueryExpr
+makeBaseFunctor ''HandlerBodyLine
+makeBaseFunctor ''FoxtalkExpr
 
 parseLit :: Parser QueryLiteral
 parseLit = token sym Set.empty
