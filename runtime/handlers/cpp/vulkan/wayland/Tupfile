@@ -1,0 +1,18 @@
+.gitignore
+
+# Comment out when running from foxtalk
+HANDLER_INCLUDE_PATH=/home/fox/dev/foxtalk/runtime/lib/cpp/include
+
+PKG_LIBS=`pkg-config --libs wayland-client`
+# PKG_HEADERS=`pkg-config --cflags wayland-client`
+
+: |> curl -Lo %o https://cgit.freedesktop.org/wayland/wayland-protocols/plain/unstable/xdg-shell/xdg-shell-unstable-v6.xml |> xdg-shell-unstable-v6.xml
+
+: xdg-shell-unstable-v6.xml |> wayland-scanner client-header %f %o |> xdg-shell.h
+: xdg-shell-unstable-v6.xml |> wayland-scanner code %f %o |> xdg-shell.c
+
+: xdg-shell.c |> clang -MJ %B.json -fPIC -c -o %o %f |> xdg-shell.o | xdg-shell.json {objs}
+
+: wayland_instance_handler.cpp | xdg-shell.h |> clang++ -MJ %B.json -fPIC -O0 -g --std=c++26 -c -I$(HANDLER_INCLUDE_PATH) -o %o %f |> %B.o | %B.json {objs}
+
+: {objs} |> clang++ -shared -fPIC $(PKG_LIBS) -o %o %f |> wayland_instance_handler.so
