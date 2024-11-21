@@ -41,6 +41,7 @@ library:
     - DeriveTraversable
     - TypeFamilies
   dependencies:
+    - mtl
     - megaparsec
     - containers
     - scientific

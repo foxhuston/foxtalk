@@ -7,11 +7,15 @@ module Codegen (
 
   , queryValueToTupleEntry -- for testing only
   , queryExprToLookup -- for testing only
+  , queryExprToLookupGuard -- for testing only
   , foxtalkExprToPosition -- for testing only
   , queryValuePosToLookup -- for testing only
 ) where
 
 import Data.List (intercalate)
+
+import Control.Monad (liftM)
+import Control.Monad.Writer (WriterT, lift, tell, execWriterT)
 
 import Parse (
     QueryLiteral (..)
@@ -41,32 +45,33 @@ queryValueToTupleEntry (VVarIntro _ _)      = "TupleNoun::query()"
 queryValueToTupleEntry (VVarBinding s)      = "{" ++ s ++ "}"
 queryValueToTupleEntry (VVarIntroLit _ _ l) = queryLitToTupleEntry l
 
-intoQuery :: QueryExpr String -> Maybe [CExpr]
-intoQuery (EQueryTuple values) =
+intoClaims :: QueryExpr String -> Either String [CExpr]
+intoClaims (EQueryTuple values) =
   let vs = intercalate ", " $ map queryValueToTupleEntry values
-  in return $ ["claim({{" ++ vs ++ "}})"]
-intoQuery (EQueryAnd l r) =
+  in return ["claim({{" ++ vs ++ "}})"]
+intoClaims (EQueryAnd l r) =
   do
-    ll <- intoQuery l
-    rr <- intoQuery r
+    ll <- intoClaims l
+    rr <- intoClaims r
     return $ ll ++ rr
-intoQuery (EQueryOr l r) =
+intoClaims (EQueryOr l r) =
   do
-    ll <- intoQuery l
-    rr <- intoQuery r
+    ll <- intoClaims l
+    rr <- intoClaims r
     return $ ll ++ rr
 
-exprToHandlerQuery :: FoxtalkExpr String -> Maybe [CExpr]
-exprToHandlerQuery (EWhen q _)      = intoQuery q
-exprToHandlerQuery (EForAll _ q _)  = intoQuery q
-exprToHandlerQuery _                = Nothing
+exprToHandlerQuery :: FoxtalkExpr String -> Either String [CExpr]
+exprToHandlerQuery (EWhen q _)      = intoClaims q
+exprToHandlerQuery (EForAll _ q _)  = intoClaims q
+exprToHandlerQuery (EClaim _)       = Left "Cannot generate handler query from Claim"
 
 ----- Generate Claim -----
-exprToClaim :: FoxtalkExpr String -> Maybe CExpr
+exprToClaim :: FoxtalkExpr String -> Either String CExpr
 exprToClaim (EClaim values) =
   let vs = intercalate ", " $ map queryValueToTupleEntry values
   in return $ "claim({{" ++ vs ++ "}})"
-exprToClaim _           = Nothing
+exprToClaim (EWhen _ _)     = Left "Could not generate string from EWhen"
+exprToClaim (EForAll _ _ _) = Left "Could not generate string from EForAll"
 
 ----- GENERATE LOCALS -----
 foxtalkTypeToCType :: FoxtalkType -> String
@@ -105,6 +110,26 @@ foxtalkExprToLookup qr = go . foxtalkExprToPosition
     go (EForAll _ _ _) = undefined
     go (EClaim _)      = []
 
+----- LOOKUP GUARDS -----
+queryExprToLookupGuard :: QueryExpr String -> [CExpr]
+queryExprToLookupGuard =
+   map (\(_, a) -> "if(!" ++ a ++ ".has_value()) { return; }") . queryExtractVarIntros
+
+----- EXTRACT VAR INTROS -----
+queryExtractVarIntros :: QueryExpr a -> [(FoxtalkType, a)]
+queryExtractVarIntros = cata go
+  where
+    go :: QueryExprF a [(FoxtalkType, a)] -> [(FoxtalkType, a)]
+    go (EQueryTupleF vs)  = filterVars vs
+    go (EQueryAndF l r)   = l ++ r
+    go (EQueryOrF l r)    = l ++ r
+
+    filterVars :: [QueryValue a] -> [(FoxtalkType, a)]
+    filterVars []                       = []
+    filterVars (VVarIntro t a:vs)       = (t, a) : filterVars vs
+    filterVars (VVarIntroLit t a _:vs)  = (t, a) : filterVars vs
+    filterVars (_:vs)                   = filterVars vs
+
 ----- TO POSITON -----
 queryValuesToPosition :: [QueryValue a] -> [QueryValue (Int, a)]
 queryValuesToPosition = posn 0
@@ -130,20 +155,39 @@ foxtalkExprToPosition (EWhen q h)     = EWhen (queryExprToPosition q) (map handl
 foxtalkExprToPosition (EForAll a q h) = EForAll (-1, a) (queryExprToPosition q) (map handlerBodyLineToPosition h)
 foxtalkExprToPosition (EClaim vs)     = EClaim $ queryValuesToPosition vs
 
+----- GENPROG -----
+handlerBodyToCExpr :: HandlerBodyLine String -> Either String [CExpr]
+handlerBodyToCExpr (BCodeLine code) = pure [code]
+handlerBodyToCExpr (BFoxtalkExpr (EClaim vs)) = map (++";") <$> intoClaims (EQueryTuple vs)
+handlerBodyToCExpr (BFoxtalkExpr _) = pure ["// TODO: Foxtalk Expr..."]
 
------ Genprog -----
+type BodyWriter = WriterT [String] (Either String)
 
-genHandleBody :: Int -> FoxtalkExpr String -> [CExpr]
-genHandleBody _ (EClaim _) = []
+bodyWrite :: String -> BodyWriter ()
+bodyWrite l = tell [l]
+
+writeCExpr :: CExpr -> BodyWriter ()
+writeCExpr c = bodyWrite $ c ++ ";"
+
+genWhenBody :: Int -> (QueryExpr String) -> [HandlerBodyLine String] -> BodyWriter ()
+genWhenBody n q bod =
+  do
+    let qr = "queryResults" ++ show n
+    bodyWrite $ "void handle(const std::vector<Tuple> &" ++ qr ++ ") override"
+    bodyWrite "{"
+    mapM_ writeCExpr $ queryExprToLookup qr $ queryExprToPosition q
+    bodyWrite ""
+    mapM_ bodyWrite $ queryExprToLookupGuard q
+
+    bodyLines <- lift (concat <$> traverse handlerBodyToCExpr bod)
+    mapM_ bodyWrite bodyLines
+
+    bodyWrite "}"
+
+genHandleBody :: Int -> FoxtalkExpr String -> Either String [CExpr]
+genHandleBody _ (EClaim _) = Left "Cannot generate a handler body from a claim"
 genHandleBody n (EWhen q bod) =
-  let qr = "queryResults" ++ show n
-  in
-    [
-        "void handle(const std::vector<Tuple> &" ++ qr ++ ") override"
-      , "{"
-    ] ++
-    map ((++";") . ("  "++)) (queryExprToLookup qr (queryExprToPosition q)) ++
-    ["}"]
+  execWriterT $ genWhenBody n q bod
 
 genHandleBody _ (EForAll qr q bod) = undefined
 

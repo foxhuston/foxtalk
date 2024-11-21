@@ -19,6 +19,7 @@ import Codegen (
   , foxtalkExprToLookup
   , queryValuePosToLookup
   , queryExprToLookup
+  , queryExprToLookupGuard
   , genHandleBody
   )
 
@@ -61,11 +62,11 @@ queryGenerationTests = testGroup "Query Tuple Generation Tests" [
 
 handlerGenerationTests :: TestTree
 handlerGenerationTests = testGroup "Handler Generation Tests" [
-  testCase "To Position" $
-    map foxtalkExprToPosition <$> parseProgram "Claim /x:u64/ is a /foo:symbol/" @?=
-      Just [EClaim [VVarIntro TU64 (0, "x")
-                    , VLit (LSymbol "is"), VLit (LSymbol "a")
-                    , VVarIntro TSymbol (3, "foo")]]
+    testCase "To Position" $
+      map foxtalkExprToPosition <$> parseProgram "Claim /x:u64/ is a /foo:symbol/" @?=
+        Just [EClaim [VVarIntro TU64 (0, "x")
+                      , VLit (LSymbol "is"), VLit (LSymbol "a")
+                      , VVarIntro TSymbol (3, "foo")]]
 
   , testGroup "Lookups" [
       testCase "Query Value" $
@@ -73,22 +74,42 @@ handlerGenerationTests = testGroup "Handler Generation Tests" [
           @?= Just "auto x = res.at<uint64_t>(0)"
 
     , testCase "Claim Expr" $
-      (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
-        Just []
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
+          Just []
 
     , testCase "When Expr" $
-      (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
-        Just [
-            "auto x = res.at<uint64_t>(0)"
-        ]
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
+          Just [
+              "auto x = res.at<uint64_t>(0)"
+          ]
 
     , testCase "When Expr 2" $
-      (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
-        Just [
-          "auto x = res.at<uint64_t>(0)"
-        , "auto foo = res.at<std::string>(3)"
-        ]
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
+          Just [
+            "auto x = res.at<uint64_t>(0)"
+          , "auto foo = res.at<std::string>(3)"
+          ]
     ]
+
+    -- , testGroup "Guards" [
+    --     testCase "Claim Expr" $
+    --       (foxtalkExprToLookupGuard . (!!0) <$> parseProgram "Claim /x:u64/") @?=
+    --         Just []
+
+    --   , testCase "When Expr" $
+    --       (foxtalkExprToLookupGuard . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
+    --         Just [
+    --             "if !(x.has_value()) { return; }"
+    --         ]
+
+    --   , testCase "When Expr 2" $
+    --       (foxtalkExprToLookupGuard . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
+    --         Just [
+    --           "if !(x.has_value()) { return; }"
+    --         , "if !(foo.has_value()) { return; }"
+    --         ]
+    --   ]
+
 
     , testGroup "Handle Body" [
         testCase "Init" $
@@ -96,7 +117,9 @@ handlerGenerationTests = testGroup "Handler Generation Tests" [
             @?= Just [
                 "void handle(const std::vector<Tuple> &queryResults0) override"
               , "{"
-              , "  auto who = queryResults0.at<std::string>(0);"
+              , "auto who = queryResults0.at<std::string>(0);"
+              , ""
+              , "if(!who.has_value()) { return; }"
               , "}"
               ]
     ]
