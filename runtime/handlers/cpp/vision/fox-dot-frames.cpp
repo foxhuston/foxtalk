@@ -23,6 +23,7 @@ protected:
 
       // Find the camera info for the rest of the handler.
       for(auto q : queryResults) {
+        // q.matches(1, "with pixel format")
         auto maybe_cam = q.at<std::string>(1);
         if(maybe_cam.has_value() && maybe_cam.value() == "with pixel format") {
           width = static_cast<int>(q.at<uint64_t>(4).value());
