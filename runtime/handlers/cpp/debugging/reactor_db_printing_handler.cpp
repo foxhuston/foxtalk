@@ -15,7 +15,7 @@ protected:
       if (all_tuples.has_value())
       {
         // std::cout << "Testing" << std::endl;
-        std::string filename("/home/lexi/work/foxtalk/runtime/handlers/cpp/tuples.txt");
+        std::string filename("/tmp/tuples.txt");
         std::ofstream stream (filename);
         if (!stream.is_open()) {
           std::cerr << "Can't open file " << filename << std::endl;

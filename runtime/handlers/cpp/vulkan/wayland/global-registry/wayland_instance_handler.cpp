@@ -10,6 +10,7 @@
 #include <vulkan/vulkan_wayland.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
+// #include "xdg-shell.h"
 
 
 wl_display *display;
@@ -32,11 +33,14 @@ void registry_global_handler
 ) {
   std::cout << "interface: '" << interface << "', version: " << version << ", name: " << name << std::endl;
   if (std::string(interface) == "wl_compositor" ) {
-    compositor = static_cast<wl_compositor*>(wl_registry_bind(registry, name, &wl_compositor_interface, 3));
+    compositor = static_cast<wl_compositor*>(wl_registry_bind(registry, name, &wl_compositor_interface, 4));
   }
   else if (std::string(interface) == "wl_shm" ) {
     shm = static_cast<wl_shm*>(wl_registry_bind(registry, name, &wl_shm_interface, 1));
   }
+  // else if (std::string(interface) == "zxdg_shell_v6" ) {
+  //   xdg_shell = static_cast<zxdg_shell_v6*>(wl_registry_bind(registry, name, &zxdg_shell_v6_interface, 1));
+  // }
 }
 
 void registry_global_remove_handler
@@ -106,8 +110,8 @@ protected:
     if (shm != nullptr) {
       claim({{{shm}, {"is the"}, {"global wayland shm"}}});
     }
-    // if (shell != nullptr) {
-    //   claim({{{shell}, {"is the"}, {"global wayland shell"}}});
+    // if (xdg_shell != nullptr) {
+    //   claim({{{xdg_shell}, {"is the"}, {"global wayland xdg_shell"}}});
     // }
     if (queryResults.size() != 1 || !display_dispatch_setup) { return; }
     wl_display_dispatch(display);
