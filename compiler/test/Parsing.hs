@@ -81,10 +81,13 @@ queryTokenTests = testGroup "Token tests"
     , testCase "Handler Body 1" $ parseMaybe handlerBody "{ this is {some c} code or whatever }"
                                                 @?= Just " this is {some c} code or whatever "
 
-    , testCase "Handler Body 2" $ queryTokens  "When bonk { this is some c code or whatever }"
+    , testCase "Handler Body 2" $ queryTokens "When bonk { this is some c code or whatever }"
         @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some c code or whatever "]
 
-    , testCase "Handler Body 3" $ queryTokens  "When bonk { this is some for(;;) { gnarly} c code or whatever}"
+    , testCase "Handler Body 3" $ queryTokens "When bonk { this is some for(;;) { gnarly} c code or whatever}"
+        @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
+
+    , testCase "Handler Body 3 with initial  whitespace" $ queryTokens "     When bonk { this is some for(;;) { gnarly} c code or whatever}"
         @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
 
     , testCase "Tokenizes Forall Clause with Nested Bod" $
@@ -93,8 +96,18 @@ queryTokenTests = testGroup "Token tests"
                       , TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")
                       , THandlerBody " some {gnarlier} C code "]
 
+    , testCase "Tokenizes Forall Clause with Nested Bod and initial whitespace" $
+        queryTokens "      ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+            @?= Just [TForAll, TUntypedVarIntro "huskies", TWhen, TVarIntro TSymbol "who"
+                      , TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")
+                      , THandlerBody " some {gnarlier} C code "]
+
     , testCase "Tokenizes top-level Claim" $
         queryTokens "Claim lexi is a husky"
+            @?= Just [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
+
+    , testCase "Tokenizes top-level Claim with beginning whitespace" $
+        queryTokens "      Claim lexi is a husky"
             @?= Just [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
 
   ]
@@ -127,7 +140,7 @@ parserTests = testGroup "Parser Tests"
                             [BCodeLine " some {gnarlier} C code "])
 
     , testCase "Parses When Clause with Claims" $
-        (queryTokens "When /who:symbol/ is a husky or (who) is cool{\n some {gnarlier} C code; \nClaim (who) is a dog\n}"
+        (queryTokens "When /who:symbol/ is a husky or (who) is cool{\n some {gnarlier} C code; \n      Claim (who) is a dog\n}"
             >>= parseMaybe foxtalkWhen)
                 @?= Just (EWhen
                             (EQueryOr

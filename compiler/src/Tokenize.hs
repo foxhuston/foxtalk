@@ -221,7 +221,7 @@ queryToken = choice [
     ]
 
 queryTokensParser :: Parser [QueryToken String]
-queryTokensParser = many (queryToken <* skipMany spaceChar)
+queryTokensParser = skipMany spaceChar *> many (queryToken <* skipMany spaceChar)
 
 queryTokens :: String -> Maybe [QueryToken String]
 queryTokens = parseMaybe queryTokensParser
