@@ -4,8 +4,10 @@ module Tokenize (
     FoxtalkType(..)
   , QueryLiteral(..)
   , QueryToken(..)
-  , unparse
+  , FoxtalkParseError(..)
+  -- , unparse
   , handlerBody -- exported only for testing...
+  , queryTokensParser
   , queryTokens
 ) where
 
@@ -18,9 +20,27 @@ import Data.Word (Word64)
 import Data.Scientific (floatingOrInteger)
 
 import Control.Applicative ((<|>))
+import Control.Monad.Except (catchError)
 
 -- import Data.Attoparsec.Text
-import Text.Megaparsec (Parsec, between, manyTill, anySingle, takeRest, try, choice, skipMany, many, some, optional, parseMaybe)
+import Text.Megaparsec (
+    Parsec
+  , between
+  , manyTill
+  , anySingle
+  , takeRest
+  , try
+  , choice
+  , skipMany
+  , many
+  , some
+  , optional
+  , errorBundlePretty
+  , runParser
+  , ParseErrorBundle
+  , ShowErrorComponent(..)
+  )
+
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
 
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -33,8 +53,19 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- Done: Add a FoxtalkType enum
 -- Done: Add types into Bindings (tokenizer can infer for TVarIntroLit)
 -- TODO: Replace Void errors with String
+-- TODO: #include & pkg-config
+-- TODO: Locals
+-- TODO: Poll, FreeTuple
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
-type Parser = Parsec Void String
+
+
+newtype FoxtalkParseError = FoxtalkParseError(String)
+  deriving (Eq, Ord)
+
+instance ShowErrorComponent FoxtalkParseError where
+  showErrorComponent (FoxtalkParseError msg) = msg
+
+type Parser = Parsec FoxtalkParseError String
 
 data FoxtalkType = TSymbol | TCptr | TU64 | TI64 | TDouble | TBytes
   deriving (Show, Eq, Ord)
@@ -59,37 +90,40 @@ data QueryToken a =
     | TWhen
     | TForAll
     | TClaim
+    | TLocals
+    | TPoll
+    | TFreeTuple
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 ----- UNPARSING -----
 
-unparseType :: FoxtalkType -> String
-unparseType TSymbol = "symbol"
-unparseType TCptr   = "ptr"
-unparseType TU64    = "u64"
-unparseType TI64    = "i64"
-unparseType TDouble = "double"
-unparseType TBytes  = "bytes"
+-- unparseType :: FoxtalkType -> String
+-- unparseType TSymbol = "symbol"
+-- unparseType TCptr   = "ptr"
+-- unparseType TU64    = "u64"
+-- unparseType TI64    = "i64"
+-- unparseType TDouble = "double"
+-- unparseType TBytes  = "bytes"
 
-unparseLit :: QueryLiteral -> String
-unparseLit (LSymbol s)  = s
-unparseLit (LU64 u)     = show u
-unparseLit (LI64 i)     = show i
-unparseLit (LDouble d)  = show d
+-- unparseLit :: QueryLiteral -> String
+-- unparseLit (LSymbol s)  = s
+-- unparseLit (LU64 u)     = show u
+-- unparseLit (LI64 i)     = show i
+-- unparseLit (LDouble d)  = show d
 
 -- TODO: not quite right... the `show` for string has the quotes in it...
-unparse :: Show a => QueryToken a -> String
-unparse (TLit l)           = unparseLit l
-unparse (TVarIntro t s)    = "/" ++ show s ++ ":" ++ unparseType t ++ "/"
-unparse (TVarIntroLit _ b l) = "/" ++ show b ++ "/@" ++ unparseLit l
-unparse (TVarBinding s)    = "(" ++ show s ++ ")"
-unparse TLParen            = "("
-unparse TRParen            = ")"
-unparse TOr                = "or"
-unparse TAnd               = "and"
-unparse TWhen              = "When"
-unparse TForAll            = "ForAll"
-unparse TClaim             = "Claim"
+-- unparse :: Show a => QueryToken a -> String
+-- unparse (TLit l)           = unparseLit l
+-- unparse (TVarIntro t s)    = "/" ++ show s ++ ":" ++ unparseType t ++ "/"
+-- unparse (TVarIntroLit _ b l) = "/" ++ show b ++ "/@" ++ unparseLit l
+-- unparse (TVarBinding s)    = "(" ++ show s ++ ")"
+-- unparse TLParen            = "("
+-- unparse TRParen            = ")"
+-- unparse TOr                = "or"
+-- unparse TAnd               = "and"
+-- unparse TWhen              = "When"
+-- unparse TForAll            = "ForAll"
+-- unparse TClaim             = "Claim"
 
 ----- UTILITIES -----
 
@@ -119,20 +153,20 @@ typeOfLit (LDouble _)  = TDouble
 
 ----- PARSING KEYWORDS -----
 
-whenWord :: Parser (QueryToken a)
-whenWord = string "When" $> TWhen
-
-claimWord :: Parser (QueryToken a)
-claimWord = string "Claim" $> TClaim
-
-forAllWord :: Parser (QueryToken a)
-forAllWord = string "ForAll" $> TForAll
-
-orWord :: Parser (QueryToken a)
-orWord = string "or" $> TOr
-
-andWord :: Parser (QueryToken a)
-andWord = string "and" $> TAnd
+keyword :: Parser (QueryToken a)
+keyword = choice $ map (\(s, t) -> string s $> t) kws
+  where
+    kws :: [(String, QueryToken a)]
+    kws = [
+        ("When", TWhen)
+      , ("Claim", TClaim)
+      , ("ForAll", TForAll)
+      , ("or", TOr)
+      , ("and", TAnd)
+      , ("Locals", TLocals)
+      , ("Poll", TPoll)
+      , ("FreeTuple", TFreeTuple)
+      ]
 
 lParen :: Parser (QueryToken a)
 lParen = char '(' $> TLParen
@@ -209,9 +243,7 @@ varIntroLit = do
 
 queryToken :: Parser (QueryToken String)
 queryToken = choice [
-      whenWord, forAllWord,
-      claimWord,
-      andWord, orWord,
+      keyword,
       try varBinding,
       lParen, rParen,
       THandlerBody <$> handlerBody,
@@ -223,5 +255,8 @@ queryToken = choice [
 queryTokensParser :: Parser [QueryToken String]
 queryTokensParser = skipMany spaceChar *> many (queryToken <* skipMany spaceChar)
 
-queryTokens :: String -> Maybe [QueryToken String]
-queryTokens = parseMaybe queryTokensParser
+queryTokens :: String -> String -> Either String [QueryToken String]
+queryTokens fileName source =
+  case runParser queryTokensParser fileName source of
+    Left err -> Left (errorBundlePretty err)
+    Right o -> Right o

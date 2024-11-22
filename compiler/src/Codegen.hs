@@ -2,8 +2,11 @@ module Codegen (
     exprToHandlerQuery
   , exprToClaim
   , foxtalkExprToLookup
-  -- , genProg
+
+  , genProg
   , genHandleBody
+  , genQueryBody
+  , runFoxtalkCodegen
 
   , queryValueToTupleEntry -- for testing only
   , queryExprToLookup -- for testing only
@@ -14,8 +17,8 @@ module Codegen (
 
 import Data.List (intercalate)
 
-import Control.Monad (liftM)
-import Control.Monad.Writer (WriterT, lift, tell, execWriterT)
+import Control.Monad.Except (throwError)
+import Control.Monad.State (StateT, lift, get, gets, modify, execStateT)
 
 import Parse (
     QueryLiteral (..)
@@ -48,7 +51,7 @@ queryValueToTupleEntry (VVarIntroLit _ _ l) = queryLitToTupleEntry l
 intoClaims :: QueryExpr String -> Either String [CExpr]
 intoClaims (EQueryTuple values) =
   let vs = intercalate ", " $ map queryValueToTupleEntry values
-  in return ["claim({{" ++ vs ++ "}})"]
+  in return ["claim({{" ++ vs ++ "}});"]
 intoClaims (EQueryAnd l r) =
   do
     ll <- intoClaims l
@@ -155,43 +158,87 @@ foxtalkExprToPosition (EWhen q h)     = EWhen (queryExprToPosition q) (map handl
 foxtalkExprToPosition (EForAll a q h) = EForAll (-1, a) (queryExprToPosition q) (map handlerBodyLineToPosition h)
 foxtalkExprToPosition (EClaim vs)     = EClaim $ queryValuesToPosition vs
 
------ GENPROG -----
 handlerBodyToCExpr :: HandlerBodyLine String -> Either String [CExpr]
 handlerBodyToCExpr (BCodeLine code) = pure [code]
-handlerBodyToCExpr (BFoxtalkExpr (EClaim vs)) = map (++";") <$> intoClaims (EQueryTuple vs)
+handlerBodyToCExpr (BFoxtalkExpr (EClaim vs)) = intoClaims (EQueryTuple vs)
 handlerBodyToCExpr (BFoxtalkExpr _) = pure ["// TODO: Foxtalk Expr..."]
 
-type BodyWriter = WriterT [String] (Either String)
+----- BodyWriter -----
+data WriterState = WriterState { bodyIndentLevel :: Int, bodyLines :: [(Int, String)] }
+type BodyWriter = StateT WriterState (Either String)
 
 bodyWrite :: String -> BodyWriter ()
-bodyWrite l = tell [l]
+bodyWrite l =
+  do
+    ilevel <- gets bodyIndentLevel
+    modify (\s -> WriterState (bodyIndentLevel s) (bodyLines s ++ [(ilevel, l)]))
+
+indent :: BodyWriter ()
+indent = modify (\s -> WriterState (bodyIndentLevel s + 2) (bodyLines s))
+
+outdent :: BodyWriter ()
+outdent = modify (\s -> WriterState (max (bodyIndentLevel s - 2) 0) (bodyLines s))
 
 writeCExpr :: CExpr -> BodyWriter ()
-writeCExpr c = bodyWrite $ c ++ ";"
+writeCExpr c = bodyWrite c
 
+----- GENPROG -----
 genWhenBody :: Int -> (QueryExpr String) -> [HandlerBodyLine String] -> BodyWriter ()
 genWhenBody n q bod =
   do
-    let qr = "queryResults" ++ show n
+    let qr  = "queryResults" ++ show n
+    let res = "res" ++ show n
     bodyWrite $ "void handle(const std::vector<Tuple> &" ++ qr ++ ") override"
-    bodyWrite "{"
-    mapM_ writeCExpr $ queryExprToLookup qr $ queryExprToPosition q
+    bodyWrite   "{"
+    indent
+    bodyWrite $ "for(auto& " ++ res ++ " : " ++ qr ++ ") {"
+    indent
+    mapM_ writeCExpr $ queryExprToLookup res $ queryExprToPosition q
     bodyWrite ""
     mapM_ bodyWrite $ queryExprToLookupGuard q
+    bodyWrite ""
 
-    bodyLines <- lift (concat <$> traverse handlerBodyToCExpr bod)
-    mapM_ bodyWrite bodyLines
+    lns <- lift (concat <$> traverse handlerBodyToCExpr bod)
+    mapM_ bodyWrite lns
 
+    outdent
+    bodyWrite "}"
+    outdent
     bodyWrite "}"
 
-genHandleBody :: Int -> FoxtalkExpr String -> Either String [CExpr]
-genHandleBody _ (EClaim _) = Left "Cannot generate a handler body from a claim"
-genHandleBody n (EWhen q bod) =
-  execWriterT $ genWhenBody n q bod
+genHandleBody :: Int -> FoxtalkExpr String -> BodyWriter ()
+genHandleBody _ (EClaim _) = throwError "Cannot generate a handler body from a claim"
+genHandleBody n (EWhen q bod) = genWhenBody n q bod
+genHandleBody _ (EForAll _ _ _) = undefined
 
-genHandleBody _ (EForAll qr q bod) = undefined
+genQueryBody :: FoxtalkExpr String -> BodyWriter ()
+genQueryBody expr =
+  do
+    bodyWrite "void init() override"
+    bodyWrite "{"
+    indent
+    claims <- lift $ exprToHandlerQuery expr
+    mapM_ bodyWrite claims
+    outdent
+    bodyWrite "}"
 
+genProg :: String -> [FoxtalkExpr String] -> BodyWriter ()
+genProg handlerName exprs =
+  do
+    bodyWrite "#include <foxtalk_handler.hpp>"
+    bodyWrite ""
+    bodyWrite $ "class " ++ handlerName ++ " : public Handler"
+    bodyWrite "{"
+    indent
+    bodyWrite "protected:"
+    genQueryBody (exprs !! 0)
+    genHandleBody 0 (exprs !! 0)
+    outdent
+    bodyWrite "}"
 
--- genProg :: String -> [FoxtalkExpr String] -> String
--- genProg handlerName expr =
---   unlines $ genHandle expr
+runFoxtalkCodegen :: BodyWriter () -> Either String String
+runFoxtalkCodegen w = unlines . map indentedLine . bodyLines <$> execStateT w (WriterState 0 [])
+  where
+    indentedLine :: (Int, String) -> String
+    indentedLine (0, s) = s
+    indentedLine (i, s) = ' ' : indentedLine (i-1, s)
