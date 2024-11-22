@@ -43,7 +43,7 @@ impl RecursiveFileWatcher {
             let sub_directories = std::fs::read_dir(watcher.base_path.clone()).unwrap();
             for entry in sub_directories {
                 let entry = entry.unwrap();
-                if entry.file_type().unwrap().is_dir() {
+                if entry.file_type().unwrap().is_dir() && entry.file_name().to_str().map(|s| !s.starts_with(".")).unwrap_or(false) {
                     let new_base_path = entry.path().to_str().unwrap().to_string();
 
                     // println!("Creating CPP watch for {:?}", new_base_path);
@@ -101,7 +101,12 @@ impl RecursiveFileWatcher {
                     }
 
                     let file_path = event.name.unwrap().to_str().unwrap().to_string();
-                    let (fin, ext) = file_path.rsplit_once(".").unwrap();
+                    let rsplit_result = file_path.rsplit_once(".");
+                    if rsplit_result.is_none() {
+                        warn!("Warning: Found file without extension {:?}", full_path_to_file);
+                        continue;
+                    }
+                    let (fin, ext) = rsplit_result.unwrap();
                     let file_name = fin.to_string();
                     let extension = ext.to_string();
 

@@ -46,6 +46,7 @@ impl CppFileBuilder {
 impl FileWatcherHandlers for CppFileBuilder {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
         if extension == "cpp" {
+
             let output_so_path = full_path
                 .replace(&self.base_cpp_path, &self.so_path)
                 .rsplit_once(".")
@@ -55,6 +56,46 @@ impl FileWatcherHandlers for CppFileBuilder {
             let parent_so_path = output_so_path.rsplit_once("/").unwrap().0.to_string();
             fs::create_dir_all(parent_so_path.clone()).unwrap();
             let output_so_file = output_so_path.clone() + ".so";
+
+            let parent_path = full_path.rsplit_once("/").unwrap().0.to_string();
+            let tupfile =  parent_path.clone() + "/Tupfile";
+            if fs::metadata(tupfile.clone()).is_ok() {
+                info!("Tupfile found next to {:?}, running tup instead of clang++", full_path);
+
+                let tup_dir = parent_path.clone() + "/.tup";
+                if fs::metadata(tup_dir).is_err() {
+                    info!("First time needing to run tup for {:?}, running tup init", full_path);
+                    let status = Command::new("tup")
+                        .current_dir(parent_path.clone())
+                        .arg("init")
+                        .status();
+                    if let Err(e) = status {
+                        error!("Error while running tup init for {:?}: {:?}", full_path, e);
+                        return;
+                    }
+                }
+                let status = Command::new("tup")
+                    .current_dir(parent_path.clone())
+                    .status();
+                if let Err(e) = status {
+                    error!("Error while running tup for {:?}: {:?}", full_path, e);
+                    return;
+                }
+
+                let tup_so_file = full_path.replace(".cpp", ".so");
+
+                info!("Copying so file from tup: {:?} to the build location {:?}", tup_so_file, output_so_file);
+                let status = Command::new("cp")
+                    .arg(tup_so_file)
+                    .arg(output_so_file.clone())
+                    .status();
+                if let Err(e) = status {
+                    error!("Error while copying so file from tup for {:?}: {:?}", full_path, e);
+                }
+
+                return;
+            }
+
             let output_json_file = output_so_path.clone() + ".json";
 
             let source = fs::read_to_string(full_path.clone()).unwrap();

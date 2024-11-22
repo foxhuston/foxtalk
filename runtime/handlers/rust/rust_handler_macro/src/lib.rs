@@ -7,14 +7,14 @@ pub use rust_tuple_reactor_serde::tuple::Tuple;
 pub use rust_tuple_reactor_serde::*;
 
 pub trait NeedsToImplement {
-    fn query(&self) -> Vec<Tuple>;
-    fn initial_tuples(&self) -> Option<Vec<Tuple>> {
+    fn query(&mut self) -> Vec<Tuple>;
+    fn initial_tuples(&mut self) -> Option<Vec<Tuple>> {
         None
     }
-    fn handle(&self, tuples: Vec<Tuple>) -> Option<Vec<Tuple>>;
-    fn free_tuple(&self, _: Tuple) -> () {}
-    fn teardown(&self) -> () {}
-    fn poll(&self) -> bool {
+    fn handle(&mut self, tuples: Vec<Tuple>) -> Vec<Tuple>;
+    fn free_tuple(&mut self, _: Tuple) -> () {}
+    fn teardown(&mut self) -> () {}
+    fn poll(&mut self) -> bool {
         false
     }
     fn new() -> Self;
@@ -24,19 +24,16 @@ pub trait NeedsToImplement {
 macro_rules! foxtalk_handler {
     ($struct_name:ident) => {
         lazy_static! {
-            static ref HANDLER: $struct_name = $struct_name::new();
+            static ref HANDLER: Arc<Mutex<$struct_name>> = Arc::new(Mutex::new($struct_name::new()));
         }
-
-
-
         static BUFFER_SIZE: usize = 10 * 1024 * 1024;
-
         #[no_mangle]
         pub extern "C" fn foxtalk_init(buffer: *mut u8) {
-            let tuples = HANDLER.query();
+            let mut hlock = HANDLER.lock();
+            let tuples = hlock.query();
             unsafe {
                 match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
-                    None => { error!("Slice from raw parts failed") }
+                    None => { error!( "Slice from raw parts failed" ) }
                     Some(buf) => { tuples.iter().write_to_buffer(buf, 0); }
                 }
             };
@@ -48,7 +45,8 @@ macro_rules! foxtalk_handler {
                     None => { eprintln!("Slice from raw parts failed") }
                     Some(buf) => {
                         let (tuple, _) = Tuple::read_from_buffer(buf, 0);
-                        HANDLER.free_tuple(tuple);
+                        let mut hlock = HANDLER.lock();
+                        hlock.free_tuple(tuple);
                     }
                 }
             };
@@ -61,23 +59,24 @@ macro_rules! foxtalk_handler {
                     Some(buf) => {
                         let (tuples, _) = unsafe { Vec::<Tuple>::read_from_buffer(buf, 0) };
 
-                        // clear buffer
+
                         let v: &[Tuple] = &vec![];
                         v.iter().write_to_buffer(buf, 0);
 
-                        if let Some(claims) = HANDLER.handle(tuples) {
-                            claims.iter().write_to_buffer(buf, 0);
-                        }
+                        let mut hlock = HANDLER.lock();
+                        let claims = hlock.handle(tuples);
+                        claims.iter().write_to_buffer(buf, 0);
                     }
                 }
             };
         }
         #[no_mangle]
         pub extern "C" fn foxtalk_register_initial_tuples(buffer: *mut u8) {
-            if let Some(tuples) = HANDLER.initial_tuples() {
+            let mut hlock = HANDLER.lock();
+            if let Some(tuples) = hlock.initial_tuples() {
                 unsafe {
                     match slice_from_raw_parts_mut(buffer, BUFFER_SIZE).as_mut() {
-                        None => { error!("Slice from raw parts failed") }
+                        None => { error!( "Slice from raw parts failed" ) }
                         Some(buf) => { tuples.iter().write_to_buffer(buf, 0); }
                     }
                 };
@@ -85,14 +84,14 @@ macro_rules! foxtalk_handler {
         }
         #[no_mangle]
         pub extern "C" fn foxtalk_teardown() {
-            HANDLER.teardown()
+            let mut hlock = HANDLER.lock();
+            hlock.teardown()
         }
         #[no_mangle]
         pub extern "C" fn foxtalk_poll() -> bool {
-            HANDLER.poll()
+            let mut hlock = HANDLER.lock();
+            hlock.poll()
         }
-
-
 
     };
 }

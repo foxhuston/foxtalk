@@ -63,7 +63,7 @@ public:
     }
     // std::cout << "testing "<< wl_display_get_error(display) << std::endl;
     display_fd = wl_display_get_fd(display);
-    registry = wl_display_get_registry(display);
+    registry = wl_display_get_registry(display); 
     registry_listener = new wl_registry_listener {
         .global = registry_global_handler,
         .global_remove = registry_global_remove_handler
