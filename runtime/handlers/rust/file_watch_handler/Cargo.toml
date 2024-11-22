@@ -10,6 +10,12 @@ rust_tuple_reactor_serde = { path = "../../../lib/rust/tuple" }
 rust_handler_macro = { path = "../rust_handler_macro" }
 env_logger = "0.11.5"
 walkdir = "2.5.0"
+parking_lot = { version = "0.12.3", features = ["arc_lock"] }
+anyhow = "1.0.93"
+log = "0.4.22"
+
+[build-dependencies]
+dotenv = "0.15.0"
 
 [lib]
 name = "file_watch_handler"

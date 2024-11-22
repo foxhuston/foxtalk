@@ -1,7 +1,9 @@
 .gitignore
 
 # Comment out when running from foxtalk
-HANDLER_INCLUDE_PATH=/home/fox/dev/foxtalk/runtime/lib/cpp/include
+# HANDLER_INCLUDE_PATH=/home/fox/dev/foxtalk/runtime/lib/cpp/include
+import HANDLER_INCLUDE_PATH
+
 
 PKG_LIBS=`pkg-config --libs wayland-client`
 # PKG_HEADERS=`pkg-config --cflags wayland-client`
