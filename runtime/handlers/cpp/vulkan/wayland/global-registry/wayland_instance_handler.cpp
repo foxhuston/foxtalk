@@ -1,65 +1,152 @@
-// pkg-config: vulkan wayland-client
+// pkg-config: wayland-client
 
-#include <iostream>
 #include "foxtalk_tuple.h"
 #include <foxtalk_handler.hpp>
+#include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <wayland-client.h>
 
+#include "./xdg-shell.h"
 #include <vulkan/vulkan_wayland.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
-// #include "xdg-shell.h"
-
 
 wl_display *display;
 wl_registry *registry;
-wl_registry_listener *registry_listener;
 
 wl_compositor *compositor;
 wl_shm *shm;
+xdg_wm_base *ft_xdg_wm_base;
+wl_seat *seat;
+
+wl_keyboard *keyboard;
+wl_surface *surface;
+xdg_surface *ft_xdg_surface;
+xdg_toplevel *ft_xdg_toplevel;
+
+wl_shm_listener *listener;
+
+std::vector<uint32_t> pixel_formats{};
 
 // zxdg_shell_v6 *xdg_shell;
 int display_fd;
 
-void registry_global_handler
-(
-    void *data,
-    struct wl_registry *registry,
-    uint32_t name,
-    const char *interface,
-    uint32_t version
-) {
-  std::cout << "interface: '" << interface << "', version: " << version << ", name: " << name << std::endl;
-  if (std::string(interface) == "wl_compositor" ) {
-    compositor = static_cast<wl_compositor*>(wl_registry_bind(registry, name, &wl_compositor_interface, 4));
+void registry_global_handler(void *data, struct wl_registry *registry,
+                             uint32_t name, const char *interface,
+                             uint32_t version) {
+  std::cout << "interface: '" << interface << "', version: " << version
+            << ", name: " << name << std::endl;
+  if (std::string(interface) == "wl_compositor") {
+    compositor = static_cast<wl_compositor *>(
+        wl_registry_bind(registry, name, &wl_compositor_interface, 1));
+  } else if (std::string(interface) == "wl_shm") {
+    shm = static_cast<wl_shm *>(
+        wl_registry_bind(registry, name, &wl_shm_interface, 1));
+  } else if (std::string(interface) == "xdg_wm_base") {
+    ft_xdg_wm_base = static_cast<xdg_wm_base *>(
+        wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
+  } else if (std::string(interface) == "wl_seat") {
+    seat = static_cast<wl_seat *>(
+        wl_registry_bind(registry, name, &wl_seat_interface, 1));
   }
-  else if (std::string(interface) == "wl_shm" ) {
-    shm = static_cast<wl_shm*>(wl_registry_bind(registry, name, &wl_shm_interface, 1));
-  }
-  // else if (std::string(interface) == "zxdg_shell_v6" ) {
-  //   xdg_shell = static_cast<zxdg_shell_v6*>(wl_registry_bind(registry, name, &zxdg_shell_v6_interface, 1));
-  // }
 }
 
-void registry_global_remove_handler
-(
-    void *data,
-    struct wl_registry *registry,
-    uint32_t name
-) {
-    std::cout << "removed: " << name << std::endl;
+void registry_global_remove_handler(void *data, struct wl_registry *registry,
+                                    uint32_t name) {
+  std::cout << "removed: " << name << std::endl;
 }
 
-class WaylandInstanceHandler : public Handler
-{
+void shm_global_handler(void *data, struct wl_shm *shm, uint32_t format) {
+  pixel_formats.emplace_back(format);
+}
+
+void handle_xdg_surface_configure(void *data, xdg_surface *surface,
+                                  uint32_t serial) {
+  xdg_surface_ack_configure(surface, serial);
+
+  std::cout << "handle_xdg_surface_configure called" << std::endl;
+  //  if (vc->wl.wait_for_configure) {
+  //     // redraw
+  //     vc->wl.wait_for_configure = false;
+  //  }
+}
+
+void handle_xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
+                                   int32_t width, int32_t height,
+                                   struct wl_array *states) {}
+
+void handle_xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {}
+
+struct wl_registry_listener registry_listener = {
+    .global = registry_global_handler,
+    .global_remove = registry_global_remove_handler};
+
+struct xdg_toplevel_listener xdg_toplevel_listener = {
+    handle_xdg_toplevel_configure,
+    handle_xdg_toplevel_close,
+};
+
+struct xdg_surface_listener xdg_surface_listener = {
+    handle_xdg_surface_configure,
+};
+class WaylandInstanceHandler : public Handler {
 public:
-
+  void claim_pixel_format(uint64_t px) {
+    std::cout << "px: 0x" << std::hex << px << std::endl;
+    // switch (px) {
+    //   case WL_SHM_FORMAT_ARGB8888:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ARGB
+    //     8x8x8x8"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_XRGB8888:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"XRGB
+    //     8x8x8x8"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_XBGR8888:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"XBGR
+    //     8x8x8x8"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_ABGR8888:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ABGR
+    //     8x8x8x8"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_XRGB2101010:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"XRGB
+    //     2x10x10x10"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_XBGR2101010:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"XBGR
+    //     2x10x10x10"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_ARGB2101010:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ARGB
+    //     2x10x10x10"}, {"encoded as"}, {px}}}); return;
+    //   case WL_SHM_FORMAT_ABGR2101010:
+    //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ABGR
+    //     2x10x10x10"}, {"encoded as"}, {px}}}); return;
+    //   default:
+    //     return;
+    // }
+  }
   void register_initial_tuples() override {
 
-    std::cout << "Connecting to display" << std::endl;
+  }
+
+  // bool display_dispatch_setup = false;
+  // bool poll() override {
+  //   // std::cout << "Poll! About to dispatch display..." << std::endl;
+  //   display_dispatch_setup = true;
+  //   return wl_display_dispatch_pending(display) > 0;
+  // }
+
+  ~WaylandInstanceHandler() {
+    wl_display_disconnect(display);
+    pixel_formats.clear();
+  }
+
+protected:
+  void handle(const std::vector<Tuple> &queryResults) override {
+    if (queryResults.size() != 1) {
+      return;
+    }
     
+    std::cout << "Connecting to display" << std::endl;
+
     display = wl_display_connect(nullptr);
     if (display == nullptr) {
       std::cerr << "Wayland display failed to connect" << std::endl;
@@ -67,63 +154,34 @@ public:
     }
     // std::cout << "testing "<< wl_display_get_error(display) << std::endl;
     display_fd = wl_display_get_fd(display);
-    registry = wl_display_get_registry(display); 
-    registry_listener = new wl_registry_listener {
-        .global = registry_global_handler,
-        .global_remove = registry_global_remove_handler
-    };
+    registry = wl_display_get_registry(display);
 
-    wl_registry_add_listener(registry, registry_listener, nullptr);
-    wl_display_roundtrip(display); // Do we need this?
+    wl_registry_add_listener(registry, &registry_listener, nullptr);
+    wl_display_roundtrip(display);
+    wl_registry_destroy(registry);
+
+    surface = wl_compositor_create_surface(compositor);
+    ft_xdg_surface = xdg_wm_base_get_xdg_surface(ft_xdg_wm_base, surface);
+    xdg_surface_add_listener(ft_xdg_surface, &xdg_surface_listener, nullptr);
+    ft_xdg_toplevel = xdg_surface_get_toplevel(ft_xdg_surface);
+
+    xdg_toplevel_add_listener(ft_xdg_toplevel, &xdg_toplevel_listener, nullptr);
+    xdg_toplevel_set_title(ft_xdg_toplevel, "Testing from Foxtalk");
+    wl_surface_commit(surface);
+
+    claim({{
+      {display},
+      {"is a"},
+      {"wayland display"},
+      {"with wl_surface"},
+      {surface}
+    }});
+
   }
 
-  bool display_dispatch_setup = false;
-  bool poll() override {
-    // std::cout << "Poll! About to dispatch display..." << std::endl;
-    display_dispatch_setup = true;
-    return wl_display_dispatch_pending(display) > 0;
-  }
+  void free_tuple(const Tuple &t) override {}
 
-  ~WaylandInstanceHandler() {
-    wl_display_disconnect(display);
-    delete registry;
-    delete registry_listener;
-    delete compositor;
-    delete shm;
-    // delete shell;
-  }
-protected:
-  void handle(const std::vector<Tuple> &queryResults) override {
-    if (display != nullptr) {
-      claim({{{display}, {"is the"}, {"wayland display"}, {"with fd"}, {display_fd}}});
-    }
-    if (registry != nullptr) {
-      claim({{{registry}, {"is the"}, {"global wayland registry"}}});
-    }
-    
-    if (registry_listener != nullptr) {
-      claim({{{registry_listener}, {"is the"}, {"global wayland registry_listener"}}});
-    }
-    if (compositor != nullptr) {
-      claim({{{compositor}, {"is the"}, {"global wayland compositor"}}});
-    }
-    if (shm != nullptr) {
-      claim({{{shm}, {"is the"}, {"global wayland shm"}}});
-    }
-    // if (xdg_shell != nullptr) {
-    //   claim({{{xdg_shell}, {"is the"}, {"global wayland xdg_shell"}}});
-    // }
-    if (queryResults.size() != 1 || !display_dispatch_setup) { return; }
-    wl_display_dispatch(display);
-  }
-
-  void free_tuple(const Tuple &t) override {
-  }
-
-  void init() override {
-    claim({{{"foxtalk"}, {"is"}, {"running"}}});
-  }
-
+  void init() override { claim({{{"foxtalk"}, {"is"}, {"running"}}}); }
 };
 
 FOXTALK_FFI_HANDLER_REG(WaylandInstanceHandler);
