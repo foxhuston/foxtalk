@@ -7,6 +7,7 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
+use crash_handler::{debug_print, make_crash_event, CrashContext};
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
 use log::*;
@@ -103,6 +104,7 @@ fn main() {
                 tps.clear();
             }
         }
+
         thread::sleep(std::time::Duration::from_micros(8000));
         // thread::sleep(std::time::Duration::from_micros(100));
     }

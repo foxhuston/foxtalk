@@ -15,6 +15,7 @@ walkdir = "2.5.0"
 anyhow = "1.0.92"
 regex = "1.11.1"
 
+
 [dependencies.uuid]
 version = "1.11.0"
 features = [

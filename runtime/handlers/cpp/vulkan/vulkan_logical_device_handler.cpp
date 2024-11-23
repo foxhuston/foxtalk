@@ -27,8 +27,10 @@ protected:
     createInfo.pQueueCreateInfos = &queueCreateInfo;
     createInfo.queueCreateInfoCount = 1;
 
+    std::vector<const char*> required_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = 0;
+    createInfo.ppEnabledExtensionNames = required_extensions.data();
+    createInfo.enabledExtensionCount = required_extensions.size();
     createInfo.enabledLayerCount = 0;
 
     VkDevice logical_device;

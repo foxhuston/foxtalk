@@ -19,7 +19,7 @@ class VulkanWaylandSurfaceHandler : public Handler {
       "VK_KHR_wayland_surface",
   };
 
-  VkSurfaceKHR *khr_surface = new VkSurfaceKHR{};
+  VkSurfaceKHR khr_surface;
 
 protected:
 
@@ -27,13 +27,13 @@ protected:
   // https://github.com/krh/vkcube/blob/master/main.c#L218
   std::optional<VkFormat> choose_surface_format(VkPhysicalDevice physical_device) {
     uint32_t num_formats = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, *khr_surface,
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, khr_surface,
                                          &num_formats, nullptr);
     
     assert(num_formats > 0);
 
     std::vector<VkSurfaceFormatKHR> formats (num_formats);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, *khr_surface,
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, khr_surface,
                                          &num_formats, formats.data());
 
     for (const auto& format: formats ) {
@@ -60,8 +60,8 @@ protected:
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    std::cout << "Wayland Surface Handler Called with " << queryResults.size()
-              << " query result(s)." << std::endl;
+    // std::cout << "Wayland Surface Handler Called with " << queryResults.size()
+    //           << " query result(s)." << std::endl;
 
     // std::cout << "Hello" << std::endl;
     if (queryResults.size() != 3) {
@@ -134,7 +134,7 @@ protected:
     };
 
     create_wayland_surface(instance, &surface_create_info, nullptr,
-                           khr_surface);
+                           &khr_surface);
 
     // std::cout << "Wayland supported and surface created!" << std::endl;
 

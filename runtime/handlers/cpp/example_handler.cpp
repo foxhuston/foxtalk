@@ -17,7 +17,9 @@ protected:
   }
 
   void init() override {
-    claim({{{"foxtalk"}, {"is"}, {"running"}}});
+    // logical device
+    // image format
+    
   }
 };
 

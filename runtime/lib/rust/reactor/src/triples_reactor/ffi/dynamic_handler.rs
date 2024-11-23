@@ -22,7 +22,7 @@ pub struct DynamicallyLoadedProgram {
     poll: Symbol<extern "C" fn() -> bool>,
     query: Vec<Tuple>,
     _original_path: String,
-    _copied_path: String,
+    _copied_path: String
 }
 
 unsafe impl Send for DynamicallyLoadedProgram {}
@@ -30,6 +30,8 @@ unsafe impl Send for DynamicallyLoadedProgram {}
 static BUFFER_SIZE: usize = 50 * 1024 * 1024;
 
 impl DynamicallyLoadedProgram {
+
+    // fn call_ffi_with_sig_trap()
     pub fn get_bootstrap_output(&self) -> FxHashSet<Tuple> {
         let (res, _) = Vec::<Tuple>::read_from_buffer(&self.buffer, 0);
         FxHashSet::from_iter(res)
@@ -58,6 +60,7 @@ impl DynamicallyLoadedProgram {
         let teardown: Symbol<extern "C" fn() -> ()> = lib.get(b"foxtalk_teardown")?;
         let poll: Symbol<extern "C" fn() -> bool> = lib.get(b"foxtalk_poll")?;
         let mut buffer = vec![0; BUFFER_SIZE];
+
         init(buffer.as_mut_ptr());
         let (query, _) = Vec::<Tuple>::read_from_buffer(&buffer, 0);
 
@@ -78,7 +81,7 @@ impl DynamicallyLoadedProgram {
             poll,
             query,
             _original_path: path.to_str().unwrap().to_string(),
-            _copied_path: full_path.clone(),
+            _copied_path: full_path.clone()
         })
     }
 }

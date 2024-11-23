@@ -31,7 +31,7 @@ protected:
     VkInstance instance;
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
+    appInfo.pApplicationName = "Hello Foxtalk";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -64,7 +64,10 @@ protected:
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = enabled_extensions.size();
     createInfo.ppEnabledExtensionNames = enabled_extensions.data();
-
+    
+    std::vector<const char*> required_layers{"VK_LAYER_KHRONOS_validation"};
+    createInfo.enabledLayerCount = required_layers.size();
+    createInfo.ppEnabledLayerNames = required_layers.data();
     VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)

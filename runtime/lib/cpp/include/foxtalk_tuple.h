@@ -361,12 +361,12 @@ struct TupleNoun
 
 struct Tuple
 {
-// private:
-//     std::vector<TupleNoun> nouns_;
+private:
+    std::vector<TupleNoun> nouns_;
 
 public:
 
-    std::vector<TupleNoun> nouns_;
+    // std::vector<TupleNoun> nouns_;
     //// CONSTRUCTORS ////
 
     // TODO: During performance testing, see if we're copying triples and triplenouns like crazy
@@ -378,6 +378,10 @@ public:
     //           object_(std::move(other.object_)) {}
 
     Tuple(std::vector<TupleNoun> &&nouns) : nouns_{std::move(nouns)} {}
+    
+    [[nodiscard]] size_t size() const {
+        return nouns_.size();
+    }
 
     bool operator==(const Tuple &other) const
     {
