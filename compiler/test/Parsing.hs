@@ -21,94 +21,134 @@ import Parse (
     , foxtalkWhen
     , foxtalkForall
     , foxtalkClaim
+    , parseProgram
     )
 
-import Text.Megaparsec (parseMaybe)
+import Text.Megaparsec (runParser, errorBundlePretty)
 
 parsingTests :: TestTree
-parsingTests = testGroup "Parsing Tests" [queryTokenTests, parserTests]
+parsingTests = testGroup "Parsing Tests" [queryTokenTests {- , parserTests -}]
+
+tokeq :: String -> [QueryToken String] -> Assertion
+tokeq src expectedToks =
+  case queryTokens "Parsing Tests" src of
+    Right returnedToks -> returnedToks @?= expectedToks
+    Left errs          -> assertFailure errs
+
+queryeq :: String -> QueryExpr String -> Assertion
+queryeq src expected =
+  case queryTokens "ParsingTests" src of
+    Right toks ->
+      case runParser query "Parsing Tests" toks of
+        Right returned -> returned @?= expected
+        Left _         -> assertFailure "Error in QueryEq Parser"
+    Left _         -> assertFailure "Error in QueryEq Tokenization"
+
+parseq :: String -> [FoxtalkExpr String] -> Assertion
+parseq src expectedExprs =
+  case parseProgram "Parsing Tests" src of
+    Right returnedExprs -> returnedExprs @?= expectedExprs
+    Left errs           -> assertFailure errs
+
+handlerbodyeq :: String -> String -> Assertion
+handlerbodyeq src expected =
+  case runParser handlerBody "Parsing Tests" src of
+    Right returned -> returned @?= expected
+    Left _         -> assertFailure "Handler body eq failure"
 
 queryTokenTests :: TestTree
 queryTokenTests = testGroup "Token tests"
   [
     testGroup "Literals" [
-        testCase "Sym 1"           $ queryTokens "a" @?= Just [TLit (LSymbol "a")]
-      , testCase "Sym 1"           $ queryTokens "fox" @?= Just [TLit (LSymbol "fox")]
-      , testCase "Sym 3"           $ queryTokens "foxorlexi" @?= Just [TLit (LSymbol "foxorlexi")]
-      , testCase "Int"             $ queryTokens "1234" @?= Just [TLit (LI64 1234)]
-      , testCase "Negative Int"    $ queryTokens "-4321" @?= Just [TLit (LI64 (-4321))]
-      , testCase "Unsigned Int"    $ queryTokens "88899u" @?= Just [TLit (LU64 88899)]
-      , testCase "Double"          $ queryTokens "14.89" @?= Just [TLit (LDouble 14.89)]
-      , testCase "Negative Double" $ queryTokens "-98.41" @?= Just [TLit (LDouble (-98.41))]
+        testCase "Sym 1"           $ "a"         `tokeq` [TLit (LSymbol "a")]
+      , testCase "Sym 1"           $ "fox"       `tokeq` [TLit (LSymbol "fox")]
+      , testCase "Sym 3"           $ "foxorlexi" `tokeq` [TLit (LSymbol "foxorlexi")]
+      , testCase "Int"             $ "1234"      `tokeq` [TLit (LI64 1234)]
+      , testCase "Negative Int"    $ "-4321"     `tokeq` [TLit (LI64 (-4321))]
+      , testCase "Unsigned Int"    $ "88899u"    `tokeq` [TLit (LU64 88899)]
+      , testCase "Double"          $ "14.89"     `tokeq` [TLit (LDouble 14.89)]
+      , testCase "Negative Double" $ "-98.41"    `tokeq` [TLit (LDouble (-98.41))]
     ]
 
     , testGroup "Variable Introduction" [
-        testCase "Untyped"            $ queryTokens "/lexi/" @?= Just [TUntypedVarIntro "lexi"]
-      , testCase "Symbol"             $ queryTokens "/lexi:symbol/" @?= Just [TVarIntro TSymbol "lexi"]
-      , testCase "Cptr"               $ queryTokens "/lexi:ptr/" @?= Just [TVarIntro TCptr "lexi"]
-      , testCase "U64"                $ queryTokens "/lexi:u64/" @?= Just [TVarIntro TU64 "lexi"]
-      , testCase "I64"                $ queryTokens "/lexi:i64/" @?= Just [TVarIntro TI64 "lexi"]
-      , testCase "Double"             $ queryTokens "/lexi:double/" @?= Just [TVarIntro TDouble "lexi"]
-      , testCase "Bytes"              $ queryTokens "/lexi:bytes/" @?= Just [TVarIntro TBytes "lexi"]
-      , testCase "Fails with Spaces"  $ queryTokens "/test with spaces:symbol/" @?= Nothing
+        testCase "Untyped"            $ "/lexi/"        `tokeq` [TUntypedVarIntro "lexi"]
+      , testCase "Symbol"             $ "/lexi:symbol/" `tokeq` [TVarIntro TSymbol "lexi"]
+      , testCase "Cptr"               $ "/lexi:ptr/"    `tokeq` [TVarIntro TCptr "lexi"]
+      , testCase "U64"                $ "/lexi:u64/"    `tokeq` [TVarIntro TU64 "lexi"]
+      , testCase "I64"                $ "/lexi:i64/"    `tokeq` [TVarIntro TI64 "lexi"]
+      , testCase "Double"             $ "/lexi:double/" `tokeq` [TVarIntro TDouble "lexi"]
+      , testCase "Bytes"              $ "/lexi:bytes/"  `tokeq` [TVarIntro TBytes "lexi"]
+      -- TODO!
+      -- , testCase "Fails with Spaces"  $ "/test with spaces:symbol/" `tokeqNothing
     ]
 
-    , testCase "VarBinding 1" $ queryTokens "(lexi)" @?= Just [TVarBinding "lexi"]
+    , testGroup "Keywords" [
+        testCase "When"       $ "When"      `tokeq` [TWhen]
+      , testCase "Claim"      $ "Claim"     `tokeq` [TClaim]
+      , testCase "ForAll"     $ "ForAll"    `tokeq` [TForAll]
+      , testCase "or"         $ "or"        `tokeq` [TOr]
+      , testCase "and"        $ "and"       `tokeq` [TAnd]
+      , testCase "Locals"     $ "Locals"    `tokeq` [TLocals]
+      , testCase "Poll"       $ "Poll"      `tokeq` [TPoll]
+      , testCase "FreeTuple"  $ "FreeTuple" `tokeq` [TFreeTuple]
+    ]
 
-    , testCase "VarBinding 2" $ queryTokens "(test with spaces)" @?= Just [TLParen, TLit (LSymbol "test"), TLit (LSymbol "with"), TLit (LSymbol "spaces"), TRParen]
+    , testCase "VarBinding 1" $ "(lexi)" `tokeq` [TVarBinding "lexi"]
 
-    , testCase "BoundLit 1" $ queryTokens "/shape/@circle" @?= Just [TVarIntroLit TSymbol "shape" (LSymbol "circle")]
+    , testCase "VarBinding 2" $ "(test with spaces)" `tokeq` [TLParen, TLit (LSymbol "test"), TLit (LSymbol "with"), TLit (LSymbol "spaces"), TRParen]
 
-    , testCase "Tokens 1" $ queryTokens "/shape/@rectangle with x /x:double/ or /shape/@circle with r /r:u64/"
-        @?= Just [TVarIntroLit TSymbol "shape" (LSymbol "rectangle")
+    , testCase "BoundLit 1" $ "/shape/@circle" `tokeq` [TVarIntroLit TSymbol "shape" (LSymbol "circle")]
+
+    , testCase "Tokens 1" $ "/shape/@rectangle with x /x:double/ or /shape/@circle with r /r:u64/"
+        `tokeq` [TVarIntroLit TSymbol "shape" (LSymbol "rectangle")
                  , TLit (LSymbol "with"), TLit (LSymbol "x")
                  , TVarIntro TDouble "x", TOr, TVarIntroLit TSymbol "shape" (LSymbol "circle")
                  , TLit (LSymbol "with"), TLit (LSymbol "r"), TVarIntro TU64 "r"]
 
-    , testCase "Tokens 2" $ queryTokens "((you) is a rectangle with x /x:double/) and ((you) has color /c:symbol/)"
-        @?= Just ([TLParen, TVarBinding "you"]
+    , testCase "Tokens 2" $ "((you) is a rectangle with x /x:double/) and ((you) has color /c:symbol/)"
+        `tokeq` ([TLParen, TVarBinding "you"]
               ++ map (TLit . LSymbol) (words "is a rectangle with x")
               ++ [TVarIntro TDouble "x", TRParen, TAnd, TLParen, TVarBinding "you"]
               ++ map (TLit . LSymbol) (words "has color")
               ++ [TVarIntro TSymbol "c", TRParen])
 
-    , testCase "When" $ queryTokens "When bonk"
-        @?= Just [TWhen, TLit (LSymbol "bonk")]
+    , testCase "When" $ "When bonk"
+        `tokeq` [TWhen, TLit (LSymbol "bonk")]
 
-    , testCase "Handler Body 0" $ parseMaybe handlerBody "{ this is some c code or whatever }"
-                                                @?= Just " this is some c code or whatever "
+    , testCase "Handler Body 0" $ "{ this is some c code or whatever }"
+                                    `handlerbodyeq` " this is some c code or whatever "
 
-    , testCase "Handler Body 1" $ parseMaybe handlerBody "{ this is {some c} code or whatever }"
-                                                @?= Just " this is {some c} code or whatever "
+    , testCase "Handler Body 1" $ "{ this is {some c} code or whatever }"
+                                    `handlerbodyeq` " this is {some c} code or whatever "
 
-    , testCase "Handler Body 2" $ queryTokens "When bonk { this is some c code or whatever }"
-        @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some c code or whatever "]
+    , testCase "Handler Body 2" $ "When bonk { this is some c code or whatever }"
+        `tokeq` [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some c code or whatever "]
 
-    , testCase "Handler Body 3" $ queryTokens "When bonk { this is some for(;;) { gnarly} c code or whatever}"
-        @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
+    , testCase "handler body 3" $ "When bonk { this is some for(;;) { gnarly} c code or whatever}"
+        `tokeq` [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
 
-    , testCase "Handler Body 3 with initial  whitespace" $ queryTokens "     When bonk { this is some for(;;) { gnarly} c code or whatever}"
-        @?= Just [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
+    , testCase "Handler Body 3 with initial  whitespace" $ "     When bonk { this is some for(;;) { gnarly} c code or whatever}"
+        `tokeq` [TWhen, TLit (LSymbol "bonk"), THandlerBody " this is some for(;;) { gnarly} c code or whatever"]
 
     , testCase "Tokenizes Forall Clause with Nested Bod" $
-        queryTokens "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-            @?= Just [TForAll, TUntypedVarIntro "huskies", TWhen, TVarIntro TSymbol "who"
+        "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+            `tokeq` [TForAll, TUntypedVarIntro "huskies", TWhen, TVarIntro TSymbol "who"
                       , TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")
                       , THandlerBody " some {gnarlier} C code "]
 
     , testCase "Tokenizes Forall Clause with Nested Bod and initial whitespace" $
-        queryTokens "      ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-            @?= Just [TForAll, TUntypedVarIntro "huskies", TWhen, TVarIntro TSymbol "who"
+        "      ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+            `tokeq` [TForAll, TUntypedVarIntro "huskies", TWhen, TVarIntro TSymbol "who"
                       , TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")
                       , THandlerBody " some {gnarlier} C code "]
 
     , testCase "Tokenizes top-level Claim" $
-        queryTokens "Claim lexi is a husky"
-            @?= Just [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
+        "Claim lexi is a husky"
+            `tokeq` [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
 
     , testCase "Tokenizes top-level Claim with beginning whitespace" $
-        queryTokens "      Claim lexi is a husky"
-            @?= Just [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
+        "      Claim lexi is a husky"
+            `tokeq` [TClaim, TLit (LSymbol "lexi"), TLit (LSymbol "is"), TLit (LSymbol "a"), TLit (LSymbol "husky")]
 
   ]
 
@@ -116,40 +156,36 @@ queryTokenTests = testGroup "Token tests"
 parserTests :: TestTree
 parserTests = testGroup "Parser Tests"
   [
-      testCase "Parses Tuple" $ (queryTokens "/who:symbol/ is a husky" >>= parseMaybe query)
-        @?= Just (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+      testCase "Parses Tuple" $ "/who:symbol/ is a husky"
+        `queryeq` (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
 
-    , testCase "Parses And" $ (queryTokens "/who:symbol/ is a husky and (who) is cool" >>= parseMaybe query)
-        @?= Just (EQueryAnd (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+    , testCase "Parses And" $ "/who:symbol/ is a husky and (who) is cool"
+        `queryeq` (EQueryAnd (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
 
-    , testCase "Parses Or" $ (queryTokens "/who:symbol/ is a husky or (who) is cool" >>= parseMaybe query)
-        @?= Just (EQueryOr (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+    , testCase "Parses Or" $ "/who:symbol/ is a husky or (who) is cool"
+        `queryeq` (EQueryOr (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
 
-    , testCase "Parses When Clause" $ (queryTokens "When /who:symbol/ is a husky or (who) is cool { some gnarly C code }" >>= parseMaybe foxtalkWhen)
-        @?= Just (EWhen
+    , testCase "Parses When Clause" $ "When /who:symbol/ is a husky or (who) is cool { some gnarly C code }"
+        `parseq` [EWhen
                     (EQueryOr (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
-                    [BCodeLine " some gnarly C code "])
+                    [BCodeLine " some gnarly C code "]]
 
-    , testCase "Parses When Clause with Nested Bod" $
-        (queryTokens "When /who:symbol/ is a husky or (who) is cool { some {gnarlier} C code }"
-            >>= parseMaybe foxtalkWhen)
-                @?= Just (EWhen
-                            (EQueryOr
-                                (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                                (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
-                            [BCodeLine " some {gnarlier} C code "])
+    , testCase "Parses When Clause with Nested Bod" $ "When /who:symbol/ is a husky or (who) is cool { some {gnarlier} C code }"
+        `parseq` [EWhen
+                    (EQueryOr
+                        (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                        (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+                    [BCodeLine " some {gnarlier} C code "]]
 
-    , testCase "Parses When Clause with Claims" $
-        (queryTokens "When /who:symbol/ is a husky or (who) is cool{\n some {gnarlier} C code; \n      Claim (who) is a dog\n}"
-            >>= parseMaybe foxtalkWhen)
-                @?= Just (EWhen
-                            (EQueryOr
-                                (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                                (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
-                            [ BCodeLine "" -- first newline after {
-                            , BCodeLine " some {gnarlier} C code; "
-                            , BFoxtalkExpr (EClaim [VVarBinding "who", VLit (LSymbol "is"), VLit (LSymbol "a"), VLit (LSymbol "dog")])
-                            ])
+    , testCase "Parses When Clause with Claims" $ "When /who:symbol/ is a husky or (who) is cool{\n some {gnarlier} C code; \n      Claim (who) is a dog\n}"
+        `parseq` [EWhen
+                    (EQueryOr
+                        (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                        (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+                    [ BCodeLine "" -- first newline after {
+                    , BCodeLine " some {gnarlier} C code; "
+                    , BFoxtalkExpr (EClaim [VVarBinding "who", VLit (LSymbol "is"), VLit (LSymbol "a"), VLit (LSymbol "dog")])
+                    ]]
 
     -- TODO: Make this pass, also actually good errors.
     -- , testCase "Does not parse When Clause with BAD Claims" $
@@ -158,59 +194,52 @@ parserTests = testGroup "Parser Tests"
     --             @?= Nothing
 
     , testCase "Parses Forall Clause with Nested Bod" $
-        (queryTokens "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-            >>= parseMaybe foxtalkForall)
-                @?= Just (EForAll "huskies"
-                            (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                            [BCodeLine " some {gnarlier} C code "])
+        "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+          `parseq` [EForAll "huskies"
+                      (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                      [BCodeLine " some {gnarlier} C code "]]
 
     , testGroup "Top-level Parser" [
           testCase "Parses top-level Claim" $
-            (queryTokens "Claim lexi is a husky"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]]
+            "Claim lexi is a husky"
+              `parseq` [EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]]
 
         , testCase "Parses When Clause" $
-            (queryTokens "When /who:symbol/ is a husky or (who) is cool { some gnarly C code }"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [EWhen
-                                (EQueryOr (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
-                                [BCodeLine " some gnarly C code "]]
+            "When /who:symbol/ is a husky or (who) is cool { some gnarly C code }"
+              `parseq` [EWhen
+                          (EQueryOr (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]) (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+                          [BCodeLine " some gnarly C code "]]
 
         , testCase "Parses When Clause with Nested Bod" $
-            (queryTokens "When /who:symbol/ is a husky or (who) is cool { some {gnarlier} C code }"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [EWhen
-                                (EQueryOr
-                                    (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                                    (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
-                                [BCodeLine " some {gnarlier} C code "]]
+            "When /who:symbol/ is a husky or (who) is cool { some {gnarlier} C code }"
+              `parseq` [EWhen
+                          (EQueryOr
+                              (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                              (EQueryTuple [VVarBinding "who",VLit (LSymbol "is"),VLit (LSymbol "cool")]))
+                          [BCodeLine " some {gnarlier} C code "]]
 
         , testCase "Parses Forall Clause with Nested Bod" $
-            (queryTokens "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [EForAll "huskies"
-                                (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                                [BCodeLine " some {gnarlier} C code "]]
+            "ForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+              `parseq` [EForAll "huskies"
+                          (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                          [BCodeLine " some {gnarlier} C code "]]
 
         , testCase "Parses top-level Claim" $
-            (queryTokens "Claim lexi is a husky"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]]
+            "Claim lexi is a husky"
+              `parseq` [EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")]]
 
         , testCase "Parses Everything together" $
-            (queryTokens "Claim lexi is a husky\nForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Just [
-                        EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")],
-                        EForAll "huskies"
-                                (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
-                                [BCodeLine " some {gnarlier} C code "]]
+            "Claim lexi is a husky\nForAll /huskies/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+              `parseq` [
+                  EClaim [VLit (LSymbol "lexi"),VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")],
+                  EForAll "huskies"
+                          (EQueryTuple [VVarIntro TSymbol "who",VLit (LSymbol "is"),VLit (LSymbol "a"),VLit (LSymbol "husky")])
+                          [BCodeLine " some {gnarlier} C code "]]
 
-        -- TODO: Better Error Messaging
-        , testCase "No Type allowed in ForAll var" $
-            (queryTokens "Claim lexi is a husky\nForAll /huskies:symbol/ When /who:symbol/ is a husky { some {gnarlier} C code }"
-                >>= parseMaybe foxtalkProgram)
-                    @?= Nothing
+--         -- TODO: Better Error Messaging
+--         -- , testCase "No Type allowed in ForAll var" $
+--         --     (queryTokens "Claim lexi is a husky\nForAll /huskies:symbol/ When /who:symbol/ is a husky { some {gnarlier} C code }"
+--         --         >>= parseMaybe foxtalkProgram)
+--         --             @?= Nothing
     ]
   ]

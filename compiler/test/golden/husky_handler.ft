@@ -1,3 +1,24 @@
-When /who:symbol/ is a husky {
+// pkg-config: vulkan
+#include <vulkan/vulkan.hpp>
+
+Locals {
+
+}
+
+Poll {
+  aoensuthaosnteihasontehu
+}
+
+FreeTuple(t) {
+  aoeuntahonsteuhano
+}
+
+When /who:u64/ is a husky {
   Claim (who) is cool
+
+  if(who == "lexi") {
+    std::cout << "Hi, puppy!" << std::endl;
+  }
+
+  Claim (who) is 77
 }

@@ -52,6 +52,7 @@ import Text.Megaparsec (
   , some
   , optional
   , parseMaybe
+  , runParser, errorBundlePretty
   )
 
 import Text.Megaparsec.Char (string, char, letterChar, spaceChar)
@@ -60,10 +61,12 @@ import Tokenize (
     FoxtalkType(..)
   , QueryToken(..)
   , QueryLiteral(..)
+  , FoxtalkParseError
+
   , queryTokens
   )
 
-type Parser = Parsec Void [QueryToken String]
+type Parser = Parsec FoxtalkParseError [QueryToken String]
 
 instance (Show a, Ord a) => VisualStream [a] where
   showTokens Proxy = show
@@ -137,9 +140,12 @@ handlerBody = bod <$> token sym Set.empty
 
     bodLine :: String -> HandlerBodyLine String
     bodLine ln =
-      case queryTokens ln >>= parseMaybe foxtalkExpr of
-        Just expr -> BFoxtalkExpr expr
-        Nothing   -> BCodeLine ln
+      case queryTokens "BODLINE" ln of
+        Right tokens ->
+          case runParser foxtalkExpr "BODLINE" tokens of
+            Right expr -> BFoxtalkExpr expr
+            Left _     -> BCodeLine ln
+        Left _     -> BCodeLine ln
 
 queryValue :: Parser (QueryValue String)
 queryValue = choice [
@@ -198,5 +204,11 @@ foxtalkExpr = choice [ foxtalkClaim, foxtalkForall, foxtalkWhen ]
 foxtalkProgram :: Parser [FoxtalkExpr String]
 foxtalkProgram = some foxtalkExpr
 
-parseProgram :: String -> Maybe [FoxtalkExpr String]
-parseProgram src = queryTokens src >>= parseMaybe foxtalkProgram
+parseProgram :: String -> String -> Either String [FoxtalkExpr String]
+parseProgram fileName src =
+  case queryTokens src fileName of
+    Right tokens ->
+      case runParser foxtalkProgram fileName tokens of
+        Right exprs -> Right exprs
+        Left errs   -> Left (errorBundlePretty errs)
+    Left err     -> Left err
