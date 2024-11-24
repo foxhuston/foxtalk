@@ -1,12 +1,19 @@
 pub mod utils;
 pub mod query_engine;
 pub mod reactor_program;
+mod crash_handler;
 
+use std::cell::UnsafeCell;
 use crate::reactor::query_engine::QueryEngine;
 use crate::reactor::reactor_program::{Program, ProgramInfo};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::sync::Arc;
+use ::crash_handler::{jmp, make_crash_event, CrashEvent, CrashHandler};
+use log::error;
+use parking_lot::Mutex;
+use crate::reactor::crash_handler::Safety;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 #[repr(transparent)]
@@ -47,10 +54,24 @@ pub struct Reactor<Q, QE, O>
     
     generated_programs: FxHashMap<O, ReactorProgramId>,
     current_program_id: u64,
+
+    crash_handler: CrashHandler,
+    crash_handler_context: UnsafeCell<Arc<Safety>>
 }
 
 impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgramId, Q>> Reactor<Q, QE, O> {
     pub fn new(query_engine: QE) -> Self {
+
+        let safety = UnsafeCell::new(Arc::new(Safety::new()));
+
+        let handler_safety = unsafe { safety.get().clone() };
+
+
+        let handler_r = unsafe { CrashHandler::attach(Box::new(handler_safety)) };
+        if handler_r.is_err() {
+            panic!("Failed to attach crash handler in Reactor constructor. Exiting.");
+        }
+        let handler = handler_r.unwrap();
         Reactor {
             program_map: FxHashMap::default(),
             reactor_program_map: FxHashMap::default(),
@@ -58,7 +79,10 @@ impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgr
             query_engine,
             generated_programs: FxHashMap::default(),
             current_program_id: 0,
+            crash_handler: handler,
+            crash_handler_context: safety
         }
+
     }
 
     #[allow(non_snake_case)]
@@ -180,11 +204,30 @@ impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgr
         // println!("Done removing o: {:?}", input);
     }
 
+
     pub fn tick(&mut self) {
+
+        // If any of the handlers crash during this tick, we will come back to this point
+        // and remove them first, before starting again.
+        let mut c = self.crash_handler_context.get_mut().clone();
+        // let mut c =
+        c.reset_jump_point();
+        let crash_handler_program_id = unsafe { jmp::sigsetjmp(c.current, 1) };
+        if crash_handler_program_id < 0 {
+            // We have crashed before any handlers were even called!
+            panic!("Reactor setup has crashed!");
+        } else if crash_handler_program_id  != 0 {
+            // We have crashed, with the program id being the crasher!
+            error!("A handler has crashed beyond c++ exceptions. Removing the handler and continuing.");
+            self.remove_program(ReactorProgramId(crash_handler_program_id as u64));
+        }
+
+
         // println!("tick tick tick");
         let mut need_to_insert_total = Vec::new();
         let mut need_to_remove_total = Vec::new();
         for (hid, handler) in self.program_map.iter_mut() {
+            c.set_program(hid);
             let program = self.reactor_program_map.get_mut(&hid).unwrap();
             if handler.dirty || program.poll() {
                 // let qa = &mut handler.qa;
