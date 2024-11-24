@@ -58,7 +58,7 @@ protected:
     "[" << best_width << "x" << best_height << "]" <<
     "(" << best_fps << " fps)" <<
     " with flags " << best_flags <<
-    " with score " << best_score << std::endl;
+    " with score " << best_score);
     claim({{
         {"chosen foxtalk camera"},
         {"is"},

@@ -87,17 +87,17 @@ public:
         auto mh  = q.at<int64_t>(5);
 
         if(!mib.has_value()) {
-          std::cout << "Error! SDL Handler found a debug image without image data..." << std::endl;
+          log_debug("Error! SDL Handler found a debug image without image data...");
           return;
         }
 
         if(!mw.has_value()) {
-          std::cout << "Error! SDL Handler found a debug image without a width!" << std::endl;
+          log_debug("Error! SDL Handler found a debug image without a width!");
           return;
         }
 
         if(!mw.has_value()) {
-          std::cout << "Error! SDL Handler found a debug image without a height!" << std::endl;
+          log_debug("Error! SDL Handler found a debug image without a height!");
           return;
         }
 
@@ -179,7 +179,7 @@ public:
   }
 
   void init() override {
-    std::cout << "Hello from SDL Handler 4!" << std::endl;
+    log_debug("Hello from SDL Handler 4!");
 
     for(int i = 0; i < 1920 * 1080; i++) {
       image_data_rgb[i * 3    ] = 0x00;
@@ -251,18 +251,18 @@ public:
           }});
 
         } else {
-          std::cerr << "Couldn't initialize renderer!" << std::endl;
+          log_error("Couldn't initialize renderer!");
         }
       } else {
-        std::cerr << "Couldn't initialize window!" << std::endl;
+        log_error("Couldn't initialize window!");
       }
     } else {
-      std::cerr << "Couldn't initialize SDL(SDL_INIT_VIDEO)!" << std::endl;
+      log_error("Couldn't initialize SDL(SDL_INIT_VIDEO)!");
     }
   }
 
   ~SdlHandler() {
-    std::cout << "SdlHandler destructor called..." << std::endl;
+    log_debug("SdlHandler destructor called...");
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

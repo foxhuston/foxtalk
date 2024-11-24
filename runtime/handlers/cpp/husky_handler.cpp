@@ -19,7 +19,7 @@ protected:
     void free_tuple(const Tuple &o) override
     {
 
-        std::cout << "free tuple in husky handler: " << o << std::endl;
+        log_debug("free tuple in husky handler: " << o);
     }
 
     void init() override

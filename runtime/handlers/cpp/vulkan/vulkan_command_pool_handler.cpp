@@ -21,8 +21,8 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan logical device"
-                << std::endl;
+      log_error("Query results did not include the vulkan logical device"
+               );
       return;
     }
 

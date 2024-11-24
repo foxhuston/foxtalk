@@ -22,8 +22,8 @@ public:
 protected:
   std::vector<FoxtalkVkBufferPtrs> ptrs{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    std::cout << "got here with size " << queryResults.size() << std::endl;
-    if (queryResults.size() != 4) {
+    debug << "got here with size " << queryResults.size() << this;
+    if (queryResults.size() != 5) {
       return;
     }
 
@@ -33,8 +33,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan logical device"
-                << std::endl;
+      log_error("Query results did not include the vulkan logical device");
       return;
     }
 
@@ -48,9 +47,10 @@ protected:
           return result.at<std::string>(2) == "vulkan swapchain";
         });
 
+    log_debug("found the swapchain tuple...");
+
     if (swapchain_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include a vulkan swapchain"
-                << std::endl;
+      log_error("Query results did not include a vulkan swapchain");
       return;
     }
 
@@ -58,7 +58,7 @@ protected:
         static_cast<VkSwapchainKHR>(swapchain_tuple->at<void *>(0).value());
 
     auto pixel_format =
-        static_cast<VkFormat>(swapchain_tuple->at<uint64_t>(4).value());
+        static_cast<VkFormat>(swapchain_tuple->at<uint64_t>(6).value());
 
     auto render_pass_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -66,8 +66,7 @@ protected:
         });
 
     if (render_pass_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan render pass"
-                << std::endl;
+      log_error("Query results did not include the vulkan render pass");
       return;
     }
 
@@ -80,26 +79,29 @@ protected:
         });
 
     if (command_pool_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan command pool"
-                << std::endl;
+      log_error("Query results did not include the vulkan command pool");
       return;
     }
 
     auto command_pool =
         static_cast<VkCommandPool>(command_pool_tuple->at<void *>(0).value());
 
-    std::cout << "[SwapchainBufferHandler] found the swapchain!" << std::endl;
-
+    log_debug("found the swapchain!");
+    std::cout << "";
     int ptrs_index = 0;
-    auto image_symbol_idx = swapchain_tuple->index_of(std::string("with images"));
+    auto image_symbol_idx =
+        swapchain_tuple->index_of(std::string("with images"));
     if (image_symbol_idx == std::nullopt) {
-      std::cerr << "[Vulkan Swapchain Buffer Handler] Image pointers not found in swapchain tuple!" << std::endl;
+      log_error(" Image pointers not found in "
+                "swapchain tuple!");
       return;
     }
-    for (size_t i = image_symbol_idx.value() + 1; i < swapchain_tuple->size(); i++) {
+
+    for (size_t i = image_symbol_idx.value() + 1; i < swapchain_tuple->size();
+         i++) {
       ptrs.push_back(FoxtalkVkBufferPtrs{});
       auto img = static_cast<VkImage>(swapchain_tuple->at<void *>(i).value());
-      std::cout << "Found image: " << img << std::endl;
+      debug << "Found image at ptr " <<  img << this;
       ptrs[ptrs_index].image = img;
 
       VkImageViewCreateInfo iv_create_info{
@@ -128,9 +130,7 @@ protected:
       r = vkCreateImageView(logical_device, &iv_create_info, nullptr,
                             &ptrs[ptrs_index].view);
       if (r != VK_SUCCESS) {
-        std::cerr
-            << "[Vulkan Swapchain Buffer Handler] Could not create image view"
-            << std::endl;
+        log_error("Could not create image view");
         return;
       }
       VkFramebufferCreateInfo fb_create_info{
@@ -144,9 +144,7 @@ protected:
       r = vkCreateFramebuffer(logical_device, &fb_create_info, nullptr,
                               &ptrs[ptrs_index].framebuffer);
       if (r != VK_SUCCESS) {
-        std::cerr
-            << "[Vulkan Swapchain Buffer Handler] Could not create frame buffer"
-            << std::endl;
+        log_error("Could not create frame buffer");
         return;
       }
 
@@ -156,8 +154,7 @@ protected:
       r = vkCreateFence(logical_device, &fence_create_info, nullptr,
                         &ptrs[ptrs_index].fence);
       if (r != VK_SUCCESS) {
-        std::cerr << "[Vulkan Swapchain Buffer Handler] Could not create fence"
-                  << std::endl;
+        log_error("[Vulkan Swapchain Buffer Handler] Could not create fence");
         return;
       }
 
@@ -171,9 +168,7 @@ protected:
       r = vkAllocateCommandBuffers(logical_device, &cb_create_info,
                                    &ptrs[ptrs_index].cmd_buffer);
       if (r != VK_SUCCESS) {
-        std::cerr << "[Vulkan Swapchain Buffer Handler] Could not allocate "
-                     "command buffer"
-                  << std::endl;
+        log_error("Could not allocate command buffer");
         return;
       }
 
@@ -208,29 +203,40 @@ protected:
             {"with images"},
             TupleNoun::prefix()}});
 
-    claim({{
-        TupleNoun::query(),
-        {"is the"},
-        {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
-        TupleNoun::prefix()
-    }});
+    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
 
-    claim({{TupleNoun::query(), {"is a"}, {"vulkan render pass"}, TupleNoun::prefix()}});
+    claim({{TupleNoun::query(),
+            {"is the"},
+            {"vulkan logical device"},
+            {"with graphics queue"},
+            TupleNoun::query(),
+            {"with queue family index"},
+            TupleNoun::query(),
+            TupleNoun::prefix()}});
 
-    claim({{TupleNoun::query(), {"is a"}, {"vulkan command pool"}, TupleNoun::prefix()}});
+    claim({{TupleNoun::query(),
+            {"is a"},
+            {"vulkan render pass"},
+            TupleNoun::prefix()}});
+
+    claim({{TupleNoun::query(),
+            {"is a"},
+            {"vulkan command pool"},
+            TupleNoun::prefix()}});
   }
-  
+
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("is a vulkan image"))) {
-      
-      auto render_pass = static_cast<VkRenderPass>(t.at<void *>(0).value());
-      auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
 
-      vkDestroyImageView(VkDevice device, VkImageView imageView, const VkAllocationCallbacks *pAllocator)
+      auto img_view = static_cast<VkImageView>(t.at<void *>(5).value());
+      auto fb = static_cast<VkFramebuffer>(t.at<void *>(7).value());
+      auto fence = static_cast<VkFence>(t.at<void *>(9).value());
+      auto cmd_buffer = static_cast<VkCommandBuffer>(t.at<void *>(11).value());
+      auto logical_device = static_cast<VkDevice>(t.at<void *>(3).value());
+
+      vkDestroyFramebuffer(logical_device, fb, nullptr);
+      vkDestroyFence(logical_device, fence, nullptr);
+      vkDestroyImageView(logical_device, img_view, nullptr);
     }
   }
 };

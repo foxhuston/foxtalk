@@ -4,6 +4,7 @@
 
 #include <ctime>
 #include <cstdint>
+#include <exception>
 #include <foxtalk_handler.hpp>
 
 class ClockHandler : public Handler {
@@ -25,8 +26,7 @@ public:
     
     auto now = get_time_as_double();
     double delta = (now - last_time);
-
-    // std::cout << "RTC HANDLE: " << delta << std::endl;
+    // log_debug("RTC HANDLE: " << delta);
 
     claim({{ {"clock"}, {"epoch time"}, {now}, {"delta"}, {delta} }});
 

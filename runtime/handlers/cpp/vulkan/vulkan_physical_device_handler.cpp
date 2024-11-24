@@ -23,8 +23,7 @@ protected:
     auto t = queryResults[0];
 
     VkInstance instance = static_cast<VkInstance>(t.at<void *>(0).value());
-    std::cout << "Instance is: " << instance << std::endl;
-
+  
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
@@ -37,7 +36,7 @@ protected:
       std::vector<VkPhysicalDevice> devices(deviceCount);
       vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-      std::cout << "Found " << deviceCount << " devices" << std::endl;
+      debug << "found " << deviceCount << " devices" << this;
 
       for (auto d : devices)
       {

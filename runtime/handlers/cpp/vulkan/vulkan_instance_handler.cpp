@@ -4,7 +4,6 @@
 
 // pkg-config: vulkan
 
-#include <iostream>
 #include <string_view>
 
 #include <vulkan/vulkan.h>
@@ -41,7 +40,7 @@ protected:
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> extensions(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-    // std::cout << "available extensions:\n";
+    // log_debug("available extensions:\n";
 
 
 
@@ -56,7 +55,7 @@ protected:
     }
 
     for (auto i: enabled_extensions) {
-      std::cout << i << std::endl;
+      log_debug(i);
     } 
 
     VkInstanceCreateInfo createInfo{};
@@ -72,10 +71,11 @@ protected:
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
     {
-      throw std::runtime_error("failed to create instance!");
+      log_error("Failed to create vk instance..");
+      return;
     }
 
-    std::cout << "Created Instance!!" << std::endl;
+    log_debug("Created Instance!!");
 
     // Put <CPtr(instance), "is the", "vulkan instance"> into db/*  */
     claim({{{instance}, {"is the"}, {"vulkan instance"}}});
@@ -88,9 +88,13 @@ protected:
 
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan instance"))) {
-      
       auto instance = static_cast<VkInstance>(t.at<void *>(0).value());
-      vkDestroyInstance(instance, nullptr);
+      std::cerr << "We should have killed the vulkan instance... but because of the way deletes "
+        << "in vulkan work, we can't actually delete it until everything downstream of it has "
+        << "already been deleted. In Foxtalk, this DOES happen due to the reactive nature  " 
+        << "of the reactor, but there's an ordering issue here at play. We should only call free tuple "
+        << "once everything has gone through a tick of it being gone. " << std::endl;
+      // vkDestroyInstance(instance, nullptr);
     }
   }
 

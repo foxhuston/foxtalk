@@ -26,6 +26,7 @@ public:
     void handle(const std::vector<Tuple>& queryResults) override
     {
         match_count = queryResults.size();
+        std::cout << claims.size() << std::endl;
     }
 };
 
@@ -51,8 +52,10 @@ TEST_F(HandlerTests, EmptyHandlerClaimsNothing)
         }
     };
 
-    EmptyHandler e{};
+    EmptyHandler e {};
+    e.set_logger_name("ExampleHandler");
     e.handle(queryResults);
+
 
     ASSERT_EQ(e.claims.size(), 0);
     ASSERT_EQ(e.match_count, 2);

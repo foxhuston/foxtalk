@@ -34,7 +34,7 @@ protected:
 
         claim({{{camera}, {"has pixel format"}, {(uint64_t)fmt.pixelformat}, {"with description"}, {desc}, {"with flags"}, {flags}}});
         fmt.index++;
-        std::cout << desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.flags  << " : " << fmt.pixelformat << std::endl;
+        log_debug(desc << " : " << (fmt.pixelformat == V4L2_PIX_FMT_YUYV) << " : " << fmt.flags  << " : " << fmt.pixelformat);
         fmt.flags = 0;
       }
       close(fd);

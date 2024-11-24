@@ -11,7 +11,7 @@ public:
 protected:
   VkSemaphore semaphore{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 1) {
+    if (queryResults.size() != 2) {
       return;
     }
 
@@ -21,8 +21,8 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan logical device"
-                << std::endl;
+      log_error("Query results did not include the vulkan logical device"
+               );
       return;
     }
 
@@ -48,6 +48,8 @@ protected:
         {"with queue family index"},
         TupleNoun::query(),
     }});
+
+    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
   }
   
 

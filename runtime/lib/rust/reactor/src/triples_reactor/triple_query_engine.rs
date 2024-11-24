@@ -100,7 +100,7 @@ impl<P: Clone + PartialEq> QueryEngine<Tuple, P, Vec<Tuple>> for TripleQueryEngi
                     }
                 }
             }
-            if (is_prefix) {
+            if is_prefix {
                 self.flat_node_tree.get_mut(current_node_id).unwrap().matched_prefix_programs.push(p);
             } else {
                 self.flat_node_tree.get_mut(current_node_id).unwrap().matched_exact_programs.push(p);

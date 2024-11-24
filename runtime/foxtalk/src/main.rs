@@ -82,7 +82,7 @@ fn main() {
     let mut tps = Vec::new();
 
     info!("Starting reactor...");
-    let mut tuple_writer = ReactorDebugTupleWriter::new();
+    let mut tuple_writer = ReactorDebugTupleWriter::new(so_path);
 
     loop {
         cnt += 1;

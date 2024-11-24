@@ -247,3 +247,18 @@ impl FoxTalkDeserializable for TupleNoun {
         }
     }
 }
+
+impl TupleNoun {
+    pub fn as_str(&self) -> String {
+        match self {
+            TupleNoun::Symbol(s) => s.to_string(),
+            TupleNoun::Query => "?".to_string(),
+            TupleNoun::CPtr(c) => format!("0x{:X}", c),
+            TupleNoun::U64(u) => format!("{}", u),
+            TupleNoun::I64(i) => format!("{}", i),
+            TupleNoun::Bytes(b) => format!("Bytes[{}]", b.len()),
+            TupleNoun::Prefix => "...".to_string(),
+            TupleNoun::Double(d) => format!("{}", d)
+        }
+    }
+}

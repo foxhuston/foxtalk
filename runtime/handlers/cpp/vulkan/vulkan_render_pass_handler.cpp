@@ -11,7 +11,7 @@ public:
 protected:
   VkRenderPass render_pass{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 2) {
+    if (queryResults.size() != 3) {
       return;
     }
 
@@ -21,8 +21,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan logical device"
-                << std::endl;
+      log_error("Query results did not include the vulkan logical device");
       return;
     }
 
@@ -35,8 +34,7 @@ protected:
         });
 
     if (surface_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vk surface khr"
-                << std::endl;
+      log_error("Query results did not include the vk surface khr");
       return;
     }
 
@@ -79,7 +77,11 @@ protected:
 
     vkCreateRenderPass(logical_device, &render_pass_create_info, nullptr,
                        &render_pass);
-    claim({{{render_pass}, {"is a"}, {"vulkan render pass"}, {"for device"}, {logical_device}}});
+    claim({{{render_pass},
+            {"is a"},
+            {"vulkan render pass"},
+            {"for device"},
+            {logical_device}}});
   }
 
   void init() override {
@@ -92,6 +94,8 @@ protected:
         {"with queue family index"},
         TupleNoun::query(),
     }});
+
+    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
     claim({{TupleNoun::query(),
             {"is a"},
             {"vk surface khr"},
@@ -100,7 +104,7 @@ protected:
   }
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan render pass"))) {
-      
+
       auto render_pass = static_cast<VkRenderPass>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
 

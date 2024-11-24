@@ -6,6 +6,8 @@
 #define REACTOR_FOXTALK_HANDLER_HPP
 
 #include <exception>
+#include <ostream>
+#include <sstream>
 #include "foxtalk_handler.h"
 
 class Handler
@@ -17,8 +19,56 @@ protected:
     virtual void init() = 0;
 
 public:
+    std::string name = "Uninitialized Handler" ;
     std::vector<Tuple> claims{}; // should be private, but I need to test...
 
+    void set_logger_name(const char *name) { this->name = name; }
+    std::stringstream err;
+    std::stringstream debug;
+
+
+
+    void log_existing_error()
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has error message"},
+                {std::string(err.str())}
+            }});
+        err.clear();
+    }
+
+    void log_existing_debug()
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has debug message"},
+                {std::string(debug.str())}
+            }});
+        debug.clear();
+    }
+
+    void log_error(const char *msg)
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has error message"},
+                {std::string(msg)}
+            }});
+    }
+
+    void log_debug(const char *msg)
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has debug message"},
+                {std::string(msg)}
+            }});
+    }
     virtual void register_initial_tuples() {}
     virtual bool poll() { return false; }
 
@@ -58,6 +108,18 @@ public:
     }
 };
 
+
+void operator<<(std::ostream& os, Handler& h)
+{
+    if (h.err.rdbuf()->in_avail()) {
+        h.log_existing_error();
+    }
+    if (h.debug.rdbuf()->in_avail()) {
+        h.log_existing_debug();
+    }
+    
+}
+
 // This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) { ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... }
 // It's pretty cool, but a bit unwieldy given that you can choose to do init/teardowns or not. Although perhaps I'm
 // not quite thinking about this correctly...?
@@ -73,16 +135,17 @@ public:
     {                                                                          \
         try                                                                    \
         {                                                                      \
-            T##_instance = new T();                                            \
-            T##_instance->ffi_init(buffer);                       \
+            T##_instance = new T();                                          \
+            T##_instance->ffi_init(buffer);                          \
+            T##_instance->set_logger_name(#T);                                    \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in init():" << e.what() << std::endl;          \
+            std::cerr << "CRASH in [" << #T << "] init():" << e.what() << std::endl;          \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in init()" << std::endl;                       \
+            std::cerr << "CRASH in [" << #T << "] init()" << std::endl;                       \
         }                                                                      \
     }                                                                          \
     void foxtalk_free_tuple(uint8_t *buffer)                                                          \
@@ -93,11 +156,11 @@ public:
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in free_tuple():" << e.what() << std::endl;    \
+            std::cerr << "CRASH in [" << #T << "] free_tuple():" << e.what() << std::endl;    \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in free_tuple()" << std::endl;                 \
+            std::cerr << "CRASH in [" << #T << "] free_tuple()" << std::endl;                 \
         }                                                                      \
     }                                                                          \
     void foxtalk_handle(uint8_t *buffer)                                                              \
@@ -108,11 +171,11 @@ public:
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in handle():" << e.what() << std::endl;        \
+            std::cerr << "CRASH in [" << #T << "] handle():" << e.what() << std::endl;        \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in handle()" << std::endl;                     \
+            std::cerr << "CRASH in [" << #T << "] handle()" << std::endl;                     \
         }                                                                      \
     }                                                                          \
     void foxtalk_register_initial_tuples(uint8_t *buffer)                                             \
@@ -123,11 +186,11 @@ public:
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in register_init():" << e.what() << std::endl; \
+            std::cerr << "CRASH in [" << #T << "] register_init():" << e.what() << std::endl; \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in register_init()" << std::endl;              \
+            std::cerr << "CRASH in [" << #T << "] register_init()" << std::endl;              \
         }                                                                      \
     }                                                                          \
     void foxtalk_teardown()                                                            \
@@ -138,11 +201,11 @@ public:
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in teardown():" << e.what() << std::endl;      \
+            std::cerr << "CRASH in [" << #T << "] teardown():" << e.what() << std::endl;      \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in teardown()" << std::endl;                   \
+            std::cerr << "CRASH in [" << #T << "] teardown()" << std::endl;                   \
         }                                                                      \
     }                                                                          \
     bool foxtalk_poll()                                                                \
@@ -153,12 +216,12 @@ public:
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \
-            std::cerr << "CRASH in poll():" << e.what() << std::endl;          \
+            std::cerr << "CRASH in [" << #T << "] poll():" << e.what() << std::endl;          \
             return false;                                                      \
         }                                                                      \
         catch (...)                                                            \
         {                                                                      \
-            std::cerr << "CRASH in poll()" << std::endl;                       \
+            std::cerr << "CRASH in [" << #T << "] poll()" << std::endl;                       \
             return false;                                                      \
         }                                                                      \
     }

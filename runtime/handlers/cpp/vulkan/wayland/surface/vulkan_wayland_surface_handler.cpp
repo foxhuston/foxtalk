@@ -22,22 +22,23 @@ class VulkanWaylandSurfaceHandler : public Handler {
   VkSurfaceKHR khr_surface;
 
 protected:
-
   // stolen from vkcube project
   // https://github.com/krh/vkcube/blob/master/main.c#L218
-  std::optional<VkFormat> choose_surface_format(VkPhysicalDevice physical_device) {
+  std::optional<VkFormat>
+  choose_surface_format(VkPhysicalDevice physical_device) {
     uint32_t num_formats = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, khr_surface,
                                          &num_formats, nullptr);
-    
+
     assert(num_formats > 0);
 
-    std::vector<VkSurfaceFormatKHR> formats (num_formats);
+    std::vector<VkSurfaceFormatKHR> formats(num_formats);
     vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, khr_surface,
                                          &num_formats, formats.data());
 
-    for (const auto& format: formats ) {
-      // std::cout << "supported px format: " << format.format << " with color space " << format.colorSpace << std::endl;
+    for (const auto &format : formats) {
+      // log_debug("supported px format: " << format.format << " with color
+      // space " << format.colorSpace);
       switch (format.format) {
       case VK_FORMAT_R8G8B8A8_SRGB:
         return format.format;
@@ -53,17 +54,16 @@ protected:
       default:
         continue;
       }
-    }  
-    std::cerr << "Could not choose a pixel format given the created khr surface" << std::endl;
+    }
+    log_error("Could not choose a pixel format given the created khr surface");
     return std::nullopt;
-  
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    // std::cout << "Wayland Surface Handler Called with " << queryResults.size()
-    //           << " query result(s)." << std::endl;
+    // log_debug("Wayland Surface Handler Called with " << queryResults.size()
+    //           << " query result(s).");
 
-    // std::cout << "Hello" << std::endl;
+    // log_debug("Hello");
     if (queryResults.size() != 3) {
       return;
     }
@@ -74,8 +74,7 @@ protected:
         });
 
     if (instance_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan instance"
-                << std::endl;
+      log_error("Query results did not include the vulkan instance");
       return;
     }
 
@@ -88,9 +87,8 @@ protected:
         });
 
     if (physical_device_tuple == queryResults.end()) {
-      std::cerr
-          << "Query results did not include the chosen vulkan physical device"
-          << std::endl;
+      log_error(
+          "Query results did not include the chosen vulkan physical device");
       return;
     }
 
@@ -103,8 +101,7 @@ protected:
         });
 
     if (wayland_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the wayland display"
-                << std::endl;
+      log_error("Query results did not include the wayland display");
       return;
     }
 
@@ -113,7 +110,7 @@ protected:
     wl_surface *surface =
         static_cast<wl_surface *>(wayland_tuple->at<void *>(4).value());
 
-    // std::cout << "Found all three tuples" << std::endl;
+    // log_debug("Found all three tuples");
     auto get_wayland_presentation_support =
         (PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR)
             vkGetInstanceProcAddr(
@@ -123,7 +120,7 @@ protected:
             instance, "vkCreateWaylandSurfaceKHR");
 
     if (!get_wayland_presentation_support(physical_device, 0, display)) {
-      std::cerr << "Vulkan not supported on given Wayland surface" << std::endl;
+      log_error("Vulkan not supported on given Wayland surface");
       return;
     }
 
@@ -136,26 +133,32 @@ protected:
     create_wayland_surface(instance, &surface_create_info, nullptr,
                            &khr_surface);
 
-    // std::cout << "Wayland supported and surface created!" << std::endl;
+    log_debug("Wayland supported and surface created!");
 
-    if (auto maybe_chosen_surface_format = choose_surface_format(physical_device)) {
-      claim({{
-        {khr_surface},
-        {"is a"},
-        {"vk surface khr"},
-        {"with surface pixel format value"},
-        {(uint64_t)maybe_chosen_surface_format.value()}
-        }});
-        return;
+    if (auto maybe_chosen_surface_format =
+            choose_surface_format(physical_device)) {
+      claim({{{khr_surface},
+              {"is a"},
+              {"vk surface khr"},
+              {"with surface pixel format value"},
+              {(uint64_t)maybe_chosen_surface_format.value()},
+              {"for instance"},
+              {instance}}});
+      return;
     }
-    std::cerr << "Could not create a vk surface khr from the wayland surface handler!" << std::endl;
-
+    log_error(
+        "Could not create a vk surface khr from the wayland surface handler!");
   }
 
   void free_tuple(const Tuple &t) override {
-    // auto display = static_cast<wl_display*>(t.at<void *>(0).value());
-    // wl_display_disconnect(display);
-    // std::cout << "Disconnecting wayland display" << std::endl;
+    std::cout << "In free tuple of wayland surface handler..." << std::endl;
+    if (t.matches(2, std::string("vk surface khr"))) {
+
+      auto surface = static_cast<VkSurfaceKHR>(t.at<void *>(0).value());
+      auto instance = static_cast<VkInstance>(t.at<void *>(6).value());
+      std::cout << "About to destroy wayland surface khr" << std::endl;
+      vkDestroySurfaceKHR(instance, surface, nullptr);
+    }
   }
 
   void init() override {

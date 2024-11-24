@@ -9,8 +9,20 @@ class VulkanLogicalDeviceHandler : public Handler
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
 
-    if (queryResults.size() == 0) { return; }
-    auto result = queryResults[0];
+    if (queryResults.size() != 2) { return; }
+
+
+    auto result_data = std::find_if(
+        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+          return result.at<std::string>(2) == "vulkan logical device";
+        });
+
+    if (result_data == queryResults.end()) {
+      log_error("Query results did not include the vulkan logical device");
+      return;
+    }
+    const auto& result = *result_data;
+
     auto chosen_queue_family = result.at<uint64_t>(4).value();
     auto queue_count = result.at<uint64_t>(6);
 
@@ -54,9 +66,20 @@ protected:
 
   void init() override {
     
+    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
     claim({{
       TupleNoun::query(), {"is the"}, {"chosen vulkan physical device"}, {"with queue family index"}, TupleNoun::query(), TupleNoun::prefix()
     }});
+  }
+
+  void free_tuple(const Tuple &t) override {
+    
+    if (t.matches(2, std::string("vulkan logical device"))) {
+      
+      auto logical_device = static_cast<VkDevice>(t.at<void *>(0).value());
+
+      vkDestroyDevice(logical_device, nullptr);
+    }
   }
 };
 

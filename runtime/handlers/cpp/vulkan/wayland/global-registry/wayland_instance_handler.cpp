@@ -35,8 +35,6 @@ int display_fd;
 void registry_global_handler(void *data, struct wl_registry *registry,
                              uint32_t name, const char *interface,
                              uint32_t version) {
-  std::cout << "interface: '" << interface << "', version: " << version
-            << ", name: " << name << std::endl;
   if (std::string(interface) == "wl_compositor") {
     compositor = static_cast<wl_compositor *>(
         wl_registry_bind(registry, name, &wl_compositor_interface, 1));
@@ -54,7 +52,7 @@ void registry_global_handler(void *data, struct wl_registry *registry,
 
 void registry_global_remove_handler(void *data, struct wl_registry *registry,
                                     uint32_t name) {
-  std::cout << "removed: " << name << std::endl;
+  // log_debug(std::format("removed: {}", name).data());
 }
 
 void shm_global_handler(void *data, struct wl_shm *shm, uint32_t format) {
@@ -65,7 +63,7 @@ void handle_xdg_surface_configure(void *data, xdg_surface *surface,
                                   uint32_t serial) {
   xdg_surface_ack_configure(surface, serial);
 
-  std::cout << "handle_xdg_surface_configure called" << std::endl;
+  // log_debug("handle_xdg_surface_configure called");
   //  if (vc->wl.wait_for_configure) {
   //     // redraw
   //     vc->wl.wait_for_configure = false;
@@ -93,7 +91,7 @@ struct xdg_surface_listener xdg_surface_listener = {
 class WaylandInstanceHandler : public Handler {
 public:
   void claim_pixel_format(uint64_t px) {
-    std::cout << "px: 0x" << std::hex << px << std::endl;
+    // log_debug("px: 0x);
     // switch (px) {
     //   case WL_SHM_FORMAT_ARGB8888:
     //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ARGB
@@ -129,7 +127,7 @@ public:
 
   // bool display_dispatch_setup = false;
   // bool poll() override {
-  //   // std::cout << "Poll! About to dispatch display..." << std::endl;
+  //   // log_debug("Poll! About to dispatch display...");
   //   display_dispatch_setup = true;
   //   return wl_display_dispatch_pending(display) > 0;
   // }
@@ -145,14 +143,14 @@ protected:
       return;
     }
     
-    std::cout << "Connecting to display" << std::endl;
+    log_debug("Connecting to display");
 
     display = wl_display_connect(nullptr);
     if (display == nullptr) {
-      std::cerr << "Wayland display failed to connect" << std::endl;
+      log_error("Wayland display failed to connect");
       return;
     }
-    // std::cout << "testing "<< wl_display_get_error(display) << std::endl;
+    // log_debug("testing "<< wl_display_get_error(display));
     display_fd = wl_display_get_fd(display);
     registry = wl_display_get_registry(display);
 

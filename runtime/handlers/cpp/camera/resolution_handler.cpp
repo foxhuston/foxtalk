@@ -15,13 +15,13 @@ class ResolutionHandler : public Handler
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
     for (auto q: queryResults) {
-      std::cout << q << std::endl;
+      log_debug(q);
       auto camera = q.at<std::string>(0).value();
       auto flags =  q.at<uint64_t>(6).value();
       auto pixel_format = q.at<uint64_t>(2).value();
       int fd = open(camera.c_str(), O_NONBLOCK);
       if (fd < 0) {
-        std::cerr << "Failed to open camera " << camera << std::endl;
+        log_error("Failed to open camera " << camera);
         return;
       }
 
@@ -42,7 +42,7 @@ protected:
             {(uint64_t)frmsize.discrete.width},
             {"with resolution height"},
             {(uint64_t)frmsize.discrete.height},}});
-              // std::cout << "Resolution: " << frmsize.discrete.width << "x" << frmsize.discrete.height << "\n";
+              // log_debug("Resolution: " << frmsize.discrete.width << "x" << frmsize.discrete.height << "\n";
         }
         frmsize.index++;
       }

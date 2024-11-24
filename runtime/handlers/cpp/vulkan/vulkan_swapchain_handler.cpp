@@ -13,8 +13,9 @@ public:
 protected:
   VkSwapchainKHR swapchain{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 3) {
-      std::cout << "[VulkanSwapchainHandler] only " << queryResults.size() << " query results in handle" << std::endl;
+    if (queryResults.size() != 4) {
+      debug << " only " << queryResults.size() << "query results in handle"
+            << this;
       return;
     }
 
@@ -24,8 +25,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vulkan logical device"
-                << std::endl;
+      log_error("Query results did not include the vulkan logical device");
       return;
     }
 
@@ -40,8 +40,7 @@ protected:
         });
 
     if (surface_tuple == queryResults.end()) {
-      std::cerr << "Query results did not include the vk surface khr"
-                << std::endl;
+      log_error("Query results did not include the vk surface khr");
       return;
     }
 
@@ -57,9 +56,8 @@ protected:
         });
 
     if (physical_device_tuple == queryResults.end()) {
-      std::cerr
-          << "Query results did not include the chosen vulkan physical device"
-          << std::endl;
+      log_error(
+          "Query results did not include the chosen vulkan physical device");
       return;
     }
 
@@ -68,8 +66,8 @@ protected:
 
     VkSurfaceCapabilitiesKHR surface_caps{};
 
-    // std::cout << "[Swapchain] Physical device is: " << physical_device <<
-    // std::endl; std::cout << "[Swapchain] Surface is: " << surface <<
+    // log_debug("[Swapchain] Physical device is: " << physical_device <<
+    // std::endl; log_debug("[Swapchain] Surface is: " << surface <<
     // std::endl;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface,
                                               &surface_caps);
@@ -100,9 +98,10 @@ protected:
     if (minImageCount < surface_caps.minImageCount) {
       if (surface_caps.minImageCount > MAX_NUM_IMAGES) {
 
-        std::cerr << "surface_caps.minImageCount is too large (is: "
-                  << surface_caps.minImageCount << ", max: " << MAX_NUM_IMAGES
-                  << std::endl;
+        err << "surface_caps.minImageCount is too large (is: "
+            << surface_caps.minImageCount << ", max: " << MAX_NUM_IMAGES
+            << this;
+
         return;
       }
       minImageCount = surface_caps.minImageCount;
@@ -120,7 +119,7 @@ protected:
         .surface = surface,
         .minImageCount = minImageCount,
         .imageFormat = pixel_format,
-        .imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+        .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
         .imageExtent = {500, 500},
         .imageArrayLayers = 1,
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -131,18 +130,18 @@ protected:
         .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = present_mode,
     };
-    auto swapchainCreationResult = vkCreateSwapchainKHR(logical_device, &create_info, nullptr, &swapchain);
-    if(swapchainCreationResult != VK_SUCCESS) {
-      std::cerr << "Error creating swapchain!" << std::endl;
+    auto swapchainCreationResult =
+        vkCreateSwapchainKHR(logical_device, &create_info, nullptr, &swapchain);
+    if (swapchainCreationResult != VK_SUCCESS) {
+      log_error("Error creating swapchain!");
       return;
     }
-
 
     uint32_t image_count = 0;
     vkGetSwapchainImagesKHR(logical_device, swapchain, &image_count, nullptr);
     if (image_count == 0) {
-      std::cerr << "[Vulkan Swapchain Handler] Image count from the 'get "
-                   "swapchain' call returned 0;" << std::endl;
+      log_error("Image count from the 'get "
+                "swapchain' call returned 0");
       return;
     }
     std::vector<VkImage> swapchain_images{image_count};
@@ -150,27 +149,29 @@ protected:
                             swapchain_images.data());
 
     if (image_count > MAX_NUM_IMAGES) {
-      std::cerr << "[Vulkan Swapchain Handler] Image count from the 'get "
-                   "swapchain' call returned "
-                << image_count << ", which is higher than max num images "
-                << MAX_NUM_IMAGES << std::endl;
+      err << "Image count from the 'get swapchain' call returned "
+                            << image_count << ", which is higher than max num images "
+                            <<  MAX_NUM_IMAGES << this;
       return;
     }
-    
-    std::cout << "[Swapchain Handler] found " << swapchain_images.size() << " swapchain images" << std::endl;
 
-    std::vector<TupleNoun> imageNouns = {
-      {swapchain}, {"is a"}, {"vulkan swapchain"},
-      {"with pixel format value"},
-      {(uint64_t)pixel_format},
-      {"with images"}
-    };
-    
-    for(auto* image : swapchain_images) {
+    log_debug(std::format("found %d swapchain images", swapchain_images.size())
+                  .data());
+
+    std::vector<TupleNoun> imageNouns = {{swapchain},
+                                         {"is a"},
+                                         {"vulkan swapchain"},
+                                         {"for device"},
+                                         {logical_device},
+                                         {"with pixel format value"},
+                                         {(uint64_t)pixel_format},
+                                         {"with images"}};
+
+    for (auto *image : swapchain_images) {
       imageNouns.emplace_back(image);
     }
 
-    claim(Tuple {std::move(imageNouns)});
+    claim(Tuple{std::move(imageNouns)});
   }
 
   void init() override {
@@ -183,6 +184,8 @@ protected:
         {"with queue family index"},
         TupleNoun::query(),
     }});
+
+    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
     claim(
         {{TupleNoun::query(), {"is the"}, {"chosen vulkan physical device"}}});
 
@@ -191,6 +194,15 @@ protected:
             {"vk surface khr"},
             {"with surface pixel format value"},
             TupleNoun::query()}});
+  }
+  void free_tuple(const Tuple &t) override {
+    if (t.matches(2, std::string("vulkan swapchain"))) {
+
+      auto swapchain = static_cast<VkSwapchainKHR>(t.at<void *>(0).value());
+      auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
+
+      vkDestroySwapchainKHR(logical_device, swapchain, nullptr);
+    }
   }
 };
 

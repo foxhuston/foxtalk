@@ -20,6 +20,13 @@ impl Tuple {
             TupleNoun::Symbol(p.to_string()),
             TupleNoun::Symbol(o.to_string())])
     }
+    pub fn triple_from_ssss(s: &str, p: &str, o: &str, r: &str) -> Self {
+        Tuple(vec![
+            TupleNoun::Symbol(s.to_string()),
+            TupleNoun::Symbol(p.to_string()),
+            TupleNoun::Symbol(o.to_string()),
+            TupleNoun::Symbol(r.to_string())])
+    }
 
     // #[cfg(test)]
     pub fn triple_from_ssu(s: &str, p: &str, o: u64) -> Self {

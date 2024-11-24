@@ -63,7 +63,7 @@ inline std::pair<std::vector<T>, size_t> read_tuple_noun_vec_from_buffer(uint8_t
     auto [vec_size, read_bytes] = read_t_from_buffer<foxtalk_size_t>(buffer, current_position);
     current_position += read_bytes;
 
-    //    std::cout << std::format("Reading vector of size: {0:d} ({0:#x})", vec_size) << std::endl;
+    //    log_debug(std::format("Reading vector of size: {0:d} ({0:#x})", vec_size) << std::endl;
 
     std::vector<T> out{};
     for (int i = 0; i < vec_size; i++)
@@ -176,7 +176,7 @@ struct TupleNoun
 
     TupleNoun(const NounData &data) : type(static_cast<NounType>(data.index())), data(data)
     {
-        //        std::cout << std::boolalpha
+        //        log_debug(std::boolalpha
         //                  << "ND string? " << std::holds_alternative<std::string>(data)
         //                  << " With index " << data.index()
         //                  << std::endl;
@@ -234,7 +234,7 @@ struct TupleNoun
         auto [type, offset] = read_t_from_buffer<uint8_t>(buffer, buffer_position);
         buffer_position += offset;
 
-        //        std::cout << "Reading TripleNoun of type " << (uint32_t)type << std::endl;
+        //        log_debug("Reading TripleNoun of type " << (uint32_t)type << std::endl;
 
         switch (static_cast<NounType>(type))
         {
@@ -391,7 +391,7 @@ public:
     {
         auto result = std::find_if(nouns_.begin(), nouns_.end(), [to_match](const TupleNoun &n) {
             auto data = n.get<T>();
-            if (data != std::nullopt) {
+            if (data == std::nullopt) {
                 return false;
             }
             return data.value() == to_match;
