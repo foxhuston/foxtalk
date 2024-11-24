@@ -5,6 +5,8 @@
 #ifndef REACTOR_FOXTALK_TUPLE_H
 #define REACTOR_FOXTALK_TUPLE_H
 
+#include <algorithm>
+#include <optional>
 #include <vector>
 #include <iostream>
 #include <format>
@@ -382,6 +384,24 @@ public:
     [[nodiscard]] size_t size() const {
         return nouns_.size();
     }
+
+    
+    template <typename T>
+    [[nodiscard]] std::optional<size_t> index_of(T to_match) const
+    {
+        auto result = std::find_if(nouns_.begin(), nouns_.end(), [to_match](const TupleNoun &n) {
+            auto data = n.get<T>();
+            if (data != std::nullopt) {
+                return false;
+            }
+            return data.value() == to_match;
+        });
+        if (result == nouns_.end()) {
+            return std::nullopt;
+        }
+        return result - nouns_.begin();
+    }
+
 
     bool operator==(const Tuple &other) const
     {

@@ -35,7 +35,7 @@ protected:
 
     vkCreateSemaphore(logical_device, &semaphore_create_info, nullptr,
                         &semaphore);
-    claim({{{semaphore}, {"is a"}, {"vulkan semaphore"}}});
+    claim({{{semaphore}, {"is a"}, {"vulkan semaphore"}, {"for device"}, {logical_device}}});
   }
 
   void init() override {
@@ -48,6 +48,17 @@ protected:
         {"with queue family index"},
         TupleNoun::query(),
     }});
+  }
+  
+
+  void free_tuple(const Tuple &t) override {
+    if (t.matches(2, std::string("vulkan semaphore"))) {
+      
+      auto semaphore = static_cast<VkSemaphore>(t.at<void *>(0).value());
+      auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
+
+      vkDestroySemaphore(logical_device, semaphore, nullptr);
+    }
   }
 };
 

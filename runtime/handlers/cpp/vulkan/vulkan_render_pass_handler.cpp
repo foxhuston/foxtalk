@@ -79,7 +79,7 @@ protected:
 
     vkCreateRenderPass(logical_device, &render_pass_create_info, nullptr,
                        &render_pass);
-    claim({{{render_pass}, {"is a"}, {"vulkan render pass"}}});
+    claim({{{render_pass}, {"is a"}, {"vulkan render pass"}, {"for device"}, {logical_device}}});
   }
 
   void init() override {
@@ -97,6 +97,15 @@ protected:
             {"vk surface khr"},
             {"with surface pixel format value"},
             TupleNoun::query()}});
+  }
+  void free_tuple(const Tuple &t) override {
+    if (t.matches(2, std::string("vulkan render pass"))) {
+      
+      auto render_pass = static_cast<VkRenderPass>(t.at<void *>(0).value());
+      auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
+
+      vkDestroyRenderPass(logical_device, render_pass, nullptr);
+    }
   }
 };
 

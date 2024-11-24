@@ -85,6 +85,15 @@ protected:
   {
     claim({{{"foxtalk"}, {"is"}, {"running"}}});
   }
+
+  void free_tuple(const Tuple &t) override {
+    if (t.matches(2, std::string("vulkan instance"))) {
+      
+      auto instance = static_cast<VkInstance>(t.at<void *>(0).value());
+      vkDestroyInstance(instance, nullptr);
+    }
+  }
+
 };
 
 FOXTALK_FFI_HANDLER_REG(VulkanInstanceHandler);

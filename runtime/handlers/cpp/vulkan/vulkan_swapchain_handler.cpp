@@ -14,6 +14,7 @@ protected:
   VkSwapchainKHR swapchain{};
   void handle(const std::vector<Tuple> &queryResults) override {
     if (queryResults.size() != 3) {
+      std::cout << "[VulkanSwapchainHandler] only " << queryResults.size() << " query results in handle" << std::endl;
       return;
     }
 
@@ -160,6 +161,8 @@ protected:
 
     std::vector<TupleNoun> imageNouns = {
       {swapchain}, {"is a"}, {"vulkan swapchain"},
+      {"with pixel format value"},
+      {(uint64_t)pixel_format},
       {"with images"}
     };
     
