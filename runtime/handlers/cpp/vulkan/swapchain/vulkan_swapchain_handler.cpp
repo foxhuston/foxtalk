@@ -13,9 +13,10 @@ public:
 protected:
   VkSwapchainKHR swapchain{};
   void handle(const std::vector<Tuple> &queryResults) override {
+    
+    
     if (queryResults.size() != 4) {
-      debug << " only " << queryResults.size() << "query results in handle"
-            << this;
+      debug << " only " << queryResults.size() << " query results in handle";log_existing_debug();
       return;
     }
 
@@ -193,7 +194,8 @@ protected:
             {"is a"},
             {"vk surface khr"},
             {"with surface pixel format value"},
-            TupleNoun::query()}});
+            TupleNoun::query(),
+            TupleNoun::prefix()}});
   }
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan swapchain"))) {

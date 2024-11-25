@@ -22,11 +22,6 @@ public:
 protected:
   std::vector<FoxtalkVkBufferPtrs> ptrs{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    debug << "got here with size " << queryResults.size() << this;
-    if (queryResults.size() != 5) {
-      return;
-    }
-
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";
