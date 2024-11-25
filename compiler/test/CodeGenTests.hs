@@ -44,6 +44,9 @@ withSingleFoxtalkExpr f src expected =
 queryeq :: String -> [String] -> Assertion
 queryeq = withSingleFoxtalkExpr exprToHandlerQuery
 
+poseq :: String -> FoxtalkExpr (Int, String) -> Assertion
+poseq = withSingleFoxtalkExpr (pure . foxtalkExprToPosition)
+
 
 queryGenerationTests :: TestTree
 queryGenerationTests = testGroup "Query Tuple Generation Tests" [
@@ -71,36 +74,36 @@ queryGenerationTests = testGroup "Query Tuple Generation Tests" [
   --   in handlerQuery @?= Nothing
   ]
 
--- handlerGenerationTests :: TestTree
--- handlerGenerationTests = testGroup "Handler Generation Tests" [
---     testCase "To Position" $
---       map foxtalkExprToPosition <$> parseProgram "Claim /x:u64/ is a /foo:symbol/" @?=
---         Just [EClaim [VVarIntro TU64 (0, "x")
---                       , VLit (LSymbol "is"), VLit (LSymbol "a")
---                       , VVarIntro TSymbol (3, "foo")]]
+handlerGenerationTests :: TestTree
+handlerGenerationTests = testGroup "Handler Generation Tests" [
+    testCase "To Position" $
+      "Claim /x:u64/ is a /foo:symbol/" `poseq`
+        EClaim [VVarIntro TU64 (0, "x")
+                      , VLit (LSymbol "is"), VLit (LSymbol "a")
+                      , VVarIntro TSymbol (3, "foo")]
 
---   , testGroup "Lookups" [
---       testCase "Query Value" $
---         queryValuePosToLookup "res" (VVarIntro TU64 (0, "x"))
---           @?= Just "auto x = res.at<uint64_t>(0)"
+  , testGroup "Lookups" [
+      testCase "Query Value" $
+        queryValuePosToLookup "res" (VVarIntro TU64 (0, "x"))
+          @?= Just "auto x = res.at<uint64_t>(0)"
 
---     , testCase "Claim Expr" $
---         (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
---           Just []
+    , testCase "Claim Expr" $
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
+          Just []
 
---     , testCase "When Expr" $
---         (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
---           Just [
---               "auto x = res.at<uint64_t>(0)"
---           ]
+    , testCase "When Expr" $
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
+          Just [
+              "auto x = res.at<uint64_t>(0)"
+          ]
 
---     , testCase "When Expr 2" $
---         (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
---           Just [
---             "auto x = res.at<uint64_t>(0)"
---           , "auto foo = res.at<std::string>(3)"
---           ]
---     ]
+    , testCase "When Expr 2" $
+        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
+          Just [
+            "auto x = res.at<uint64_t>(0)"
+          , "auto foo = res.at<std::string>(3)"
+          ]
+    ]
 
 --     -- , testGroup "Guards" [
 --     --     testCase "Claim Expr" $
@@ -153,4 +156,4 @@ queryGenerationTests = testGroup "Query Tuple Generation Tests" [
 --     let parsed = parseProgram  "Claim (who) is cool"
 --         handlerQuery = parsed >>= exprToClaim . (!!0)
 --     in handlerQuery @?= Just "claim({{{who}, {\"is\"}, {\"cool\"}}})"
---   ]
+  ]

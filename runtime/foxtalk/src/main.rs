@@ -7,9 +7,11 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
+use std::ptr::null_mut;
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
 use log::*;
+use nc::exit;
 
 mod commands_json_creator;
 mod cpp_handler_builder;
@@ -20,6 +22,27 @@ mod reactor_debug_tuple_writer;
 fn main() {
     colog::default_builder().filter_level(LevelFilter::Info).init();
     dotenv::dotenv().ok();
+
+    let sa = nc::new_sigaction(|errcode| {
+        match unsafe { &reactor_adding_so_handler::last_loaded_path } {
+            Some(path) => {
+                println!("CRITICAL FAILURE! Got {errcode} when loading {path:?}; I'M REMOVING IT!!!");
+                std::fs::remove_file(path).unwrap();
+                unsafe { std::process::abort(); }
+            }
+
+            None => {
+                println!("CRITICAL FAILURE! Got {errcode} when loading a handler. I DON'T KNOW WHICH ONE IT IS!");
+                unsafe { std::process::abort(); }
+            }
+        }
+    });
+
+    let ret = unsafe { nc::rt_sigaction(nc::SIGSEGV, Some(&sa), None) };
+    assert!(ret.is_ok());
+
+
+
 
     let so_path_from_env = std::env::var("SO_PATH");
     let cpp_path_from_env = std::env::var("CPP_PATH");
@@ -51,6 +74,9 @@ fn main() {
     let reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>> =
         Arc::new(Mutex::new(Reactor::new(query_engine)));
     let so_handler = ReactorAddingSoHandler::new(reactor.clone(), so_path.clone());
+
+
+
     let cpp_handler = cpp_handler_builder::CppFileBuilder {
         base_cpp_path: cpp_path.clone(),
         so_path: so_path.clone(),

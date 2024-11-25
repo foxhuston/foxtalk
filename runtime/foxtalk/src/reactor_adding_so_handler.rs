@@ -2,12 +2,15 @@ use crate::recursive_inotify::FileWatcherHandlers;
 use reactor::reactor::{Reactor, ReactorProgramId};
 use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
 use std::fmt::{Debug, Formatter};
+use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use rust_tuple_reactor_serde::tuple::Tuple;
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
 use walkdir::WalkDir;
 
 use log::*;
+
+pub static mut last_loaded_path: Option<String> = None;
 
 pub struct ReactorAddingSoHandler {
     reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
@@ -22,12 +25,15 @@ impl FileWatcherHandlers for ReactorAddingSoHandler {
     fn on_create(&self, full_path: String, _: String, extension: String) -> () {
         trace!("on_create in so_handler: (for close_write or moved_to) {:?}", full_path);
         if extension == "so" {
-            if let Some(tuple) = self.get_handler_tuple(full_path) {
+            if let Some(tuple) = self.get_handler_tuple(full_path.clone()) {
                 // std::thread::sleep(std::time::Duration::from_millis(1));
+                unsafe { last_loaded_path = Some(full_path); }
+
                 debug!("Adding handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
                 reactor.remove(tuple.clone());
                 reactor.insert(tuple.clone());
+
                 info!("Added handler {:?}", tuple);
                 // println!("{:?}", reactor.ref_counts);
             }
@@ -55,7 +61,7 @@ impl ReactorAddingSoHandler {
     ) -> Self {
         let re = reactor.clone();
         let mut r = re.lock().unwrap();
-
+        
         for entry in WalkDir::new(base_path.clone())
             .into_iter()
             .filter_map(|e| e.ok())
