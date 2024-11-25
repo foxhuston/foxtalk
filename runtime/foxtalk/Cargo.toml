@@ -14,6 +14,8 @@ dotenv = "0.15.0"
 walkdir = "2.5.0"
 anyhow = "1.0.92"
 regex = "1.11.1"
+#crash-handler = {  version = "0.6.2", features = ["default", "debug-print"] }
+nc = "0.9.5"
 
 
 [dependencies.uuid]

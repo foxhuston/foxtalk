@@ -117,7 +117,7 @@ void operator<<(std::ostream& os, Handler& h)
     if (h.debug.rdbuf()->in_avail()) {
         h.log_existing_debug();
     }
-    
+
 }
 
 // This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) { ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... }
@@ -131,13 +131,13 @@ void operator<<(std::ostream& os, Handler& h)
 
 #define FOXTALK_FFI_HANDLER_REG(T)                                             \
     static T *T##_instance = nullptr;                                          \
-    void foxtalk_init(uint8_t *buffer)                                                                \
+    void foxtalk_init(uint8_t *buffer)                                       \
     {                                                                          \
         try                                                                    \
         {                                                                      \
-            T##_instance = new T();                                          \
-            T##_instance->ffi_init(buffer);                          \
-            T##_instance->set_logger_name(#T);                                    \
+            T##_instance = new T();                                            \
+            T##_instance->ffi_init(buffer);                                    \
+            T##_instance->set_logger_name(#T);                                 \
         }                                                                      \
         catch (std::exception const &e)                                        \
         {                                                                      \

@@ -5,7 +5,8 @@
 #ifndef REACTOR_FOXTALK_HANDLER_H
 #define REACTOR_FOXTALK_HANDLER_H
 
-#include <vector>
+#include <csignal>
+#include <cstdlib>
 #include <unistd.h>
 #include <cstdint>
 
@@ -27,5 +28,6 @@ extern "C"
     void foxtalk_teardown();
     bool foxtalk_poll();
 }
+
 
 #endif // REACTOR_FOXTALK_HANDLER_H
