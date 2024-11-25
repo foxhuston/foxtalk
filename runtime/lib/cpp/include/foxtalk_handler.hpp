@@ -86,33 +86,6 @@ public:
   }
 };
 
-
-// This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) {
-// ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... } It's pretty
-// cool, but a bit unwieldy given that you can choose to do init/teardowns or
-// not. Although perhaps I'm not quite thinking about this correctly...?
-void operator<<(std::ostream& os, Handler& h)
-{
-    if (h.err.rdbuf()->in_avail()) {
-        h.log_existing_error();
-    }
-    if (h.debug.rdbuf()->in_avail()) {
-        h.log_existing_debug();
-    }
-
-}
-
-// This is a GTEST-style API, where you first write FOXTALK_HANDLER(Name, qr) { ... }, and then FOXTALK_HANDLER_QUERY(NAME, q) { return ... }
-// It's pretty cool, but a bit unwieldy given that you can choose to do init/teardowns or not. Although perhaps I'm
-// not quite thinking about this correctly...?
-
-// #define FOXTALK_HANDLER_BOD(T, qr) void T::handle(const std::vector<Tuple>&
-// qr) #define FOXTALK_HANDLER_DEF(T, qr) class T : public Handler { virtual
-// bool matches(const Tuple&); virtual void handle(const std::vector<Tuple>&); }
-// #define FOXTALK_HANDLER(T, qr) FOXTALK_HANDLER_DEF(T, qr);
-// FOXTALK_HANDLER_BOD(T, qr) #define FOXTALK_HANDLER_MATCHES(T, inp) bool
-// T::matches(const Tuple& inp)
-
 #define FOXTALK_FFI_HANDLER_REG(T)                                             \
     static T *T##_instance = nullptr;                                          \
     void foxtalk_init(uint8_t *buffer)                                       \
