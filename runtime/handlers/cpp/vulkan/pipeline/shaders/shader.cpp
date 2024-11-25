@@ -48,11 +48,6 @@ protected:
   }
   void handle(const std::vector<Tuple> &queryResults) override {
 
-    if (queryResults.size() != 2) {
-      debug << " only " << queryResults.size() << " query results in handle";
-      log_existing_debug();
-      return;
-    }
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";
@@ -118,10 +113,7 @@ protected:
         TupleNoun::query(),
         {"is the"},
         {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
+        TupleNoun::prefix(),
     }});
   }
 };

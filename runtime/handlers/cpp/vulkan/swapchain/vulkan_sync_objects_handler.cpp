@@ -70,10 +70,7 @@ protected:
         TupleNoun::query(),
         {"is the"},
         {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
+        TupleNoun::prefix()
     }});
 
     claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});

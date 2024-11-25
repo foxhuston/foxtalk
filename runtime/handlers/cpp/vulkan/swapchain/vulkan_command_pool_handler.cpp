@@ -10,53 +10,68 @@ class VulkanCommandPoolHandler : public Handler {
 public:
 protected:
   VkCommandPool command_pool{};
+  VkCommandBuffer command_buffer{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 1) {
-      return;
-    }
-
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device"
-               );
+      log_error("Query results did not include the vulkan logical device");
       return;
     }
 
     auto logical_device =
         static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
 
+    auto queue_family_index = logical_device_tuple->at<uint64_t>(6).value();
+
     VkCommandPoolCreateInfo command_pool_create_info{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // also maybe
                                                                   // protected?
 
-        .queueFamilyIndex = 0,
+        .queueFamilyIndex = (uint32_t)queue_family_index,
     };
 
-    vkCreateCommandPool(logical_device, &command_pool_create_info, nullptr,
-                        &command_pool);
-    claim({{{command_pool}, {"is a"}, {"vulkan command pool"}, {"for device"}, {logical_device}}});
+    auto result = vkCreateCommandPool(logical_device, &command_pool_create_info,
+                                      nullptr, &command_pool);
+
+    if (result != VK_SUCCESS) {
+      log_error("Could not create command pool");
+      return;
+    }
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = command_pool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(logical_device, &allocInfo, &command_buffer) !=
+        VK_SUCCESS) {
+      log_error("Could not create command buffer");
+      return;
+    }
+    claim({{{command_pool},
+            {"is a"},
+            {"vulkan command pool"},
+            {"for device"},
+            {logical_device},
+            {"with command buffer"},
+            {command_buffer}}});
   }
 
   void init() override {
-    claim({{
-        TupleNoun::query(),
-        {"is the"},
-        {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
-    }});
+    claim({{TupleNoun::query(),
+            {"is the"},
+            {"vulkan logical device"},
+            TupleNoun::prefix()}});
   }
-  
+
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan command pool"))) {
-      
+
       auto cmd_pool = static_cast<VkCommandPool>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
       vkDestroyCommandPool(logical_device, cmd_pool, nullptr);

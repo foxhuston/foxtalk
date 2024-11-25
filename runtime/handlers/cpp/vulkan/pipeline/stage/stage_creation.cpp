@@ -19,12 +19,6 @@ protected:
   VkPipeline graphicsPipeline{};
 
   void handle(const std::vector<Tuple> &queryResults) override {
-
-    if (queryResults.size() != 5) {
-      debug << " only " << queryResults.size() << " query results in handle";
-      log_existing_debug();
-      return;
-    }
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";
@@ -53,7 +47,7 @@ protected:
 
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages{};
 
-    for (auto q : queryResults) {
+    for (const auto& q : queryResults) {
       if (!q.matches(3, std::string("shader module"))) {
         continue;
       }
@@ -66,10 +60,23 @@ protected:
       VkPipelineShaderStageCreateInfo shader_stage_info{};
       shader_stage_info.sType =
           VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+      VkShaderStageFlagBits stage; 
+      if (shader_type == "vert") {
+        stage = VK_SHADER_STAGE_VERTEX_BIT;
+      } 
+      if (shader_type == "frag") {
+        stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+      }
+      shader_stage_info.stage = stage;
       shader_stage_info.module = shader;
       shader_stage_info.pName = "main";
       shader_stages.emplace_back(shader_stage_info);
+    }
+
+    // note, this is just for the triangle.
+    if (shader_stages.size() != 2) {
+      err << "Did not find two shader stages. Found " << shader_stages.size() << ".  Stopping here."; log_existing_error();
+      return;
     }
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -202,10 +209,7 @@ protected:
         TupleNoun::query(),
         {"is the"},
         {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
+        TupleNoun::prefix(),
     }});
 
     claim({{TupleNoun::query(),
