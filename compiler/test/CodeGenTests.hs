@@ -19,12 +19,13 @@ import Codegen (
   , exprToClaim
   , foxtalkExprToPosition
   , foxtalkExprToLookup
-  , disambiguateTuples
   , queryValuePosToLookup
   , queryExprToLookup
   , queryExprToLookupGuard
   , genHandleBody
   )
+
+import Codegen.Disambiguate (disambiguateTuples)
 
 ----- UTILS --------------------------------------------------------------------
 

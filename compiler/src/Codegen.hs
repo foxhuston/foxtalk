@@ -8,7 +8,6 @@ module Codegen (
   , genQueryBody
   , runFoxtalkCodegen
 
-  , disambiguateTuples -- for testing only
   , queryValueToTupleEntry -- for testing only
   , queryExprToLookup -- for testing only
   , queryExprToLookupGuard -- for testing only
@@ -16,7 +15,7 @@ module Codegen (
   , queryValuePosToLookup -- for testing only
 ) where
 
-import Data.List (intercalate, find, nub)
+import Data.List (intercalate)
 
 import Control.Monad.Except (throwError)
 import Control.Monad.State (StateT, lift, get, gets, modify, execStateT)
@@ -77,39 +76,6 @@ exprToClaim (EClaim values) =
   in return $ "claim({{" ++ vs ++ "}})"
 exprToClaim (EWhen _ _)     = Left "Could not generate string from EWhen"
 exprToClaim (EForAll _ _ _) = Left "Could not generate string from EForAll"
-
------ DISAMBIGUATE TUPLES -----
-getQueryTupleValues :: forall a. QueryExpr a -> [[QueryValue a]]
-getQueryTupleValues = cata go
-  where
-    go :: QueryExprF a [[QueryValue a]] -> [[QueryValue a]]
-    go (EQueryTupleF exprs) = [exprs]
-    go (EQueryAndF l r)     = l ++ r
-    go (EQueryOrF l r)      = l ++ r
-
-getTupleValues :: FoxtalkExpr a -> [[(Int, QueryValue a)]]
-getTupleValues (EWhen q _)     = map (zip [0..]) $ getQueryTupleValues q
-getTupleValues (EForAll _ q _) = map (zip [0..]) $ getQueryTupleValues q
-getTupleValues (EClaim vs)     = [zip [0..] vs]
-
-disambiguateTuples :: forall a. Eq a => FoxtalkExpr a -> Maybe [(Int, QueryValue a)]
-disambiguateTuples expr = select tuples <$> find unambig [0..maxL]
-  where
-    tuples :: [[(Int, QueryValue a)]]
-    tuples = getTupleValues expr
-
-    trunc :: [[(Int, QueryValue a)]]
-    trunc = map (take maxL) tuples
-
-    select :: [[(Int, QueryValue a)]] -> Int -> [(Int, QueryValue a)]
-    select ls idx = map (!!idx) ls
-
-    maxL :: Int
-    maxL = maximum $ map length tuples
-
-    unambig :: Int -> Bool
-    unambig idx = nub xs == xs
-      where xs = select tuples idx
 
 ----- GENERATE LOCALS -----
 foxtalkTypeToCType :: FoxtalkType -> String
