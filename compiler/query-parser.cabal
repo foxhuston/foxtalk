@@ -36,6 +36,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      ScopedTypeVariables
       DeriveFunctor
       DeriveFoldable
       DeriveTraversable

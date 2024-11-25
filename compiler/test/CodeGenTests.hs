@@ -19,6 +19,7 @@ import Codegen (
   , exprToClaim
   , foxtalkExprToPosition
   , foxtalkExprToLookup
+  , disambiguateTuples
   , queryValuePosToLookup
   , queryExprToLookup
   , queryExprToLookupGuard
@@ -45,8 +46,9 @@ poseq = withSingleFoxtalkExpr (pure . foxtalkExprToPosition)
 
 disambiguatesTo :: String -> Maybe [(Int, QueryValue String)] -> Assertion
 disambiguatesTo src expected =
-  case queryTokens "CodeGenTests" src of
-    Right qv -> assertFailure "unimplemented"
+  case parseProgram "CodeGenTests" src of
+    Right [expr] -> disambiguateTuples expr @?= expected
+    Right _  -> assertFailure "Too many expressions in parser output!"
     Left err -> assertFailure err
 
 ----- TESTS --------------------------------------------------------------------
@@ -94,7 +96,7 @@ handlerGenerationTests = testGroup "Handler Generation Tests" [
 
   , testGroup "Disambiguation" [
     testCase "Disambiguate 3" $
-      "/x:u64/ is cool and /y:u64/ is rad" `disambiguatesTo` Just [(2, VLit (LSymbol "cool")), (2, VLit (LSymbol "rad"))]
+      "When /x:u64/ is cool and /y:u64/ is rad {}" `disambiguatesTo` Just [(2, VLit (LSymbol "cool")), (2, VLit (LSymbol "rad"))]
   ]
   , testGroup "Lookups" [
       testCase "Query Value" $
