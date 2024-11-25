@@ -71,13 +71,15 @@ queryTokenTests = testGroup "Token tests"
     ]
 
     , testGroup "Variable Introduction" [
-        testCase "Untyped"            $ "/lexi/"        `tokeq` [TUntypedVarIntro "lexi"]
+        testCase "Untyped"            $ "/lexi/"        `tokeq` [TUntypedVarIntro  "lexi"]
+      , testCase "Underscore"         $ "/lexi_husky/"  `tokeq` [TUntypedVarIntro  "lexi_husky"]
       , testCase "Symbol"             $ "/lexi:symbol/" `tokeq` [TVarIntro TSymbol "lexi"]
-      , testCase "Cptr"               $ "/lexi:ptr/"    `tokeq` [TVarIntro TCptr "lexi"]
-      , testCase "U64"                $ "/lexi:u64/"    `tokeq` [TVarIntro TU64 "lexi"]
-      , testCase "I64"                $ "/lexi:i64/"    `tokeq` [TVarIntro TI64 "lexi"]
+      , testCase "Cptr"               $ "/lexi:ptr/"    `tokeq` [TVarIntro TCptr   "lexi"]
+      , testCase "U64"                $ "/lexi:u64/"    `tokeq` [TVarIntro TU64    "lexi"]
+      , testCase "I64"                $ "/lexi:i64/"    `tokeq` [TVarIntro TI64    "lexi"]
       , testCase "Double"             $ "/lexi:double/" `tokeq` [TVarIntro TDouble "lexi"]
-      , testCase "Bytes"              $ "/lexi:bytes/"  `tokeq` [TVarIntro TBytes "lexi"]
+      , testCase "Bytes"              $ "/lexi:bytes/"  `tokeq` [TVarIntro TBytes  "lexi"]
+      , testCase "Captured Prefix"    $ "/lexi:.../"    `tokeq` [TVarIntro TRest   "lexi"]
       -- TODO!
       -- , testCase "Fails with Spaces"  $ "/test with spaces:symbol/" `tokeqNothing
     ]
@@ -91,6 +93,7 @@ queryTokenTests = testGroup "Token tests"
       , testCase "Locals"     $ "Locals"    `tokeq` [TLocals]
       , testCase "Poll"       $ "Poll"      `tokeq` [TPoll]
       , testCase "FreeTuple"  $ "FreeTuple" `tokeq` [TFreeTuple]
+      , testCase "..."        $ "..."       `tokeq` [TPrefix]
     ]
 
     , testCase "VarBinding 1" $ "(lexi)" `tokeq` [TVarBinding "lexi"]

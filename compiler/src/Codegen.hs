@@ -43,6 +43,7 @@ queryLitToTupleEntry (LI64    l) = "{" ++ show l ++ "}"
 queryLitToTupleEntry (LDouble l) = "{" ++ show l ++ "}"
 
 queryValueToTupleEntry :: (QueryValue String) -> String
+queryValueToTupleEntry (VPrefixMarker)      = "TupleNoun::prefix()"
 queryValueToTupleEntry (VLit l)             = queryLitToTupleEntry l
 queryValueToTupleEntry (VVarIntro _ _)      = "TupleNoun::query()"
 queryValueToTupleEntry (VVarBinding s)      = "{" ++ s ++ "}"
@@ -84,13 +85,18 @@ foxtalkTypeToCType TU64     = "uint64_t"
 foxtalkTypeToCType TI64     = "int64_t"
 foxtalkTypeToCType TDouble  = "double"
 foxtalkTypeToCType TBytes   = "std::vector<uint8_t>"
+foxtalkTypeToCType TRest    = "std::vector<TupleNoun>"
 
 generateLookupVar :: String -> FoxtalkType -> String -> Int -> CExpr
+generateLookupVar queryResult TRest varName varIndex =
+  "std::vector<TupleNoun> " ++ varName ++ "(" ++ queryResult ++ ".begin() + " ++ show varIndex ++
+    ", " ++ queryResult ++ ".end());"
 generateLookupVar queryResult t varName varIndex =
   "auto " ++ varName ++ " = " ++ queryResult
     ++ ".at<" ++ foxtalkTypeToCType t ++ ">(" ++ show varIndex ++ ")"
 
 queryValuePosToLookup :: String -> QueryValue (Int, String) -> Maybe CExpr
+queryValuePosToLookup _  (VPrefixMarker)                = Nothing
 queryValuePosToLookup _  (VLit _)                       = Nothing
 queryValuePosToLookup qr (VVarIntro t (idx, name))      = Just $ generateLookupVar qr t name idx
 queryValuePosToLookup _  (VVarBinding _)                = Nothing
@@ -139,6 +145,7 @@ queryValuesToPosition = posn 0
   where
     posn :: Int -> [QueryValue a] -> [QueryValue (Int, a)]
     posn _ [] = []
+    posn n (VPrefixMarker:xs)       = VPrefixMarker : posn (n + 1) xs
     posn n (VLit l:xs)              = VLit l : posn (n + 1) xs
     posn n (VVarIntro t a:xs)       = VVarIntro t (n, a) : posn (n + 1) xs
     posn n (VVarBinding a:xs)       = VVarBinding (n, a) : posn (n + 1) xs

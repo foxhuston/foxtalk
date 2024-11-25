@@ -13,7 +13,7 @@ main =
       [handlerName, file] ->
         do
           progSource <- readFile file
-          case parseProgram progSource file of
+          case parseProgram file progSource of
             (Right progExprs) ->
               case runFoxtalkCodegen $ genProg handlerName progExprs of
                 (Right output) -> putStrLn output

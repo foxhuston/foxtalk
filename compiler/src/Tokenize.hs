@@ -12,7 +12,6 @@ module Tokenize (
 ) where
 
 
-import Data.Void
 import Data.Functor
 import Data.Int (Int64)
 import Data.Word (Word64)
@@ -20,15 +19,12 @@ import Data.Word (Word64)
 import Data.Scientific (floatingOrInteger)
 
 import Control.Applicative ((<|>))
-import Control.Monad.Except (catchError)
 
 -- import Data.Attoparsec.Text
 import Text.Megaparsec (
     Parsec
-  , between
   , manyTill
   , anySingle
-  , takeRest
   , try
   , choice
   , skipMany
@@ -37,7 +33,6 @@ import Text.Megaparsec (
   , optional
   , errorBundlePretty
   , runParser
-  , ParseErrorBundle
   , ShowErrorComponent(..)
   )
 
@@ -52,11 +47,12 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- DONE: Add the rest of the literals
 -- Done: Add a FoxtalkType enum
 -- Done: Add types into Bindings (tokenizer can infer for TVarIntroLit)
--- TODO: Replace Void errors with String
+-- TODO: (SORT OF DONE) Replace Void errors with String
 -- TODO: #include & pkg-config
 -- TODO: Locals
 -- TODO: Poll, FreeTuple
 -- TODO: Split out Query vs. Claim parsing, have errors if `/x/` appears in claims.
+-- TODO: Conjunction emits a cross-product in handler; Disjunction does ???
 
 
 newtype FoxtalkParseError = FoxtalkParseError(String)
@@ -67,7 +63,7 @@ instance ShowErrorComponent FoxtalkParseError where
 
 type Parser = Parsec FoxtalkParseError String
 
-data FoxtalkType = TSymbol | TCptr | TU64 | TI64 | TDouble | TBytes
+data FoxtalkType = TSymbol | TCptr | TU64 | TI64 | TDouble | TBytes | TRest
   deriving (Show, Eq, Ord)
 
 data QueryLiteral =
@@ -93,37 +89,8 @@ data QueryToken a =
     | TLocals
     | TPoll
     | TFreeTuple
+    | TPrefix
     deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
-
------ UNPARSING -----
-
--- unparseType :: FoxtalkType -> String
--- unparseType TSymbol = "symbol"
--- unparseType TCptr   = "ptr"
--- unparseType TU64    = "u64"
--- unparseType TI64    = "i64"
--- unparseType TDouble = "double"
--- unparseType TBytes  = "bytes"
-
--- unparseLit :: QueryLiteral -> String
--- unparseLit (LSymbol s)  = s
--- unparseLit (LU64 u)     = show u
--- unparseLit (LI64 i)     = show i
--- unparseLit (LDouble d)  = show d
-
--- TODO: not quite right... the `show` for string has the quotes in it...
--- unparse :: Show a => QueryToken a -> String
--- unparse (TLit l)           = unparseLit l
--- unparse (TVarIntro t s)    = "/" ++ show s ++ ":" ++ unparseType t ++ "/"
--- unparse (TVarIntroLit _ b l) = "/" ++ show b ++ "/@" ++ unparseLit l
--- unparse (TVarBinding s)    = "(" ++ show s ++ ")"
--- unparse TLParen            = "("
--- unparse TRParen            = ")"
--- unparse TOr                = "or"
--- unparse TAnd               = "and"
--- unparse TWhen              = "When"
--- unparse TForAll            = "ForAll"
--- unparse TClaim             = "Claim"
 
 ----- UTILITIES -----
 
@@ -143,6 +110,7 @@ parseType = choice [
   , string "i64"    $> TI64
   , string "double" $> TDouble
   , string "bytes"  $> TBytes
+  , string "..."    $> TRest
   ]
 
 typeOfLit :: QueryLiteral -> FoxtalkType
@@ -166,6 +134,7 @@ keyword = choice $ map (\(s, t) -> string s $> t) kws
       , ("Locals", TLocals)
       , ("Poll", TPoll)
       , ("FreeTuple", TFreeTuple)
+      , ("...", TPrefix)
       ]
 
 lParen :: Parser (QueryToken a)
@@ -188,7 +157,7 @@ handlerBody = s *> (concat <$> manyTill p e)
     e = string "}"
 
 ident :: Parser String
-ident = some letterChar
+ident = some (letterChar <|> char '_')
 
 numberLit :: Parser QueryLiteral
 numberLit = do

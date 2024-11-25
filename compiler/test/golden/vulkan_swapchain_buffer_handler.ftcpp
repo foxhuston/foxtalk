@@ -1,0 +1,12 @@
+When /swapchain:ptr/ is a vulkan swapchain for device /device:ptr/
+    with pixel format value /value:u64/
+    with images /images:.../
+  and /instance:ptr/ is the vulkan instance
+  and /device:ptr/ is the vulkan logical device
+    with graphics queue /queue:ptr/
+    with queue family index /qf_index:u64/ ...
+  and /render_pass:ptr/ is a vulkan render_pass ...
+  and /command_pool:ptr/ is a vulkan command pool ...
+{
+  // Do Stuff oh my god.
+}
