@@ -10,80 +10,204 @@
 #include <ostream>
 #include <sstream>
 
-class Handler {
+
+enum class LogState
+{
+    End
+};
+
+class Handler
+{
 protected:
-  void claim(Tuple &&n) { claims.push_back(std::move(n)); }
-  virtual void handle(const std::vector<Tuple> &queryResults) = 0;
-  virtual void free_tuple(const Tuple &) {}
-  virtual void init() = 0;
+    void claim(Tuple&& n) { claims.push_back(std::move(n)); }
+    virtual void handle(const std::vector<Tuple>& queryResults) = 0;
+
+    virtual void free_tuple(const Tuple&)
+    {
+    }
+
+    virtual void init() = 0;
+
+    enum class LogLevel
+    {
+        Debug,
+        Error
+    };
+
+    class FoxtalkLoggingBuffer : public std::streambuf
+    {
+    public:
+        FoxtalkLoggingBuffer() = default;
+        std::ostringstream buffer;
+
+        [[nodiscard]] std::string get_string() const
+        {
+            return buffer.str();
+        }
+
+    protected:
+        int overflow(int c) override
+        {
+            if (c != EOF)
+            {
+                buffer.put(static_cast<char>(c));
+            }
+            return c;
+        }
+
+        std::streamsize xsputn(const char* s, std::streamsize n) override
+        {
+            buffer.write(s, n);
+            return n;
+        }
+    };
+
+    class FoxtalkLogger : public std::ostream
+    {
+    public:
+        FoxtalkLogger(
+            LogLevel level,
+            Handler* handler) : std::ostream(&buf)
+        {
+            _level = level;
+            outer = handler;
+        }
+
+        FoxtalkLogger& operator<<(const LogState state)
+        {
+            if (state == LogState::End)
+            {
+                std::string captured_string = buf.get_string();
+                buf = FoxtalkLoggingBuffer(); // Reset the buffer
+                handle_string(captured_string);
+            }
+
+            return *this;
+        }
+
+    private:
+        LogLevel _level = LogLevel::Debug;
+
+        Handler* outer;
+        FoxtalkLoggingBuffer buf{};
+
+        void handle_string(const std::string& str)
+        {
+            if (_level == LogLevel::Debug)
+            {
+                outer->log("has debug message", str);
+            }
+            else if (_level == LogLevel::Error)
+            {
+                outer->log("has error message", str);
+            }
+            else
+            {
+                throw std::logic_error("Unhandled log level in the root handler class");
+            }
+        }
+    };
+
+    void log(std::string log_type, std::string message)
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {log_type},
+                {message}
+            }
+        });
+    }
 
 public:
-  std::string name = "Uninitialized Handler";
-  std::vector<Tuple> claims{}; // should be private, but I need to test...
+    std::string name = "Uninitialized Handler";
+    std::vector<Tuple> claims{}; // should be private, but I need to test...
 
-  void set_logger_name(const char *name) { this->name = name; }
-  std::stringstream err{};
-  std::stringstream debug{};
+    void set_logger_name(const char* name) { this->name = name; }
+    FoxtalkLogger err = FoxtalkLogger(LogLevel::Error, this);
+    FoxtalkLogger debug = FoxtalkLogger(LogLevel::Debug, this);
+    LogState end = LogState::End;
 
-  void log_existing_error() {
-    claim({{{std::string(this->name)},
-            {"has error message"},
-            {std::string(err.str())}}});
-    err.clear();
-  }
+    void log_existing_error()
+    {
+        // err << FoxtalkLoggingAction::End;
+    }
 
-  void log_existing_debug() {
-    claim({{{std::string(this->name)},
-            {"has debug message"},
-            {std::string(debug.str())}}});
-    debug.clear();
-  }
+    void log_existing_debug()
+    {
+        // claim({
+        //     {
+        //         {std::string(this->name)},
+        //         {"has debug message"},
+        //         {std::string(debug.str())}
+        //     }
+        // });
+        // debug.clear();
+    }
 
-  void log_error(const char *msg) {
-    claim({{{std::string(this->name)},
-            {"has error message"},
-            {std::string(msg)}}});
-  }
+    void log_error(const char* msg)
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has error message"},
+                {std::string(msg)}
+            }
+        });
+    }
 
-  void log_debug(const char *msg) {
-    claim({{{std::string(this->name)},
-            {"has debug message"},
-            {std::string(msg)}}});
-  }
-  virtual void register_initial_tuples() {}
-  virtual bool poll() { return false; }
+    void log_debug(const char* msg)
+    {
+        claim({
+            {
+                {std::string(this->name)},
+                {"has debug message"},
+                {std::string(msg)}
+            }
+        });
+    }
 
-  void ffi_free_tuple(uint8_t *buffer) {
-    auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
-    free_tuple(t);
-  }
+    virtual void register_initial_tuples()
+    {
+    }
 
-  void ffi_init(uint8_t *buffer) {
-    claims.clear();
-    init();
-    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
-  }
+    virtual bool poll() { return false; }
 
-  void ffi_register_init(uint8_t *buffer) {
-    claims.clear();
-    register_initial_tuples();
-    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
-  }
+    void ffi_free_tuple(uint8_t* buffer)
+    {
+        auto [t, read_bytes] = Tuple::read_from_buffer(buffer, 0);
+        free_tuple(t);
+    }
 
-  void ffi_handle(uint8_t *buffer) {
-    // Initialize
-    claims.clear();
+    void ffi_init(uint8_t* buffer)
+    {
+        claims.clear();
+        init();
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+    }
 
-    // How many tuples in query result set?
-    auto [query_results, read_bytes] =
-        read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
+    void ffi_register_init(uint8_t* buffer)
+    {
+        claims.clear();
+        register_initial_tuples();
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+    }
 
-    // Actually work with the results
-    handle(query_results);
+    void ffi_handle(uint8_t* buffer)
+    {
+        // Initialize
+        claims.clear();
 
-    // Serialize
-    write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
-  }
+        // How many tuples in query result set?
+        auto [query_results, read_bytes] =
+            read_tuple_noun_vec_from_buffer<Tuple>(buffer, 0);
+
+        // Actually work with the results
+        handle(query_results);
+
+        // Serialize
+        write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+    }
 };
 
 #define FOXTALK_FFI_HANDLER_REG(T)                                             \

@@ -30,6 +30,23 @@ public:
     }
 };
 
+TEST_F(HandlerTests, LoggerTest)
+{
+    EmptyHandler e {};
+    e.set_logger_name("tet");
+    e.err << "This is an error message with " << 1234 << " 1234 written?"; //<< e.end;
+    e.err << std::endl;
+    ASSERT_EQ(e.claims.size(), 1);
+    const auto log = e.claims[0];
+    const auto expected = Tuple({
+        {"tet"},
+        {"has error message"},
+        {"This is an error message with 1234 1234 written?"}
+    });
+    ASSERT_EQ(log, expected);;
+
+}
+
 TEST_F(HandlerTests, EmptyHandlerClaimsNothing)
 {
     std::vector<Tuple> queryResults{
