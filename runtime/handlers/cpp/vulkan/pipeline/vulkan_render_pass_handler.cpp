@@ -100,7 +100,8 @@ protected:
             {"is a"},
             {"vk surface khr"},
             {"with surface pixel format value"},
-            TupleNoun::query()}});
+            TupleNoun::query(),
+            TupleNoun::prefix()}});
   }
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan render pass"))) {

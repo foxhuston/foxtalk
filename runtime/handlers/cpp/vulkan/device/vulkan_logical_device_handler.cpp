@@ -14,11 +14,11 @@ protected:
 
     auto result_data = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan logical device";
+          return result.at<std::string>(2) == "chosen vulkan physical device";
         });
 
     if (result_data == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      log_error("Query results did not include the vulkan device");
       return;
     }
     const auto& result = *result_data;

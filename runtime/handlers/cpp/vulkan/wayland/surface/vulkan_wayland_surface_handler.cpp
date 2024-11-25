@@ -1,9 +1,7 @@
 // pkg-config: vulkan wayland-client
 
 #include "foxtalk_tuple.h"
-#include "wayland-client.h"
 #include <foxtalk_handler.hpp>
-#include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 
@@ -19,7 +17,7 @@ class VulkanWaylandSurfaceHandler : public Handler {
       "VK_KHR_wayland_surface",
   };
 
-  VkSurfaceKHR khr_surface;
+  VkSurfaceKHR khr_surface{};
 
 protected:
   // stolen from vkcube project
@@ -151,12 +149,10 @@ protected:
   }
 
   void free_tuple(const Tuple &t) override {
-    std::cout << "In free tuple of wayland surface handler..." << std::endl;
     if (t.matches(2, std::string("vk surface khr"))) {
 
       auto surface = static_cast<VkSurfaceKHR>(t.at<void *>(0).value());
       auto instance = static_cast<VkInstance>(t.at<void *>(6).value());
-      std::cout << "About to destroy wayland surface khr" << std::endl;
       vkDestroySurfaceKHR(instance, surface, nullptr);
     }
   }
