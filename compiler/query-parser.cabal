@@ -70,7 +70,8 @@ test-suite query-parser-test
   main-is: Spec.hs
   other-modules:
       CodeGenTests
-      Parsing
+      ParsingTests
+      TokenTests
       Paths_query_parser
   autogen-modules:
       Paths_query_parser

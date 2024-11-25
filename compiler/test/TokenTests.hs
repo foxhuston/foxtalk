@@ -1,4 +1,4 @@
-module Parsing (parsingTests) where
+module TokenTests (tokenTests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -25,9 +25,6 @@ import Parse (
     )
 
 import Text.Megaparsec (runParser, errorBundlePretty)
-
-parsingTests :: TestTree
-parsingTests = testGroup "Parsing Tests" [queryTokenTests {- , parserTests -}]
 
 tokeq :: String -> [QueryToken String] -> Assertion
 tokeq src expectedToks =
@@ -56,8 +53,8 @@ handlerbodyeq src expected =
     Right returned -> returned @?= expected
     Left _         -> assertFailure "Handler body eq failure"
 
-queryTokenTests :: TestTree
-queryTokenTests = testGroup "Token tests"
+tokenTests :: TestTree
+tokenTests = testGroup "Token tests"
   [
     testGroup "Literals" [
         testCase "Sym 1"           $ "a"         `tokeq` [TLit (LSymbol "a")]
