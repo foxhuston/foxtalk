@@ -11,7 +11,7 @@ import Parse (
   , FoxtalkType (..),
   )
 
-import Data.List (find, nub)
+import Data.List (find, nubBy)
 import Data.Functor.Foldable (cata)
 import Data.Maybe (mapMaybe)
 
@@ -44,5 +44,10 @@ disambiguateTuples expr = select tuples <$> find unambig [0..maxL]
     maxL = maximum $ map length tuples
 
     unambig :: Int -> Bool
-    unambig idx = nub xs == xs
+    unambig idx = nubBy disambEq xs == xs
       where xs = select tuples idx
+
+    disambEq :: Eq a => (Int, QueryValue a) -> (Int, QueryValue a) -> Bool
+    disambEq (_, VVarIntro t1 _) (_, VVarIntro t2 _) = t1 == t2
+    disambEq a b                                     = a == b
+

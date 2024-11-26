@@ -96,9 +96,18 @@ handlerGenerationTests = testGroup "Handler Generation Tests" [
                       , VVarIntro TSymbol (3, "foo")]
 
   , testGroup "Disambiguation" [
-    testCase "Disambiguate 3" $
-      "When /x:u64/ is cool and /y:u64/ is rad {}" `disambiguatesTo` Just [(2, VLit (LSymbol "cool")), (2, VLit (LSymbol "rad"))]
-  ]
+      testCase "Disambiguate types" $
+        "When /x:i64/ is cool and /y:u64/ is rad {}" `disambiguatesTo`
+          Just [(0, VVarIntro TI64 "x"), (0, VVarIntro TU64 "y")]
+
+    , testCase "Disambiguate 1" $
+        "When lexi is cool and fox is rad {}" `disambiguatesTo`
+          Just [(0, VLit (LSymbol "lexi")), (0, VLit (LSymbol "fox"))]
+
+    , testCase "Disambiguate 3" $
+        "When /x:u64/ is cool and /y:u64/ is rad {}" `disambiguatesTo`
+          Just [(2, VLit (LSymbol "cool")), (2, VLit (LSymbol "rad"))]
+    ]
   , testGroup "Lookups" [
       testCase "Query Value" $
         queryValuePosToLookup "res" (VVarIntro TU64 (0, "x"))
