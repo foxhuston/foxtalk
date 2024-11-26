@@ -24,7 +24,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 

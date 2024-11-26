@@ -15,8 +15,7 @@ protected:
   void handle(const std::vector<Tuple> &queryResults) override {
 
     if (queryResults.size() != 4) {
-      debug << " only " << queryResults.size() << " query results in handle";
-      log_existing_debug();
+      debug << " only " << queryResults.size() << " query results in handle" << end;
       return;
     }
 
@@ -26,7 +25,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -46,7 +45,7 @@ protected:
         });
 
     if (surface_tuple == queryResults.end()) {
-      log_error("Query results did not include the vk surface khr");
+      err << "Query results did not include the vk surface khr" << end;
       return;
     }
 
@@ -62,8 +61,7 @@ protected:
         });
 
     if (physical_device_tuple == queryResults.end()) {
-      log_error(
-          "Query results did not include the chosen vulkan physical device");
+      err << "Query results did not include the chosen vulkan physical device" << end;
       return;
     }
 
@@ -72,8 +70,8 @@ protected:
 
     VkSurfaceCapabilitiesKHR surface_caps{};
 
-    // log_debug("[Swapchain] Physical device is: " << physical_device <<
-    // std::endl; log_debug("[Swapchain] Surface is: " << surface <<
+    // debug << "[Swapchain] Physical device is: " << physical_device <<
+    // std::endl; debug << "[Swapchain] Surface is: " << surface <<
     // std::endl;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface,
                                               &surface_caps);
@@ -106,7 +104,7 @@ protected:
 
         err << "surface_caps.minImageCount is too large (is: "
             << surface_caps.minImageCount << ", max: " << MAX_NUM_IMAGES
-            << this;
+            << end;
 
         return;
       }
@@ -144,15 +142,15 @@ protected:
     auto swapchainCreationResult =
         vkCreateSwapchainKHR(logical_device, &create_info, nullptr, &swapchain);
     if (swapchainCreationResult != VK_SUCCESS) {
-      log_error("Error creating swapchain!");
+      err << "Error creating swapchain!" << end;
       return;
     }
 
     uint32_t image_count = 0;
     vkGetSwapchainImagesKHR(logical_device, swapchain, &image_count, nullptr);
     if (image_count == 0) {
-      log_error("Image count from the 'get "
-                "swapchain' call returned 0");
+      err << "Image count from the 'get "
+                "swapchain' call returned 0" << end;
       return;
     }
     std::vector<VkImage> swapchain_images{image_count};
@@ -162,12 +160,11 @@ protected:
     if (image_count > MAX_NUM_IMAGES) {
       err << "Image count from the 'get swapchain' call returned "
           << image_count << ", which is higher than max num images "
-          << MAX_NUM_IMAGES << this;
+          << MAX_NUM_IMAGES << end;
       return;
     }
 
-    log_debug(std::format("found %d swapchain images", swapchain_images.size())
-                  .data());
+    debug << "found" << swapchain_images.size() << " swapchain images" << end;
 
     std::vector<TupleNoun> imageNouns = {{swapchain},
                                          {"is a"},

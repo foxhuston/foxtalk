@@ -52,13 +52,13 @@ protected:
         best_flags = flags;
       }
     }
-    std::cout <<
+    debug <<
     "chosen: " << best_camera <<
     " with pxf " << best_pixel_format <<
     "[" << best_width << "x" << best_height << "]" <<
     "(" << best_fps << " fps)" <<
     " with flags " << best_flags <<
-    " with score " << best_score);
+    " with score " << best_score << end;
     claim({{
         {"chosen foxtalk camera"},
         {"is"},

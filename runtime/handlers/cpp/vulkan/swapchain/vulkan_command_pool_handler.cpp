@@ -18,7 +18,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -39,7 +39,7 @@ protected:
                                       nullptr, &command_pool);
 
     if (result != VK_SUCCESS) {
-      log_error("Could not create command pool");
+      err << "Could not create command pool" << end;
       return;
     }
     VkCommandBufferAllocateInfo allocInfo{};
@@ -50,7 +50,7 @@ protected:
 
     if (vkAllocateCommandBuffers(logical_device, &allocInfo, &command_buffer) !=
         VK_SUCCESS) {
-      log_error("Could not create command buffer");
+      err << "Could not create command buffer" << end;
       return;
     }
     claim({{{command_pool},

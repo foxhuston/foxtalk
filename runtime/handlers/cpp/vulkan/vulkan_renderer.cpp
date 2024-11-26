@@ -46,11 +46,6 @@ protected:
   VkQueue present_queue{};
   std::vector<VkFramebuffer> buffers{};
 
-  double get_time_as_double() {
-    struct timespec t {};
-    clock_gettime(CLOCK_REALTIME, &t);
-    return (double)t.tv_sec + ((double)t.tv_nsec / 1E7);  
-  }
 
   void handle(const std::vector<Tuple> &queryResults) override {
     claim({{{"last render attempt at"}, {get_time_as_double()}, {"fence status = "}, {(int64_t)vk_fence_status}}});
@@ -60,7 +55,7 @@ protected:
         });
 
     if (command_pool_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan command pool");
+      err << "Query results did not include the vulkan command pool" << end;
       return;
     }
 
@@ -73,7 +68,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -93,7 +88,7 @@ protected:
         });
 
     if (fence_tuple == queryResults.end()) {
-      log_error("Query results did not include the fence");
+      err << "Query results did not include the fence" << end;
       return;
     }
 
@@ -105,7 +100,7 @@ protected:
         });
 
     if (render_pass_tuple == queryResults.end()) {
-      log_error("Query results did not include the render pass");
+      err << "Query results did not include the render pass" << end;
       return;
     }
 
@@ -119,7 +114,7 @@ protected:
         });
 
     if (img_available_tuple == queryResults.end()) {
-      log_error("Query results did not include the img available semaphore");
+      err << "Query results did not include the img available semaphore" << end;
       return;
     }
 
@@ -133,7 +128,7 @@ protected:
         });
 
     if (rendering_complete_tuple == queryResults.end()) {
-      log_error("Query results did not include the render done semaphore");
+      err << "Query results did not include the render done semaphore" << end;
       return;
     }
 
@@ -146,7 +141,7 @@ protected:
         });
 
     if (swapchain_tuple == queryResults.end()) {
-      log_error("Query results did not include a vulkan swapchain");
+      err << "Query results did not include a vulkan swapchain" << end;
       return;
     }
 
@@ -161,13 +156,14 @@ protected:
         });
 
     if (pipeline_tuple == queryResults.end()) {
-      log_error("Query results did not include a graphics pipeline");
+      err << "Query results did not include a graphics pipeline" << end;
       return;
     }
 
     graphics_pipeline =
         static_cast<VkPipeline>(pipeline_tuple->at<void *>(0).value());
 
+    buffers.clear();
     for (auto &t : queryResults) {
       if (!t.matches(1, std::string("is a vulkan image"))) {
         continue;
@@ -175,15 +171,14 @@ protected:
       buffers.emplace_back(static_cast<VkFramebuffer>(t.at<void *>(7).value()));
     }
     if (buffers.size() <= 0) {
-      log_error("No frame buffers found in the query results");
+      err << "No frame buffers found in the query results" << end;
       return;
     }
-    debug << "Got all tuples with" << buffers.size() << " frame buffers";
+    debug << "Got all tuples with " << buffers.size() << " frame buffers" << end;
     if (vk_fence_status == VK_SUCCESS) {
-      log_debug("READY TO GET IMAGES!!");
+      debug << "READY TO GET IMAGES!!" << end;
     } else {
-      debug << "Not ready yet : " << vk_fence_status;
-      log_existing_debug();
+      debug << "Not ready yet : " << vk_fence_status << end;
       return;
     }
 
@@ -329,10 +324,9 @@ protected:
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-      log_error("failed to record command buffer!");
+      err << "failed to record command buffer!" << end;
     } else {
-      debug << "Recorded command buffer for framebuffer index " << imageIndex;
-      log_existing_debug();
+      debug << "Recorded command buffer for framebuffer index " << imageIndex << end;
     }
   }
 

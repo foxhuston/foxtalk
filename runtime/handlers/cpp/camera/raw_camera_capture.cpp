@@ -34,7 +34,7 @@ public:
   void close_stream() {
 
     if (ioctl(fd, VIDIOC_STREAMOFF, &buf_type) == -1) {
-      log_error("Error turning stream OFF?? : " << strerror(errno));
+      err << "Error turning stream OFF?? : " << strerror(errno) << end;
     }
     has_setup_buffers = false;
     current_buffer_index = -1;
@@ -47,7 +47,7 @@ public:
     usleep(100000);
   }
   ~RawCameraCaptureHandler() {
-    // log_debug("Raw camera capture dropping the fd: " << fd);
+    // debug << "Raw camera capture dropping the fd: " << fd << end;
     close_stream();
   }
   bool poll() override {
@@ -82,7 +82,7 @@ protected:
 
     fd = open(camera.c_str(), O_RDWR | O_NONBLOCK);
     if (fd < 0) {
-      log_error("Failed to open camera " << camera);
+      err << "Failed to open camera " << camera << end;
       return false;
     }
 
@@ -90,7 +90,7 @@ protected:
     ioctl(fd, VIDIOC_QUERYCAP, &cap);
 
     if (!(cap.capabilities & buf_type)) {
-      log_error("Video camera " << camera << " does not have the V4L2_BUF_TYPE_VIDEO_CAPTURE capability!");
+      err << "Video camera " << camera << " does not have the V4L2_BUF_TYPE_VIDEO_CAPTURE capability!" << end;
       return false;
     }
 
@@ -102,7 +102,7 @@ protected:
     fmt.fmt.pix.pixelformat = pixel_format;
 
     if (ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
-        log_error("Error setting video format for " << camera << ": " << strerror(errno));
+        err << "Error setting video format for " << camera << ": " << strerror(errno) << end;
         return false;
     }
 
@@ -114,7 +114,7 @@ protected:
 
 
     if (ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
-        log_error("Error requesting video buffers: " << strerror(errno));
+        err << "Error requesting video buffers: " << strerror(errno) << end;
         return false;
     }
 
@@ -128,7 +128,7 @@ protected:
       off_t offset = 0;
 
       if (ioctl(fd, VIDIOC_QUERYBUF, &buf) == -1) {
-        log_error("Error getting frame data for buffer " << strerror(errno));
+        err << "Error getting frame data for buffer " << strerror(errno) << end;
         return false;
       }
 
@@ -144,7 +144,7 @@ protected:
       buffers[i].length = length;
 
       if (buffers[i].mem == MAP_FAILED) {
-        log_error("Error mmaping frame data for buffer " << i << " | " << strerror(errno));
+        err << "Error mmaping frame data for buffer " << i << " | " << strerror(errno) << end;
         return false;
       }
       
@@ -153,7 +153,7 @@ protected:
 
 
     if (ioctl(fd, VIDIOC_STREAMON, &buf_type) == -1) {
-      log_error("Error turning stream on: " << strerror(errno));
+      err << "Error turning stream on: " << strerror(errno) << end;
       return false;
     }
 
@@ -166,10 +166,10 @@ protected:
       buf.index = i;
 
       if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
-        log_error("[setup_buffers] Error queueing buffer " << i << " | " << strerror(errno));
+        err << "[setup_buffers] Error queueing buffer " << i << " | " << strerror(errno) << end;
         return false;
       } 
-      // log_debug("Setting queued to true for " << i);
+      // debug << "Setting queued to true for " << i << end;
       currently_queued_buffers[i] = true;
       
     }
@@ -196,7 +196,7 @@ protected:
       if(setup_buffers(camera, pixel_format, width, height, fps)) {
         has_setup_buffers = true;
       } else {
-        log_error("Error setting up buffers!");
+        err << "Error setting up buffers!" << end;
         return;
       }
     }
@@ -211,7 +211,7 @@ protected:
 
     auto res = ioctl(fd, VIDIOC_DQBUF, &buf);
     if(res == 0) {
-      // log_debug("Setting queued to false for " << current_buffer_index);
+      // debug << "Setting queued to false for " << current_buffer_index << end;
       currently_queued_buffers[current_buffer_index] = false;
       claim({
         {{camera},
@@ -230,7 +230,7 @@ protected:
         }});
     }
     else {
-      log_error("[handle] Error dequeueing buffer " << current_buffer_index << " | " << strerror(errno));
+      err << "[handle] Error dequeueing buffer " << current_buffer_index << " | " << strerror(errno) << end;
     }
     
 
@@ -242,7 +242,7 @@ protected:
     auto buffer_index = t.at<int64_t>(10).value();
     // if the tuple matches "/dev/video0 has image Cptr..."
     // Requeue the buffer pointed to @ Cptr
-    // log_debug("Requing buffer # " << buffer_index);
+    // debug << "Requing buffer # " << buffer_index << end;
 
     // TODO: Bounds check on buffer index
     
@@ -253,10 +253,10 @@ protected:
       buf.index = buffer_index;
 
       if (ioctl(fd, VIDIOC_QBUF, &buf) == -1) {
-        log_error("[free_tuple] Error queueing buffer " << buffer_index << " | " << strerror(errno));
+        err << "[free_tuple] Error queueing buffer " << buffer_index << " | " << strerror(errno) << end;
         return;
       }
-      // log_debug("Setting queued to true for " << buffer_index);
+      // debug << "Setting queued to true for " << buffer_index << end;
       currently_queued_buffers[buffer_index] = true;
       
     }

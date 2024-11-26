@@ -40,7 +40,7 @@ protected:
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> extensions(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-    // log_debug("available extensions:\n";
+    // debug << "available extensions:\n";
 
 
 
@@ -55,7 +55,7 @@ protected:
     }
 
     for (auto i: enabled_extensions) {
-      log_debug(i);
+      debug << i << end;
     } 
 
     VkInstanceCreateInfo createInfo{};
@@ -71,11 +71,11 @@ protected:
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
     {
-      log_error("Failed to create vk instance..");
+      err << "Failed to create vk instance.." << end;
       return;
     }
 
-    log_debug("Created Instance!!");
+    debug << "Created Instance!!" << end;
 
     // Put <CPtr(instance), "is the", "vulkan instance"> into db/*  */
     claim({{{instance}, {"is the"}, {"vulkan instance"}}});

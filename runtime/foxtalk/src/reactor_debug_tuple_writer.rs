@@ -40,8 +40,8 @@ impl ReactorDebugTupleWriter {
     pub fn update_reactor_tuples(&mut self, reactor_guard: &mut MutexGuard<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>) {
         let mut objects: Vec<String> = vec![];
         let mut handlers: Vec<String> = vec![];
-        let mut debug_messages: Vec<String> = vec![];
-        let mut error_messages: Vec<String> = vec![];
+        let mut debug_messages: Vec<(String, f64)> = vec![];
+        let mut error_messages: Vec<(String, f64)> = vec![];
 
 
         for (k, v) in reactor_guard
@@ -61,10 +61,20 @@ impl ReactorDebugTupleWriter {
             if nouns.contains(&TupleNoun::Symbol("handler".to_string())) {
                 let so_name = name.replace(self.so_path.as_str(), "");
                 handlers.push(format!("{}", so_name));
-            } else if second == &TupleNoun::Symbol("has debug message".to_string()) {
-                debug_messages.push(format!("[{}] {}", name, nouns[2].as_str()));
-            } else if second == &TupleNoun::Symbol("has error message".to_string()) {
-                error_messages.push(format!("[{}] {}", name, nouns[2].as_str()))
+            } else if second == &TupleNoun::Symbol("has debug message".to_string()) && nouns.len() > 3 {
+                let msg = nouns[2].as_str();
+                if let TupleNoun::Double(c) = nouns[3] {
+                    debug_messages.push((format!("[{}] {} [{}]", name, msg, c), c));
+                } else {
+                    objects.push(format!("{:?} [{:?}]", k, v));
+                }
+            } else if second == &TupleNoun::Symbol("has error message".to_string()) && nouns.len() > 3{
+                let msg = nouns[2].as_str();
+                if let TupleNoun::Double(c) = nouns[3] {
+                    error_messages.push((format!("[{}] {} [{}]", name, msg, c), c));
+                } else {
+                    objects.push(format!("{:?} [{:?}]", k, v));
+                }
             } else {
                 objects.push(format!("{:?} [{:?}]", k, v));
             }
@@ -88,8 +98,9 @@ impl ReactorDebugTupleWriter {
             "listing all handlers",
             handler_string_repr.as_str(),
         );
-        debug_messages.sort();
-        let debug_string_repr = debug_messages.join("\n");
+        debug_messages.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let debug_msgs: Vec<String> = debug_messages.iter().map(|(a, _)| { a.clone() }).collect();
+        let debug_string_repr = debug_msgs.join("\n");
 
         let new_debug_tuple = Tuple::triple_from_ssss(
             "foxtalk reactor",
@@ -97,8 +108,9 @@ impl ReactorDebugTupleWriter {
             "with handler debug messages",
             debug_string_repr.as_str(),
         );
-        error_messages.sort();
-        let error_string_repr = error_messages.join("\n");
+        error_messages.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let err_msgs: Vec<String> = error_messages.iter().map(|(a, _)| { a.clone() }).collect();
+        let error_string_repr = err_msgs.join("\n");
 
         let new_error_tuple = Tuple::triple_from_ssss(
             "foxtalk reactor",

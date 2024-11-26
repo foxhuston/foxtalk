@@ -31,7 +31,7 @@ protected:
       std::vector<VkPhysicalDevice> devices(deviceCount);
       vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-      debug << "found " << deviceCount << " devices" << this;
+      debug << "found " << deviceCount << " devices" << end;
 
       for (auto d : devices) {
         vk::PhysicalDevice dev(d);

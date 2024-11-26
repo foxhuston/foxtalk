@@ -28,7 +28,7 @@ protected:
         });
 
     if (surface_tuple == queryResults.end()) {
-      log_error("Query results did not include the surface tuple");
+      err << "Query results did not include the surface tuple" << end;
       return;
     }
 
@@ -42,7 +42,7 @@ protected:
         });
 
     if (result_data == queryResults.end()) {
-      log_error("Query results did not include the vulkan device");
+      err << "Query results did not include the vulkan device" << end;
       return;
     }
     const auto &result = *result_data;

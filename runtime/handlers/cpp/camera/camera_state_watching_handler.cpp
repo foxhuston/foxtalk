@@ -36,13 +36,13 @@ public:
           if (strncmp(event->name, "video", 5) == 0) {
             if (event->mask & IN_CREATE || event->mask & IN_MOVED_TO) {
 
-              log_debug("New camera detected: " << event->name);
+              debug << "New camera detected: " << event->name << end;
               active_cameras.insert(event->name);
               to_ret = true;
             }
             if (event->mask & IN_DELETE || event->mask & IN_MOVED_FROM) {
 
-              log_debug("Camera removed: " << event->name);
+              debug << "Camera removed: " << event->name << end;
               active_cameras.erase(event->name);
               to_ret = true;
             }

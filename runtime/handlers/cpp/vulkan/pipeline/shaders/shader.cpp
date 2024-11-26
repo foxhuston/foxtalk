@@ -40,8 +40,7 @@ protected:
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
         VK_SUCCESS) {
-      err << "Could not create shader module from  " << file_name;
-      log_existing_error();
+      err << "Could not create shader module from  " << file_name << end;
       return std::nullopt;
     }
     return shaderModule;
@@ -54,7 +53,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 

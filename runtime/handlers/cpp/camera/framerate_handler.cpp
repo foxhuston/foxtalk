@@ -14,7 +14,7 @@ class FrameRateHandler : public Handler
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
     for (auto q: queryResults) {
-      // log_debug(q);
+      // debug << q << end;
       auto camera = q.at<std::string>(0).value();
       auto flags =  q.at<uint64_t>(4).value();
       auto pixel_format = q.at<uint64_t>(2).value();
@@ -22,7 +22,7 @@ protected:
       auto height = q.at<uint64_t>(8).value();
       int fd = open(camera.c_str(), O_NONBLOCK);
       if (fd < 0) {
-        log_error("Failed to open camera " << camera);
+        err << "Failed to open camera " << camera << end;
         return;
       }
 
@@ -48,7 +48,7 @@ protected:
           {"with fps"},
           {fps},}});
 
-          // log_debug(frmival.discrete.numerator << "/" << frmival.discrete.denominator << " fps");
+          // debug << frmival.discrete.numerator << "/" << frmival.discrete.denominator << " fps" << end;
       }
       close(fd);
     }
