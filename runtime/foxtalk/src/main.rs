@@ -7,11 +7,9 @@ use rust_tuple_reactor_serde::tuple::Tuple;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
-use std::ptr::null_mut;
 use crate::reactor_debug_tuple_writer::ReactorDebugTupleWriter;
 
 use log::*;
-use nc::exit;
 
 mod commands_json_creator;
 mod cpp_handler_builder;
@@ -24,16 +22,16 @@ fn main() {
     dotenv::dotenv().ok();
 
     let sa = nc::new_sigaction(|errcode| {
-        match unsafe { &reactor_adding_so_handler::last_loaded_path } {
+        match unsafe { &reactor_adding_so_handler::LAST_LOADED_PATH } {
             Some(path) => {
                 println!("CRITICAL FAILURE! Got {errcode} when loading {path:?}; I'M REMOVING IT!!!");
-                std::fs::remove_file(path).unwrap();
-                unsafe { std::process::abort(); }
+                fs::remove_file(path).unwrap();
+                std::process::abort();
             }
 
             None => {
                 println!("CRITICAL FAILURE! Got {errcode} when loading a handler. I DON'T KNOW WHICH ONE IT IS!");
-                unsafe { std::process::abort(); }
+                std::process::abort();
             }
         }
     });

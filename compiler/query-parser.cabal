@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Codegen
+      Codegen.Disambiguate
       Parse
       Tokenize
       Tuple
@@ -36,6 +37,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      ScopedTypeVariables
       DeriveFunctor
       DeriveFoldable
       DeriveTraversable
@@ -69,7 +71,8 @@ test-suite query-parser-test
   main-is: Spec.hs
   other-modules:
       CodeGenTests
-      Parsing
+      ParsingTests
+      TokenTests
       Paths_query_parser
   autogen-modules:
       Paths_query_parser

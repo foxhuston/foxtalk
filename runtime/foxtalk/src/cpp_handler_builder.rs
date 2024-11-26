@@ -93,6 +93,27 @@ impl FileWatcherHandlers for CppFileBuilder {
                     error!("Error while copying so file from tup for {:?}: {:?}", full_path, e);
                 }
 
+                info!("Copying any .spv shader files created into the build folder");
+                if let Ok(dir) = fs::read_dir(parent_path.clone()) {
+                    for u in dir {
+                        if let Ok(e) = u {
+                            if let Some(file) = e.file_name().to_str() {
+                                if file.ends_with(".spv") {
+                                    let from_file = format!("{}/{}", parent_path.clone(), file);
+                                    let to_file = format!("{}/{}", parent_so_path.clone(), file);
+                                    let status = Command::new("cp")
+                                        .arg(from_file.clone())
+                                        .arg(to_file.clone())
+                                        .status();
+                                    if let Err(e) = status {
+                                        error!("Error {} while copying spv file from tup for {:?} => {:?}", e, from_file, to_file);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 return;
             }
 

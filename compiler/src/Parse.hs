@@ -73,12 +73,13 @@ instance (Show a, Ord a) => VisualStream [a] where
 
 instance (Ord a) => TraversableStream [a] where
   reachOffsetNoLine 0 p = p
-  reachOffsetNoLine offset p = undefined
+  reachOffsetNoLine offset p = p
 
 data QueryValue a =
     VLit QueryLiteral
   | VVarIntro FoxtalkType a
   | VVarBinding a
+  | VPrefixMarker
   | VVarIntroLit FoxtalkType a QueryLiteral
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -126,6 +127,11 @@ varBinding = token sym Set.empty
 
 varIntroLit :: Parser (QueryValue String)
 varIntroLit = token sym Set.empty
+  where sym TPrefix = Just VPrefixMarker
+        sym _       = Nothing
+
+prefixMarker :: Parser (QueryValue String)
+prefixMarker = token sym Set.empty
   where sym (TVarIntroLit t s b) = Just $ VVarIntroLit t s b
         sym _                    = Nothing
 
@@ -164,9 +170,18 @@ queryBranch = do
   rest <- query
   return $ (oper, rest)
 
+queryValues :: Parser ([QueryValue String])
+queryValues = do
+  values <- some queryValue
+  maybePrefix <- optional prefixMarker
+
+  case maybePrefix of
+    Nothing -> return values
+    Just prefix -> return $ values ++ [prefix]
+
 query :: Parser (QueryExpr String)
 query = do
-  vals      <- some queryValue
+  vals      <- queryValues
   maybeRest <- optional $ queryBranch
   case maybeRest of
     Nothing           -> return $ EQueryTuple vals
@@ -206,7 +221,7 @@ foxtalkProgram = some foxtalkExpr
 
 parseProgram :: String -> String -> Either String [FoxtalkExpr String]
 parseProgram fileName src =
-  case queryTokens src fileName of
+  case queryTokens fileName src of
     Right tokens ->
       case runParser foxtalkProgram fileName tokens of
         Right exprs -> Right exprs

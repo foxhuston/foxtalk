@@ -7,3 +7,4 @@ edition = "2021"
 rust_tuple_reactor_serde = { path = "../../../lib/rust/tuple" }
 log = "0.4.22"
 lazy_static = "1.5.0"
+parking_lot = { version = "0.12.3", features = ["arc_lock"] }

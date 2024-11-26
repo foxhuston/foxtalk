@@ -45,6 +45,8 @@ protected:
         .samples = VK_SAMPLE_COUNT_1_BIT, // why?
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     }};
@@ -89,10 +91,7 @@ protected:
         TupleNoun::query(),
         {"is the"},
         {"vulkan logical device"},
-        {"with graphics queue"},
-        TupleNoun::query(),
-        {"with queue family index"},
-        TupleNoun::query(),
+        TupleNoun::prefix(),
     }});
 
     claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});

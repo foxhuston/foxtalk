@@ -187,6 +187,7 @@ dependencies = [
  "colog",
  "dotenv",
  "inotify",
+ "lazy_static",
  "log",
  "nc",
  "pkg-config",

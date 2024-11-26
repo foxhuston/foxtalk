@@ -3,6 +3,8 @@ module CodeGenTests (codeGenerationTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import Tokenize (queryTokens)
+
 import Parse (
     FoxtalkType(..)
   , QueryLiteral(..)
@@ -23,17 +25,13 @@ import Codegen (
   , genHandleBody
   )
 
+import Codegen.Disambiguate (disambiguateTuples)
 
-codeGenerationTests :: TestTree
-codeGenerationTests = testGroup "Code Generation Tests" [
-    queryGenerationTests
-  -- , handlerGenerationTests
-  -- , claimGenerationTests
-  ]
+----- UTILS --------------------------------------------------------------------
 
 withSingleFoxtalkExpr :: (Eq a, Show a) => (FoxtalkExpr String -> Either String a) -> String -> a -> Assertion
 withSingleFoxtalkExpr f src expected =
-  case parseProgram src "CodeGenTests" of
+  case parseProgram "CodeGenTests" src of
     Right [singleExpr] ->
       case f singleExpr of
         Right out -> out @?= expected
@@ -47,6 +45,21 @@ queryeq = withSingleFoxtalkExpr exprToHandlerQuery
 poseq :: String -> FoxtalkExpr (Int, String) -> Assertion
 poseq = withSingleFoxtalkExpr (pure . foxtalkExprToPosition)
 
+disambiguatesTo :: String -> Maybe [(Int, QueryValue String)] -> Assertion
+disambiguatesTo src expected =
+  case parseProgram "CodeGenTests" src of
+    Right [expr] -> disambiguateTuples expr @?= expected
+    Right _  -> assertFailure "Too many expressions in parser output!"
+    Left err -> assertFailure err
+
+----- TESTS --------------------------------------------------------------------
+
+codeGenerationTests :: TestTree
+codeGenerationTests = testGroup "Code Generation Tests" [
+    queryGenerationTests
+  , handlerGenerationTests
+  -- , claimGenerationTests
+  ]
 
 queryGenerationTests :: TestTree
 queryGenerationTests = testGroup "Query Tuple Generation Tests" [
@@ -82,27 +95,31 @@ handlerGenerationTests = testGroup "Handler Generation Tests" [
                       , VLit (LSymbol "is"), VLit (LSymbol "a")
                       , VVarIntro TSymbol (3, "foo")]
 
+  , testGroup "Disambiguation" [
+    testCase "Disambiguate 3" $
+      "When /x:u64/ is cool and /y:u64/ is rad {}" `disambiguatesTo` Just [(2, VLit (LSymbol "cool")), (2, VLit (LSymbol "rad"))]
+  ]
   , testGroup "Lookups" [
       testCase "Query Value" $
         queryValuePosToLookup "res" (VVarIntro TU64 (0, "x"))
           @?= Just "auto x = res.at<uint64_t>(0)"
 
-    , testCase "Claim Expr" $
-        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
-          Just []
+    -- , testCase "Claim Expr" $
+    --     (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "Claim /x:u64/") @?=
+    --       Just []
 
-    , testCase "When Expr" $
-        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
-          Just [
-              "auto x = res.at<uint64_t>(0)"
-          ]
+    -- , testCase "When Expr" $
+    --     (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ {}") @?=
+    --       Just [
+    --           "auto x = res.at<uint64_t>(0)"
+    --       ]
 
-    , testCase "When Expr 2" $
-        (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
-          Just [
-            "auto x = res.at<uint64_t>(0)"
-          , "auto foo = res.at<std::string>(3)"
-          ]
+    -- , testCase "When Expr 2" $
+    --     (foxtalkExprToLookup "res" . (!!0) <$> parseProgram "When /x:u64/ is a /foo:symbol/ {}") @?=
+    --       Just [
+    --         "auto x = res.at<uint64_t>(0)"
+    --       , "auto foo = res.at<std::string>(3)"
+    --       ]
     ]
 
 --     -- , testGroup "Guards" [

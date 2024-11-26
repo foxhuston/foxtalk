@@ -1,10 +1,11 @@
 import Test.Tasty
 
-import Parsing (parsingTests)
+import TokenTests (tokenTests)
+import ParsingTests (parsingTests)
 import CodeGenTests (codeGenerationTests)
 
 main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests" $ [parsingTests, codeGenerationTests]
+tests = testGroup "Tests" $ [tokenTests, parsingTests, codeGenerationTests]

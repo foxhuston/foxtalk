@@ -12,8 +12,6 @@ struct FoxtalkVkBufferPtrs {
   VkDeviceMemory mem{};
   VkImage image{};
   VkFramebuffer framebuffer{};
-  VkFence fence{};
-  VkCommandBuffer cmd_buffer{};
 };
 
 class VulkanSwapchainBufferHandler : public Handler {
@@ -34,8 +32,6 @@ protected:
 
     auto logical_device =
         static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
-
-    auto queue_family_index = logical_device_tuple->at<uint64_t>(6).value();
 
     auto swapchain_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -91,7 +87,7 @@ protected:
                 "swapchain tuple!");
       return;
     }
-
+    debug << "Need to create images: " << image_symbol_idx.value() + 1 << " through " <<  swapchain_tuple->size(); log_existing_debug();
     for (size_t i = image_symbol_idx.value() + 1; i < swapchain_tuple->size();
          i++) {
       ptrs.push_back(FoxtalkVkBufferPtrs{});
@@ -143,30 +139,6 @@ protected:
         return;
       }
 
-      VkFenceCreateInfo fence_create_info{
-          .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-          .flags = VK_FENCE_CREATE_SIGNALED_BIT};
-      r = vkCreateFence(logical_device, &fence_create_info, nullptr,
-                        &ptrs[ptrs_index].fence);
-      if (r != VK_SUCCESS) {
-        log_error("[Vulkan Swapchain Buffer Handler] Could not create fence");
-        return;
-      }
-
-      VkCommandBufferAllocateInfo cb_create_info{
-
-          .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-          .commandPool = command_pool,
-          .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-          .commandBufferCount = 1,
-      };
-      r = vkAllocateCommandBuffers(logical_device, &cb_create_info,
-                                   &ptrs[ptrs_index].cmd_buffer);
-      if (r != VK_SUCCESS) {
-        log_error("Could not allocate command buffer");
-        return;
-      }
-
       claim({{
           {ptrs[ptrs_index].image},
           {"is a vulkan image"},
@@ -176,10 +148,8 @@ protected:
           {ptrs[ptrs_index].view},
           {"with frame buffer"},
           {ptrs[ptrs_index].framebuffer},
-          {"with fence"},
-          {ptrs[ptrs_index].fence},
-          {"with command buffer"},
-          {ptrs[ptrs_index].cmd_buffer},
+          {"using swapchain"},
+          {swapchain},
           // {"with memory at"},
       }});
 
@@ -203,10 +173,6 @@ protected:
     claim({{TupleNoun::query(),
             {"is the"},
             {"vulkan logical device"},
-            {"with graphics queue"},
-            TupleNoun::query(),
-            {"with queue family index"},
-            TupleNoun::query(),
             TupleNoun::prefix()}});
 
     claim({{TupleNoun::query(),
@@ -225,12 +191,9 @@ protected:
 
       auto img_view = static_cast<VkImageView>(t.at<void *>(5).value());
       auto fb = static_cast<VkFramebuffer>(t.at<void *>(7).value());
-      auto fence = static_cast<VkFence>(t.at<void *>(9).value());
-      auto cmd_buffer = static_cast<VkCommandBuffer>(t.at<void *>(11).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(3).value());
 
       vkDestroyFramebuffer(logical_device, fb, nullptr);
-      vkDestroyFence(logical_device, fence, nullptr);
       vkDestroyImageView(logical_device, img_view, nullptr);
     }
   }
