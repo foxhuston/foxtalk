@@ -16,6 +16,7 @@ anyhow = "1.0.92"
 regex = "1.11.1"
 #crash-handler = {  version = "0.6.2", features = ["default", "debug-print"] }
 nc = "0.9.5"
+lazy_static = "1.5.0"
 
 
 [dependencies.uuid]

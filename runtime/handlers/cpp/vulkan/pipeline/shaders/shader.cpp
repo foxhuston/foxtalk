@@ -62,10 +62,10 @@ protected:
         static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
 
     auto frag_shader_path = std::format("{}{}", std::getenv("SO_PATH"),
-                                        "/vulkan/pipeline/shaders/frag.spv");
+                                        "/vulkan/pipeline/shaders/shader.frag.spv");
 
     auto vert_shader_path = std::format("{}{}", std::getenv("SO_PATH"),
-                                        "/vulkan/pipeline/shaders/vert.spv");
+                                        "/vulkan/pipeline/shaders/shader.vert.spv");
 
     auto vertShaderCode = readFile(vert_shader_path);
     auto fragShaderCode = readFile(frag_shader_path);

@@ -2,7 +2,6 @@ use crate::recursive_inotify::FileWatcherHandlers;
 use reactor::reactor::{Reactor, ReactorProgramId};
 use reactor::triples_reactor::triple_query_engine::TripleQueryEngine;
 use std::fmt::{Debug, Formatter};
-use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use rust_tuple_reactor_serde::tuple::Tuple;
 use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
@@ -10,7 +9,7 @@ use walkdir::WalkDir;
 
 use log::*;
 
-pub static mut last_loaded_path: Option<String> = None;
+pub static mut LAST_LOADED_PATH: Option<String> = None;
 
 pub struct ReactorAddingSoHandler {
     reactor: Arc<Mutex<Reactor<Vec<Tuple>, TripleQueryEngine<ReactorProgramId>, Tuple>>>,
@@ -27,7 +26,7 @@ impl FileWatcherHandlers for ReactorAddingSoHandler {
         if extension == "so" {
             if let Some(tuple) = self.get_handler_tuple(full_path.clone()) {
                 // std::thread::sleep(std::time::Duration::from_millis(1));
-                unsafe { last_loaded_path = Some(full_path); }
+                unsafe { LAST_LOADED_PATH = Some(full_path); }
 
                 debug!("Adding handler {:?}", tuple);
                 let mut reactor = self.reactor.lock().unwrap();
