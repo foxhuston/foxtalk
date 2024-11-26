@@ -12,6 +12,10 @@
 
 #include "foxtalk_tuple.h"
 
+class FoxtalkLoggingBuffer: public std::streambuf
+{
+    public:
+};
 constexpr size_t FOXTALK_IPC_BUFFER_SIZE = 10 * 1024 * 1024; // 10Mb
 
 ///// C FFI ////////////////////////////////////////////////////////////////////

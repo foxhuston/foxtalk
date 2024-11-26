@@ -18,14 +18,14 @@ protected:
       return;
     }
     
-    log_error("Selecting which physical vulkan device out of a list is not implemented.");
+    err << "Selecting which physical vulkan device out of a list is not implemented." << end;
     // for(auto& result : queryResults) {
     //   auto props = result.struct_at<vk::PhysicalDeviceProperties>(4).value();
     //   auto features = result.struct_at<vk::PhysicalDeviceFeatures>(6).value();
 
 
-    //   log_debug("Found props with name " << props.deviceName);
-    //   log_debug(std::boolalpha << "can device do geometry shaders? " << (bool)features.geometryShader);
+    //   debug << "Found props with name " << props.deviceName << end;
+    //   debug << std::boolalpha << "can device do geometry shaders? " << (bool)features.geometryShader << end;
     //   if (features.geometryShader) {
 
     //   }

@@ -26,7 +26,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -38,10 +38,10 @@ protected:
           return result.at<std::string>(2) == "vulkan swapchain";
         });
 
-    log_debug("found the swapchain tuple...");
+    debug << "found the swapchain tuple..." << end;
 
     if (swapchain_tuple == queryResults.end()) {
-      log_error("Query results did not include a vulkan swapchain");
+      err << "Query results did not include a vulkan swapchain" << end;
       return;
     }
 
@@ -57,7 +57,7 @@ protected:
         });
 
     if (render_pass_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan render pass");
+      err << "Query results did not include the vulkan render pass" << end;
       return;
     }
 
@@ -70,29 +70,27 @@ protected:
         });
 
     if (command_pool_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan command pool");
+      err << "Query results did not include the vulkan command pool" << end;
       return;
     }
 
     auto command_pool =
         static_cast<VkCommandPool>(command_pool_tuple->at<void *>(0).value());
 
-    log_debug("found the swapchain!");
-    std::cout << "";
+    debug << "found the swapchain!" << end;
     int ptrs_index = 0;
     auto image_symbol_idx =
         swapchain_tuple->index_of(std::string("with images"));
     if (image_symbol_idx == std::nullopt) {
-      log_error(" Image pointers not found in "
-                "swapchain tuple!");
+      err << " Image pointers not found in swapchain tuple!" << end;
       return;
     }
-    debug << "Need to create images: " << image_symbol_idx.value() + 1 << " through " <<  swapchain_tuple->size(); log_existing_debug();
+    debug << "Need to create images: " << image_symbol_idx.value() + 1 << " through " <<  swapchain_tuple->size() << end;
     for (size_t i = image_symbol_idx.value() + 1; i < swapchain_tuple->size();
          i++) {
       ptrs.push_back(FoxtalkVkBufferPtrs{});
       auto img = static_cast<VkImage>(swapchain_tuple->at<void *>(i).value());
-      debug << "Found image at ptr " <<  img << this;
+      debug << "Found image at ptr " <<  img << end;
       ptrs[ptrs_index].image = img;
 
       VkImageViewCreateInfo iv_create_info{
@@ -121,7 +119,7 @@ protected:
       r = vkCreateImageView(logical_device, &iv_create_info, nullptr,
                             &ptrs[ptrs_index].view);
       if (r != VK_SUCCESS) {
-        log_error("Could not create image view");
+        err << "Could not create image view" << end;
         return;
       }
       VkFramebufferCreateInfo fb_create_info{
@@ -135,7 +133,7 @@ protected:
       r = vkCreateFramebuffer(logical_device, &fb_create_info, nullptr,
                               &ptrs[ptrs_index].framebuffer);
       if (r != VK_SUCCESS) {
-        log_error("Could not create frame buffer");
+        err << "Could not create frame buffer" << end;
         return;
       }
 

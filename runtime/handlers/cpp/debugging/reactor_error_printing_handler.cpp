@@ -14,7 +14,7 @@ protected:
       auto all_tuples = t.at<std::string>(3);
       if (all_tuples.has_value())
       {
-        // log_debug("Testing");
+        // debug << "Testing" << end;
         std::string filename("/tmp/foxtalk_errors.txt");
         std::ofstream stream (filename);
         if (!stream.is_open()) {

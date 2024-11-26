@@ -26,7 +26,6 @@ public:
     void handle(const std::vector<Tuple>& queryResults) override
     {
         match_count = queryResults.size();
-        std::cout << claims.size() << std::endl;
     }
 };
 
@@ -34,16 +33,38 @@ TEST_F(HandlerTests, LoggerTest)
 {
     EmptyHandler e {};
     e.set_logger_name("tet");
-    e.err << "This is an error message with " << 1234 << " 1234 written?"; //<< e.end;
-    e.err << std::endl;
-    ASSERT_EQ(e.claims.size(), 1);
-    const auto log = e.claims[0];
-    const auto expected = Tuple({
+    e.err << "This is an error message with " << 1234 << " 1234 written?" << e.end;
+
+    e.err << "This is a second error message with " << 1230004 << e.end;
+
+    e.debug << "debug message yay" << e.end;
+    ASSERT_EQ(e.claims.size(), 3);
+    auto log = e.claims[0];
+    auto expected = Tuple({
         {"tet"},
         {"has error message"},
-        {"This is an error message with 1234 1234 written?"}
+        {"This is an error message with 1234 1234 written?"},
+        {log.at<double_t>(3).value()}
     });
-    ASSERT_EQ(log, expected);;
+    ASSERT_EQ(log, expected);
+
+    log = e.claims[1];
+    expected = Tuple({
+        {"tet"},
+        {"has error message"},
+        {"This is a second error message with 1230004"},
+        {log.at<double_t>(3).value()}
+    });
+    ASSERT_EQ(log, expected);
+
+    log = e.claims[2];
+    expected = Tuple({
+        {"tet"},
+        {"has debug message"},
+        {"debug message yay"},
+        {log.at<double_t>(3).value()}
+    });
+    ASSERT_EQ(log, expected);
 
 }
 

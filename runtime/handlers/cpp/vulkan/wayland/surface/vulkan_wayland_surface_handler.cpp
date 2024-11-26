@@ -35,7 +35,7 @@ protected:
                                          &num_formats, formats.data());
 
     for (const auto &format : formats) {
-      // log_debug("supported px format: " << format.format << " with color
+      // debug << "supported px format: " << format.format << " with color
       // space " << format.colorSpace);
       switch (format.format) {
       case VK_FORMAT_R8G8B8A8_SRGB:
@@ -53,15 +53,15 @@ protected:
         continue;
       }
     }
-    log_error("Could not choose a pixel format given the created khr surface");
+    err << "Could not choose a pixel format given the created khr surface" << end;
     return std::nullopt;
   }
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    // log_debug("Wayland Surface Handler Called with " << queryResults.size()
+    // debug << "Wayland Surface Handler Called with " << queryResults.size()
     //           << " query result(s).");
 
-    // log_debug("Hello");
+    // debug << "Hello" << end;
     if (queryResults.size() != 3) {
       return;
     }
@@ -72,7 +72,7 @@ protected:
         });
 
     if (instance_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan instance");
+      err << "Query results did not include the vulkan instance" << end;
       return;
     }
 
@@ -85,8 +85,8 @@ protected:
         });
 
     if (physical_device_tuple == queryResults.end()) {
-      log_error(
-          "Query results did not include the chosen vulkan physical device");
+      err << 
+          "Query results did not include the chosen vulkan physical device" << end;
       return;
     }
 
@@ -99,7 +99,7 @@ protected:
         });
 
     if (wayland_tuple == queryResults.end()) {
-      log_error("Query results did not include the wayland display");
+      err << "Query results did not include the wayland display" << end;
       return;
     }
 
@@ -108,7 +108,7 @@ protected:
     wl_surface *surface =
         static_cast<wl_surface *>(wayland_tuple->at<void *>(4).value());
 
-    // log_debug("Found all three tuples");
+    // debug << "Found all three tuples" << end;
     auto get_wayland_presentation_support =
         (PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR)
             vkGetInstanceProcAddr(
@@ -118,7 +118,7 @@ protected:
             instance, "vkCreateWaylandSurfaceKHR");
 
     if (!get_wayland_presentation_support(physical_device, 0, display)) {
-      log_error("Vulkan not supported on given Wayland surface");
+      err << "Vulkan not supported on given Wayland surface" << end;
       return;
     }
 
@@ -131,7 +131,7 @@ protected:
     create_wayland_surface(instance, &surface_create_info, nullptr,
                            &khr_surface);
 
-    log_debug("Wayland supported and surface created!");
+    debug << "Wayland supported and surface created!" << end;
 
     if (auto maybe_chosen_surface_format =
             choose_surface_format(physical_device)) {
@@ -144,8 +144,8 @@ protected:
               {instance}}});
       return;
     }
-    log_error(
-        "Could not create a vk surface khr from the wayland surface handler!");
+    err << 
+        "Could not create a vk surface khr from the wayland surface handler!" << end;
   }
 
   void free_tuple(const Tuple &t) override {

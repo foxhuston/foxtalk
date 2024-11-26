@@ -35,7 +35,7 @@ protected:
     }
 
     if (!chosen_queue_family.has_value()) {
-      log_error("No queue families found with VK_QUEUE_GRAPHICS_BIT set");
+      err << "No queue families found with VK_QUEUE_GRAPHICS_BIT set" << end;
     } else {
 
       claim({{{device},

@@ -25,7 +25,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -38,7 +38,7 @@ protected:
         });
 
     if (render_pass_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan render pass");
+      err << "Query results did not include the vulkan render pass" << end;
       return;
     }
 
@@ -51,8 +51,7 @@ protected:
       if (!q.matches(3, std::string("shader module"))) {
         continue;
       }
-      debug << "Found shader module: " << q;
-      log_existing_debug();
+      debug << "Found shader module: " << q << end;
 
       auto shader = static_cast<VkShaderModule>(q.at<void *>(0).value());
       auto shader_type = q.at<std::string>(2).value();
@@ -75,7 +74,7 @@ protected:
 
     // note, this is just for the triangle.
     if (shader_stages.size() != 2) {
-      err << "Did not find two shader stages. Found " << shader_stages.size() << ".  Stopping here."; log_existing_error();
+      err << "Did not find two shader stages. Found " << shader_stages.size() << ".  Stopping here." << end;
       return;
     }
 
@@ -147,8 +146,7 @@ protected:
     auto result = vkCreatePipelineLayout(logical_device, &pipelineLayoutInfo,
                                          nullptr, &pipelineLayout);
     if (result != VK_SUCCESS) {
-      err << "failed to create pipeline layout! Result: " << result;
-      log_existing_error();
+      err << "failed to create pipeline layout! Result: " << result << end;
       return;
     }
 
@@ -178,7 +176,7 @@ protected:
                                   &pipelineInfo, nullptr,
                                   &graphicsPipeline);
     if (gfxResult != VK_SUCCESS) {
-      log_error("failed to create graphics pipeline!");
+      err << "failed to create graphics pipeline!" << end;
       return;
     }
 

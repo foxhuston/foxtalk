@@ -21,7 +21,7 @@ protected:
         });
 
     if (logical_device_tuple == queryResults.end()) {
-      log_error("Query results did not include the vulkan logical device");
+      err << "Query results did not include the vulkan logical device" << end;
       return;
     }
 
@@ -34,7 +34,7 @@ protected:
         });
 
     if (surface_tuple == queryResults.end()) {
-      log_error("Query results did not include the vk surface khr");
+      err << "Query results did not include the vk surface khr" << end;
       return;
     }
 

@@ -23,8 +23,8 @@ protected:
       {"running"}
     }});
 
-    int *x = nullptr;
-    std::cout << "I'm in danger! " << *x << std::endl;
+    // int *x = nullptr;
+    // std::cout << "I'm in danger! " << *x << std::endl;
   }
 };
 

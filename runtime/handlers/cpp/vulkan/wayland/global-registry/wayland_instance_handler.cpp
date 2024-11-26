@@ -52,7 +52,7 @@ void registry_global_handler(void *data, struct wl_registry *registry,
 
 void registry_global_remove_handler(void *data, struct wl_registry *registry,
                                     uint32_t name) {
-  // log_debug(std::format("removed: {}", name).data());
+  // debug << std::format("removed: {}", name).data() << end;
 }
 
 void shm_global_handler(void *data, struct wl_shm *shm, uint32_t format) {
@@ -63,7 +63,7 @@ void handle_xdg_surface_configure(void *data, xdg_surface *surface,
                                   uint32_t serial) {
   xdg_surface_ack_configure(surface, serial);
 
-  // log_debug("handle_xdg_surface_configure called");
+  // debug << "handle_xdg_surface_configure called" << end;
   //  if (vc->wl.wait_for_configure) {
   //     // redraw
   //     vc->wl.wait_for_configure = false;
@@ -91,7 +91,7 @@ struct xdg_surface_listener xdg_surface_listener = {
 class WaylandInstanceHandler : public Handler {
 public:
   void claim_pixel_format(uint64_t px) {
-    // log_debug("px: 0x);
+    // debug << "px: 0x << end;
     // switch (px) {
     //   case WL_SHM_FORMAT_ARGB8888:
     //     claim({{{"global wayland shm"}, {"supports pixel format"}, {"ARGB
@@ -127,7 +127,7 @@ public:
 
   // bool display_dispatch_setup = false;
   // bool poll() override {
-  //   // log_debug("Poll! About to dispatch display...");
+  //   // debug << "Poll! About to dispatch display..." << end;
   //   display_dispatch_setup = true;
   //   return wl_display_dispatch_pending(display) > 0;
   // }
@@ -143,14 +143,14 @@ protected:
       return;
     }
     
-    log_debug("Connecting to display");
+    debug << "Connecting to display" << end;
 
     display = wl_display_connect(nullptr);
     if (display == nullptr) {
-      log_error("Wayland display failed to connect");
+      err << "Wayland display failed to connect" << end;
       return;
     }
-    // log_debug("testing "<< wl_display_get_error(display));
+    // debug << "testing "<< wl_display_get_error(display) << end;
     display_fd = wl_display_get_fd(display);
     registry = wl_display_get_registry(display);
 

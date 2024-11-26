@@ -33,7 +33,7 @@ protected:
       }
 
       if(image_buffer == nullptr) return;
-      // log_debug("Got w " << width << " h " << height);
+      // debug << "Got w " << width << " h " << height << end;
 
       // cv::Mat img(height, width, CV_8UC2, image_buffer);
 
