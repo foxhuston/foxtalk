@@ -53,7 +53,8 @@ protected:
         continue;
       }
     }
-    err << "Could not choose a pixel format given the created khr surface" << end;
+    err << "Could not choose a pixel format given the created khr surface"
+        << end;
     return std::nullopt;
   }
 
@@ -85,8 +86,8 @@ protected:
         });
 
     if (physical_device_tuple == queryResults.end()) {
-      err << 
-          "Query results did not include the chosen vulkan physical device" << end;
+      err << "Query results did not include the chosen vulkan physical device"
+          << end;
       return;
     }
 
@@ -142,10 +143,18 @@ protected:
               {(uint64_t)maybe_chosen_surface_format.value()},
               {"for instance"},
               {instance}}});
+
+      claim({{
+          {"available surface has width"},
+          {(uint64_t)500},
+          {"and height"},
+          {(uint64_t)500},
+      }});
+
       return;
     }
-    err << 
-        "Could not create a vk surface khr from the wayland surface handler!" << end;
+    err << "Could not create a vk surface khr from the wayland surface handler!"
+        << end;
   }
 
   void free_tuple(const Tuple &t) override {

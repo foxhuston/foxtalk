@@ -169,6 +169,8 @@ protected:
     std::vector<TupleNoun> imageNouns = {{swapchain},
                                          {"is a"},
                                          {"vulkan swapchain"},
+                                         {"at version"},
+                                         {get_time_as_double()},
                                          {"for device"},
                                          {logical_device},
                                          {"with pixel format value"},

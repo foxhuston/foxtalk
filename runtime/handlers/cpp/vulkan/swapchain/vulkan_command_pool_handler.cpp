@@ -10,8 +10,21 @@ class VulkanCommandPoolHandler : public Handler {
 public:
 protected:
   VkCommandPool command_pool{};
-  VkCommandBuffer command_buffer{};
+  std::vector<VkCommandBuffer> command_buffers{};
   void handle(const std::vector<Tuple> &queryResults) override {
+
+    auto frames_in_flight_tuple = std::find_if(
+        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+          return result.at<std::string>(3) == "frames in flight";
+        });
+
+    if (frames_in_flight_tuple == queryResults.end()) {
+      err << "Query results did not include the number of frames in flight"
+          << end;
+      return;
+    }
+
+    auto frames_in_flight = frames_in_flight_tuple->at<uint64_t>(2).value();
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";
@@ -46,20 +59,25 @@ protected:
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = command_pool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
+    allocInfo.commandBufferCount = frames_in_flight;
+    command_buffers.resize(frames_in_flight);
+    debug << "Creating " << frames_in_flight << " command buffers..." << end;
 
-    if (vkAllocateCommandBuffers(logical_device, &allocInfo, &command_buffer) !=
-        VK_SUCCESS) {
-      err << "Could not create command buffer" << end;
+    if (vkAllocateCommandBuffers(logical_device, &allocInfo,
+                                 command_buffers.data()) != VK_SUCCESS) {
+      err << "Could not create command buffers" << end;
       return;
     }
-    claim({{{command_pool},
-            {"is a"},
-            {"vulkan command pool"},
-            {"for device"},
-            {logical_device},
-            {"with command buffer"},
-            {command_buffer}}});
+    for (uint64_t i = 0; i < command_buffers.size(); i++) {
+      claim({{{command_pool},
+              {"is a"},
+              {"vulkan command pool"},
+              {"for device"},
+              {logical_device},
+              {"with command buffer index"},
+              {i},
+              {command_buffers[i]}}});
+    }
   }
 
   void init() override {
@@ -67,6 +85,11 @@ protected:
             {"is the"},
             {"vulkan logical device"},
             TupleNoun::prefix()}});
+
+    claim({{{"vulkan"},
+            {"should have"},
+            TupleNoun::query(),
+            {"frames in flight"}}});
   }
 
   void free_tuple(const Tuple &t) override {

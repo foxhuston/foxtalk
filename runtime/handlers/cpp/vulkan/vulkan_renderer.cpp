@@ -5,196 +5,241 @@
 #include <ctime>
 #include <foxtalk_handler.hpp>
 #include <optional>
+#include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
 // Holy shit this thing is bigger than it needs to be right???
 class VulkanRenderingHandler : public Handler {
-
+  int current_frame = 0;
 public:
+
   bool poll() override {
     // std::cout << "in poll" << std::endl;
-    if (logical_device == nullptr) {
-      // std::cout << "early returning because of null logical device" << std::endl;
+    if (logical_device == nullptr || swapchain == nullptr || render_pass == nullptr) {
+      // std::cout << "early returning because of null logical device" <<
+      // std::endl;
+      is_called_from_poll = false;
       return false;
     }
-    if (fence == nullptr) {
-      // std::cout << "early returning because of null fence" << std::endl;
-      return false;
-    }
-    vk_fence_status = vkGetFenceStatus(logical_device, fence);
-    // std::cout << "new fence status = " << vk_fence_status << std::endl;
-    return vk_fence_status != VK_NOT_READY;
+      vk_fence_status = vkGetFenceStatus(logical_device, fences[current_frame]);
+      if (vk_fence_status == VK_SUCCESS) {
+        is_called_from_poll = true;
+        return true;
+
+      }
+    is_called_from_poll = false;
+    return false;
   }
 
 protected:
-  VkCommandBuffer command_buffer{};
-  VkFence fence{};
-  VkSemaphore img_available_semaphore{};
-  VkSemaphore render_complete_semaphore{};
+  bool is_called_from_poll = false;
+  std::vector<VkCommandBuffer> command_buffers{};
+  std::vector<VkFence> fences{};
+  std::vector<VkSemaphore> img_available_semaphores{};
+  std::vector<VkSemaphore> render_complete_semaphores{};
   VkDevice logical_device{};
   VkSwapchainKHR swapchain{};
+  double swapchain_version;
+  std::optional<double> out_of_date_swapchain_version = std::nullopt;
   VkResult vk_fence_status = VK_ERROR_UNKNOWN;
   VkRenderPass render_pass{};
-  VkExtent2D surface_extent{
-      .width = 500,
-      .height = 500,
-  };
+  VkExtent2D surface_extent{};
   VkPipeline graphics_pipeline{};
 
   VkQueue graphics_queue{};
   VkQueue present_queue{};
   std::vector<VkFramebuffer> buffers{};
 
+  bool is_ready_to_render = false;
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    claim({{{"last render attempt at"}, {get_time_as_double()}, {"fence status = "}, {(int64_t)vk_fence_status}}});
-    auto command_pool_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan command pool";
-        });
+    claim({{{"last render attempt at"},
+            {get_time_as_double()},
+            {"with fence status of"},
+            {(int64_t)vk_fence_status}}});
 
-    if (command_pool_tuple == queryResults.end()) {
-      err << "Query results did not include the vulkan command pool" << end;
-      return;
-    }
-
-    command_buffer =
-        static_cast<VkCommandBuffer>(command_pool_tuple->at<void *>(6).value());
-
-    auto logical_device_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan logical device";
-        });
-
-    if (logical_device_tuple == queryResults.end()) {
-      err << "Query results did not include the vulkan logical device" << end;
-      return;
-    }
-
-    logical_device =
-        static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
-
-    graphics_queue =
-        static_cast<VkQueue>(logical_device_tuple->at<void *>(4).value());
-    // auto graphics_queue_index = logical_device_tuple->at<uint64_t>(6).value();
-    present_queue =
-        static_cast<VkQueue>(logical_device_tuple->at<void *>(8).value());
-    // auto present_queue_index = logical_device_tuple->at<uint64_t>(10).value();
-
-    auto fence_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan fence";
-        });
-
-    if (fence_tuple == queryResults.end()) {
-      err << "Query results did not include the fence" << end;
-      return;
-    }
-
-    fence = static_cast<VkFence>(fence_tuple->at<void *>(0).value());
-
-    auto render_pass_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan render pass";
-        });
-
-    if (render_pass_tuple == queryResults.end()) {
-      err << "Query results did not include the render pass" << end;
-      return;
-    }
-
-    render_pass =
-        static_cast<VkRenderPass>(render_pass_tuple->at<void *>(0).value());
-
-    auto img_available_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.matches(2, std::string("vulkan semaphore")) &&
-                 result.matches(5, std::string("signaling image is available"));
-        });
-
-    if (img_available_tuple == queryResults.end()) {
-      err << "Query results did not include the img available semaphore" << end;
-      return;
-    }
-
-    img_available_semaphore =
-        static_cast<VkSemaphore>(img_available_tuple->at<void *>(0).value());
-
-    auto rendering_complete_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.matches(2, std::string("vulkan semaphore")) &&
-                 result.matches(5, std::string("signaling rendering is done"));
-        });
-
-    if (rendering_complete_tuple == queryResults.end()) {
-      err << "Query results did not include the render done semaphore" << end;
-      return;
-    }
-
-    render_complete_semaphore = static_cast<VkSemaphore>(
-        rendering_complete_tuple->at<void *>(0).value());
-
-    auto swapchain_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan swapchain";
-        });
-
-    if (swapchain_tuple == queryResults.end()) {
-      err << "Query results did not include a vulkan swapchain" << end;
-      return;
-    }
-
-    swapchain =
-        static_cast<VkSwapchainKHR>(swapchain_tuple->at<void *>(0).value());
-    logical_device =
-        static_cast<VkDevice>(swapchain_tuple->at<void *>(4).value());
-
-    auto pipeline_tuple = std::find_if(
-        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan graphics pipeline";
-        });
-
-    if (pipeline_tuple == queryResults.end()) {
-      err << "Query results did not include a graphics pipeline" << end;
-      return;
-    }
-
-    graphics_pipeline =
-        static_cast<VkPipeline>(pipeline_tuple->at<void *>(0).value());
-
-    buffers.clear();
-    for (auto &t : queryResults) {
-      if (!t.matches(1, std::string("is a vulkan image"))) {
-        continue;
+    if (!is_ready_to_render || !is_called_from_poll) {
+      command_buffers.clear();
+      fences.clear();
+      img_available_semaphores.clear();
+      render_complete_semaphores.clear();
+      for (const auto& a : queryResults) {
+        if (a.matches(2, std::string("vulkan command pool"))) {
+          command_buffers.emplace_back(
+              static_cast<VkCommandBuffer>(a.at<void *>(7).value()));
+        }
+        else if (a.matches(5, std::string("signaling image is available"))) {
+          img_available_semaphores.emplace_back(
+              static_cast<VkSemaphore>(a.at<void *>(0).value()));
+        }
+        else if (a.matches(5, std::string("signaling rendering is done"))) {
+          render_complete_semaphores.emplace_back(
+              static_cast<VkSemaphore>(a.at<void *>(0).value()));
+        }
+        else if (a.matches(5, std::string("signaling drawing is complete"))) {
+          fences.emplace_back(
+              static_cast<VkFence>(a.at<void *>(0).value()));
+        }
       }
-      buffers.emplace_back(static_cast<VkFramebuffer>(t.at<void *>(7).value()));
+      if (command_buffers.empty()) {
+        err << "Command buffers not found in query results" << end;
+        return;
+      }
+      if (render_complete_semaphores.empty()) {
+        err << "Render complete semaphores not found in query results" << end;
+        return;
+      }
+      if (img_available_semaphores.empty()) {
+        err << "Image available semaphores not found in query results" << end;
+        return;
+      }
+      if (fences.empty()) {
+        err << "Fences not found in query results" << end;
+        return;
+      }
+      
+      auto surface_extent_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(0) == "available surface has width";
+          });
+
+      if (surface_extent_tuple == queryResults.end()) {
+        err << "Query results did not include the available surface extent" << end;
+        return;
+      }
+
+      auto width = surface_extent_tuple->at<uint64_t>(1).value();
+      auto height = surface_extent_tuple->at<uint64_t>(3).value();
+
+      surface_extent = VkExtent2D {
+        .width=(uint32_t)width,
+        .height=(uint32_t)height,
+      };
+
+      auto logical_device_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(2) == "vulkan logical device";
+          });
+
+      if (logical_device_tuple == queryResults.end()) {
+        err << "Query results did not include the vulkan logical device" << end;
+        return;
+      }
+
+      logical_device =
+          static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
+
+      graphics_queue =
+          static_cast<VkQueue>(logical_device_tuple->at<void *>(4).value());
+      // auto graphics_queue_index =
+      // logical_device_tuple->at<uint64_t>(6).value();
+      present_queue =
+          static_cast<VkQueue>(logical_device_tuple->at<void *>(8).value());
+      // auto present_queue_index =
+      // logical_device_tuple->at<uint64_t>(10).value();
+
+      auto render_pass_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(2) == "vulkan render pass";
+          });
+
+      if (render_pass_tuple == queryResults.end()) {
+        err << "Query results did not include the render pass" << end;
+        return;
+      }
+
+      render_pass =
+          static_cast<VkRenderPass>(render_pass_tuple->at<void *>(0).value());
+
+      auto swapchain_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(2) == "vulkan swapchain";
+          });
+
+      if (swapchain_tuple == queryResults.end()) {
+        err << "Query results did not include a vulkan swapchain" << end;
+        return;
+      }
+
+      swapchain =
+          static_cast<VkSwapchainKHR>(swapchain_tuple->at<void *>(0).value());
+      swapchain_version = swapchain_tuple->at<double_t>(4).value();
+
+      logical_device =
+          static_cast<VkDevice>(swapchain_tuple->at<void *>(6).value());
+
+      auto pipeline_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(2) == "vulkan graphics pipeline";
+          });
+
+      if (pipeline_tuple == queryResults.end()) {
+        err << "Query results did not include a graphics pipeline" << end;
+        return;
+      }
+
+      graphics_pipeline =
+          static_cast<VkPipeline>(pipeline_tuple->at<void *>(0).value());
+
+      for (auto &t : queryResults) {
+        if (!t.matches(1, std::string("is a vulkan image"))) {
+          continue;
+        }
+        buffers.emplace_back(
+            static_cast<VkFramebuffer>(t.at<void *>(7).value()));
+      }
+      if (buffers.size() <= 0) {
+        err << "No frame buffers found in the query results" << end;
+        return;
+      }
+      debug << "Got all tuples with " << buffers.size() << " frame buffers"
+            << end;
+      is_ready_to_render = true;
     }
-    if (buffers.size() <= 0) {
-      err << "No frame buffers found in the query results" << end;
+
+    if (swapchain_version == out_of_date_swapchain_version) {
+      err << "Swapchain at version " << swapchain_version << " is STILL out of date... not rendering yet." << end;
       return;
     }
-    debug << "Got all tuples with " << buffers.size() << " frame buffers" << end;
+
     if (vk_fence_status == VK_SUCCESS) {
       debug << "READY TO GET IMAGES!!" << end;
     } else {
       debug << "Not ready yet : " << vk_fence_status << end;
       return;
     }
+    debug << "Starting drawing for frame " << current_frame << end;
 
-    vkResetFences(logical_device, 1, &fence);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(logical_device, swapchain, UINT64_MAX,
-                          img_available_semaphore, VK_NULL_HANDLE, &imageIndex);
+    auto result = vkAcquireNextImageKHR(logical_device, swapchain, UINT64_MAX,
+                          img_available_semaphores[current_frame], VK_NULL_HANDLE, &imageIndex);
 
-    vkResetCommandBuffer(command_buffer, /*VkCommandBufferResetFlagBits*/ 0);
-    recordCommandBuffer(command_buffer, imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        std::cout << "Need to recreate swapchain! Version: " << swapchain_version << std::endl;
+        claim({{
+          {"swapchain"},
+          {"at version"},
+          {swapchain_version},
+          {"is out of date"}
+          }});
+        return;
+    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        err << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: " << result << end;
+        return;
+    }
+    vkResetFences(logical_device, 1, &fences[current_frame]);
+
+
+
+    vkResetCommandBuffer(command_buffers[current_frame], /*VkCommandBufferResetFlagBits*/ 0);
+    recordCommandBuffer(command_buffers[current_frame], imageIndex);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {img_available_semaphore};
+    VkSemaphore waitSemaphores[] = {img_available_semaphores[current_frame]};
     VkPipelineStageFlags waitStages[] = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     submitInfo.waitSemaphoreCount = 1;
@@ -202,13 +247,13 @@ protected:
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &command_buffer;
+    submitInfo.pCommandBuffers = &command_buffers[current_frame];
 
-    VkSemaphore signalSemaphores[] = {render_complete_semaphore};
+    VkSemaphore signalSemaphores[] = {render_complete_semaphores[current_frame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, fences[current_frame]) != VK_SUCCESS) {
       throw std::runtime_error("failed to submit draw command buffer!");
     }
 
@@ -223,8 +268,10 @@ protected:
     presentInfo.pSwapchains = swapChains;
 
     presentInfo.pImageIndices = &imageIndex;
+    debug << "Image index to render: " << imageIndex << end;
 
     vkQueuePresentKHR(present_queue, &presentInfo);
+    current_frame = (current_frame + 1) % fences.size();
   }
 
   void init() override {
@@ -245,6 +292,8 @@ protected:
     claim({{TupleNoun::query(),
             {"is a"},
             {"vulkan swapchain"},
+            {"at version"},
+            TupleNoun::query(),
             {"for device"},
             TupleNoun::query(),
             {"with pixel format value"},
@@ -253,11 +302,12 @@ protected:
     claim({{TupleNoun::query(),
             {"is a"},
             {"vulkan command pool"},
-            {"for device"},
-            TupleNoun::query(),
-            {"with command buffer"},
-            TupleNoun::query(),
             TupleNoun::prefix()}});
+
+    claim({{{"vulkan"},
+            {"should have"},
+            TupleNoun::query(),
+            {"frames in flight"}}});
 
     claim({{TupleNoun::query(),
             {"is the"},
@@ -269,6 +319,12 @@ protected:
             {"vulkan logical device"},
             TupleNoun::prefix()}});
 
+    claim({{
+      {"available surface has width"},
+      TupleNoun::query(),
+      {"and height"},
+      TupleNoun::prefix(),
+      }});
 
     claim({{TupleNoun::query(),
             {"is a vulkan image"},
@@ -326,7 +382,8 @@ protected:
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
       err << "failed to record command buffer!" << end;
     } else {
-      debug << "Recorded command buffer for framebuffer index " << imageIndex << end;
+      debug << "Recorded command buffer for framebuffer index " << imageIndex
+            << end;
     }
   }
 

@@ -49,7 +49,7 @@ protected:
         static_cast<VkSwapchainKHR>(swapchain_tuple->at<void *>(0).value());
 
     auto pixel_format =
-        static_cast<VkFormat>(swapchain_tuple->at<uint64_t>(6).value());
+        static_cast<VkFormat>(swapchain_tuple->at<uint64_t>(8).value());
 
     auto render_pass_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -159,6 +159,8 @@ protected:
     claim({{TupleNoun::query(),
             {"is a"},
             {"vulkan swapchain"},
+            {"at version"},
+            TupleNoun::query(),
             {"for device"},
             TupleNoun::query(),
             {"with pixel format value"},

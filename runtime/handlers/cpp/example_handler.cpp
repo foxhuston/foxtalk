@@ -17,9 +17,6 @@ protected:
   }
 
   void init() override {
-    // logical device
-    // image format
-    
   }
 };
 
