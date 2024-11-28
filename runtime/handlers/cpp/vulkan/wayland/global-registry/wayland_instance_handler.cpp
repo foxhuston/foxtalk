@@ -70,9 +70,17 @@ void handle_xdg_surface_configure(void *data, xdg_surface *surface,
   //  }
 }
 
+int32_t current_width = 500;
+int32_t current_height = 500;
+int times_changed = 0;
+
 void handle_xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                    int32_t width, int32_t height,
-                                   struct wl_array *states) {}
+                                   struct wl_array *states) {
+  current_width = width;
+  current_height = height;
+  // std::cout << "New dims:  " << width << "x" << height << std::endl;
+}
 
 void handle_xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {}
 
@@ -121,16 +129,15 @@ public:
     //     return;
     // }
   }
-  void register_initial_tuples() override {
+  void register_initial_tuples() override {}
 
+  bool display_dispatch_setup = false;
+  bool poll() override {
+    auto r = wl_display_dispatch_pending(display);
+    // std::cout << "Poll! Does wl have dispatch pending? " << r << std::endl;
+    display_dispatch_setup = true;
+    return r > 0;
   }
-
-  // bool display_dispatch_setup = false;
-  // bool poll() override {
-  //   // debug << "Poll! About to dispatch display..." << end;
-  //   display_dispatch_setup = true;
-  //   return wl_display_dispatch_pending(display) > 0;
-  // }
 
   ~WaylandInstanceHandler() {
     wl_display_disconnect(display);
@@ -139,42 +146,51 @@ public:
 
 protected:
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 1) {
-      return;
+    if (!display_dispatch_setup) {
+      debug << "Connecting to display" << end;
+
+      display = wl_display_connect(nullptr);
+      if (display == nullptr) {
+        err << "Wayland display failed to connect" << end;
+        return;
+      }
+      debug << "any error from wl_display? " << wl_display_get_error(display)
+            << end;
+      display_fd = wl_display_get_fd(display);
+      registry = wl_display_get_registry(display);
+
+      wl_registry_add_listener(registry, &registry_listener, nullptr);
+      wl_display_roundtrip(display);
+      wl_registry_destroy(registry);
+
+      surface = wl_compositor_create_surface(compositor);
+      ft_xdg_surface = xdg_wm_base_get_xdg_surface(ft_xdg_wm_base, surface);
+      xdg_surface_add_listener(ft_xdg_surface, &xdg_surface_listener, nullptr);
+      ft_xdg_toplevel = xdg_surface_get_toplevel(ft_xdg_surface);
+
+      xdg_toplevel_add_listener(ft_xdg_toplevel, &xdg_toplevel_listener,
+                                nullptr);
+      xdg_toplevel_set_title(ft_xdg_toplevel, "Testing from Foxtalk");
+      wl_surface_commit(surface);
+    } else {
+       wl_display_prepare_read(display);
+       wl_display_read_events(display);
     }
-    
-    debug << "Connecting to display" << end;
+    if (display != nullptr && surface != nullptr) {
 
-    display = wl_display_connect(nullptr);
-    if (display == nullptr) {
-      err << "Wayland display failed to connect" << end;
-      return;
+      claim({{{display},
+              {"is a"},
+              {"wayland display"},
+              {"with wl_surface"},
+              {surface}}});
     }
-    // debug << "testing "<< wl_display_get_error(display) << end;
-    display_fd = wl_display_get_fd(display);
-    registry = wl_display_get_registry(display);
-
-    wl_registry_add_listener(registry, &registry_listener, nullptr);
-    wl_display_roundtrip(display);
-    wl_registry_destroy(registry);
-
-    surface = wl_compositor_create_surface(compositor);
-    ft_xdg_surface = xdg_wm_base_get_xdg_surface(ft_xdg_wm_base, surface);
-    xdg_surface_add_listener(ft_xdg_surface, &xdg_surface_listener, nullptr);
-    ft_xdg_toplevel = xdg_surface_get_toplevel(ft_xdg_surface);
-
-    xdg_toplevel_add_listener(ft_xdg_toplevel, &xdg_toplevel_listener, nullptr);
-    xdg_toplevel_set_title(ft_xdg_toplevel, "Testing from Foxtalk");
-    wl_surface_commit(surface);
 
     claim({{
-      {display},
-      {"is a"},
-      {"wayland display"},
-      {"with wl_surface"},
-      {surface}
+        {"available surface has width"},
+        {(uint64_t)current_width},
+        {"and height"},
+        {(uint64_t)current_height},
     }});
-
   }
 
   void free_tuple(const Tuple &t) override {}

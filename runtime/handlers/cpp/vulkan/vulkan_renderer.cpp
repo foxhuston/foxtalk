@@ -12,23 +12,22 @@
 // Holy shit this thing is bigger than it needs to be right???
 class VulkanRenderingHandler : public Handler {
   int current_frame = 0;
-public:
 
+public:
   bool poll() override {
     // std::cout << "in poll" << std::endl;
-    if (logical_device == nullptr || swapchain == nullptr || render_pass == nullptr) {
-      // std::cout << "early returning because of null logical device" <<
-      // std::endl;
-      is_called_from_poll = false;
+    if (logical_device == nullptr || swapchain == nullptr ||
+        render_pass == nullptr) {
       return false;
     }
-      vk_fence_status = vkGetFenceStatus(logical_device, fences[current_frame]);
-      if (vk_fence_status == VK_SUCCESS) {
-        is_called_from_poll = true;
-        return true;
 
-      }
-    is_called_from_poll = false;
+    vk_fence_status = vkGetFenceStatus(logical_device, fences[current_frame]);
+    if (vk_fence_status == VK_SUCCESS) {
+      // std::cout << "CURRENT FRAME = " << current_frame
+      //           << " SHOULD BE AVAILABLE FOR USE.";
+      is_called_from_poll = true;
+      return true;
+    }
     return false;
   }
 
@@ -40,7 +39,7 @@ protected:
   std::vector<VkSemaphore> render_complete_semaphores{};
   VkDevice logical_device{};
   VkSwapchainKHR swapchain{};
-  double swapchain_version;
+  double swapchain_version = -2;
   std::optional<double> out_of_date_swapchain_version = std::nullopt;
   VkResult vk_fence_status = VK_ERROR_UNKNOWN;
   VkRenderPass render_pass{};
@@ -49,7 +48,14 @@ protected:
 
   VkQueue graphics_queue{};
   VkQueue present_queue{};
+
+  // TODO TOMORROW (THANKSGIVING):
+  //   Pass the image index of the buffers created in the swapchain
+  // in the tuple, and use the same index here. I think this will solve the current bug.
   std::vector<VkFramebuffer> buffers{};
+
+  uint64_t last_width = -1;
+  uint64_t last_height = -1;
 
   bool is_ready_to_render = false;
 
@@ -58,28 +64,26 @@ protected:
             {get_time_as_double()},
             {"with fence status of"},
             {(int64_t)vk_fence_status}}});
+    // std::cout << " In handle of renderer. Current frame: " << current_frame
+    //           << std::endl;
 
     if (!is_ready_to_render || !is_called_from_poll) {
       command_buffers.clear();
       fences.clear();
       img_available_semaphores.clear();
       render_complete_semaphores.clear();
-      for (const auto& a : queryResults) {
+      for (const auto &a : queryResults) {
         if (a.matches(2, std::string("vulkan command pool"))) {
           command_buffers.emplace_back(
               static_cast<VkCommandBuffer>(a.at<void *>(7).value()));
-        }
-        else if (a.matches(5, std::string("signaling image is available"))) {
+        } else if (a.matches(5, std::string("signaling image is available"))) {
           img_available_semaphores.emplace_back(
               static_cast<VkSemaphore>(a.at<void *>(0).value()));
-        }
-        else if (a.matches(5, std::string("signaling rendering is done"))) {
+        } else if (a.matches(5, std::string("signaling rendering is done"))) {
           render_complete_semaphores.emplace_back(
               static_cast<VkSemaphore>(a.at<void *>(0).value()));
-        }
-        else if (a.matches(5, std::string("signaling drawing is complete"))) {
-          fences.emplace_back(
-              static_cast<VkFence>(a.at<void *>(0).value()));
+        } else if (a.matches(5, std::string("signaling drawing is complete"))) {
+          fences.emplace_back(static_cast<VkFence>(a.at<void *>(0).value()));
         }
       }
       if (command_buffers.empty()) {
@@ -98,23 +102,24 @@ protected:
         err << "Fences not found in query results" << end;
         return;
       }
-      
+
       auto surface_extent_tuple = std::find_if(
           queryResults.begin(), queryResults.end(), [](const Tuple &result) {
             return result.at<std::string>(0) == "available surface has width";
           });
 
       if (surface_extent_tuple == queryResults.end()) {
-        err << "Query results did not include the available surface extent" << end;
+        err << "Query results did not include the available surface extent"
+            << end;
         return;
       }
 
       auto width = surface_extent_tuple->at<uint64_t>(1).value();
       auto height = surface_extent_tuple->at<uint64_t>(3).value();
 
-      surface_extent = VkExtent2D {
-        .width=(uint32_t)width,
-        .height=(uint32_t)height,
+      surface_extent = VkExtent2D{
+          .width = (uint32_t)width,
+          .height = (uint32_t)height,
       };
 
       auto logical_device_tuple = std::find_if(
@@ -198,12 +203,43 @@ protected:
       is_ready_to_render = true;
     }
 
-    if (swapchain_version == out_of_date_swapchain_version) {
-      err << "Swapchain at version " << swapchain_version << " is STILL out of date... not rendering yet." << end;
+    if (last_height < 0) {
+      last_height = surface_extent.height;
+    }
+    if (last_width < 0) {
+      last_width = surface_extent.width;
+    }
+
+    if (last_width != surface_extent.width ||
+        last_height != surface_extent.height) {
+      out_of_date_swapchain_version = swapchain_version;
+      last_width = surface_extent.width;
+      last_height = surface_extent.height;
+      debug << "Surface extent changed! " << last_width << "x"
+                << last_height << "... marking swapchain out of date"
+                << end;
+      claim({{{"swapchain"},
+              {"at version"},
+              {swapchain_version},
+              {"is out of date"}}});
       return;
     }
 
-    if (vk_fence_status == VK_SUCCESS) {
+    if (swapchain_version == out_of_date_swapchain_version) {
+      err << "Swapchain at version " << swapchain_version
+          << " is STILL out of date... not rendering yet." << end;
+
+      claim({{{"swapchain"},
+              {"at version"},
+              {swapchain_version},
+              {"is out of date"}}});
+
+      is_ready_to_render = false;
+      return;
+    }
+
+    if (vk_fence_status == VK_SUCCESS && is_ready_to_render &&
+        is_called_from_poll) {
       debug << "READY TO GET IMAGES!!" << end;
     } else {
       debug << "Not ready yet : " << vk_fence_status << end;
@@ -211,29 +247,40 @@ protected:
     }
     debug << "Starting drawing for frame " << current_frame << end;
 
+    is_called_from_poll = false;
 
     uint32_t imageIndex;
     auto result = vkAcquireNextImageKHR(logical_device, swapchain, UINT64_MAX,
-                          img_available_semaphores[current_frame], VK_NULL_HANDLE, &imageIndex);
+                                        img_available_semaphores[current_frame],
+                                        VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        std::cout << "Need to recreate swapchain! Version: " << swapchain_version << std::endl;
-        claim({{
-          {"swapchain"},
-          {"at version"},
-          {swapchain_version},
-          {"is out of date"}
-          }});
-        return;
+      debug << "Need to recreate swapchain! Version: " << swapchain_version
+                << end;
+      claim({{{"swapchain"},
+              {"at version"},
+              {swapchain_version},
+              {"is out of date"}}});
+              is_ready_to_render = false;
+      return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-        err << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: " << result << end;
-        return;
+      std::cerr
+          << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: "
+          << result << std::endl;
+      err << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: "
+          << result << end;
+
+              is_ready_to_render = false;
+      return;
     }
+    debug << "About to reset fences! Should have been called from poll... "
+                 "cur frame: "
+              << current_frame << "dims: " << surface_extent.width << "x"
+              << surface_extent.height << end;
     vkResetFences(logical_device, 1, &fences[current_frame]);
 
-
-
-    vkResetCommandBuffer(command_buffers[current_frame], /*VkCommandBufferResetFlagBits*/ 0);
+    vkResetCommandBuffer(command_buffers[current_frame],
+                         /*VkCommandBufferResetFlagBits*/ 0);
     recordCommandBuffer(command_buffers[current_frame], imageIndex);
 
     VkSubmitInfo submitInfo{};
@@ -249,11 +296,13 @@ protected:
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &command_buffers[current_frame];
 
-    VkSemaphore signalSemaphores[] = {render_complete_semaphores[current_frame]};
+    VkSemaphore signalSemaphores[] = {
+        render_complete_semaphores[current_frame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, fences[current_frame]) != VK_SUCCESS) {
+    if (vkQueueSubmit(graphics_queue, 1, &submitInfo, fences[current_frame]) !=
+        VK_SUCCESS) {
       throw std::runtime_error("failed to submit draw command buffer!");
     }
 
@@ -320,11 +369,11 @@ protected:
             TupleNoun::prefix()}});
 
     claim({{
-      {"available surface has width"},
-      TupleNoun::query(),
-      {"and height"},
-      TupleNoun::prefix(),
-      }});
+        {"available surface has width"},
+        TupleNoun::query(),
+        {"and height"},
+        TupleNoun::prefix(),
+    }});
 
     claim({{TupleNoun::query(),
             {"is a vulkan image"},
@@ -387,10 +436,7 @@ protected:
     }
   }
 
-  void free_tuple(const Tuple &t) override {
-    if (t.matches(2, std::string("is a vulkan image"))) {
-    }
-  }
+  void free_tuple(const Tuple &t) override {}
 };
 
 FOXTALK_FFI_HANDLER_REG(VulkanRenderingHandler);

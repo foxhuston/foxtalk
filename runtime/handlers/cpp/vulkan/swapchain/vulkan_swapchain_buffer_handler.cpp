@@ -33,6 +33,19 @@ protected:
     auto logical_device =
         static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
 
+      auto surface_extent_tuple = std::find_if(
+          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+            return result.at<std::string>(0) == "available surface has width";
+          });
+
+      if (surface_extent_tuple == queryResults.end()) {
+        err << "Query results did not include the available surface extent" << end;
+        return;
+      }
+
+      auto width = surface_extent_tuple->at<uint64_t>(1).value();
+      auto height = surface_extent_tuple->at<uint64_t>(3).value();
+
     auto swapchain_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan swapchain";
@@ -127,8 +140,8 @@ protected:
           .renderPass = render_pass,
           .attachmentCount = 1,
           .pAttachments = &ptrs[ptrs_index].view,
-          .width = 500,
-          .height = 500,
+          .width = (uint32_t)width,
+          .height = (uint32_t)height,
           .layers = 1};
       r = vkCreateFramebuffer(logical_device, &fb_create_info, nullptr,
                               &ptrs[ptrs_index].framebuffer);
@@ -170,6 +183,12 @@ protected:
 
     claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
 
+      claim({{
+          {"available surface has width"},
+          TupleNoun::query(),
+          {"and height"},
+          TupleNoun::query(),
+      }});
     claim({{TupleNoun::query(),
             {"is the"},
             {"vulkan logical device"},

@@ -144,13 +144,6 @@ protected:
               {"for instance"},
               {instance}}});
 
-      claim({{
-          {"available surface has width"},
-          {(uint64_t)500},
-          {"and height"},
-          {(uint64_t)500},
-      }});
-
       return;
     }
     err << "Could not create a vk surface khr from the wayland surface handler!"

@@ -7,8 +7,25 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 
+struct Vertex {
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+
+        return bindingDescription;
+    }
+};
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
+ 
 class ShaderLoadingHandler : public Handler {
 protected:
   // pulled directly from vulkan-tutorial

@@ -8,15 +8,21 @@
 #include <chrono>
 
 #include "foxtalk_handler.h"
+#include <cstdlib>
 #include <exception>
 #include <ostream>
 #include <sstream>
 
+int monotonic_counter = 0;
 enum class LogState { End };
-
+bool log_to_console = std::getenv("FOXTALK_LOG_TO_CONSOLE") != nullptr;
 class Handler {
 protected:
-  void claim(Tuple &&n) { claims.push_back(std::move(n)); }
+  void claim(Tuple &&n) { 
+    if (can_claim) {
+      claims.push_back(std::move(n)); 
+    }
+  }
   virtual void handle(const std::vector<Tuple> &queryResults) = 0;
 
   virtual void free_tuple(const Tuple &) {}
@@ -85,16 +91,29 @@ protected:
     FoxtalkLoggingBuffer buf;
   };
 
+
 static double get_time_as_double() {
   auto now = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration<double>(now.time_since_epoch());
-  return duration.count();
+  return duration.count() + (++monotonic_counter);
 }
 void log(std::string log_type, std::string message) {
-  claim({{{std::string(this->name)}, {log_type}, {message}, {get_time_as_double()}}});
+  auto t = get_time_as_double();
+  claim({{{std::string(this->name)}, {log_type}, {message}, {t}}});
+  
+  if (log_to_console) {
+    std::ostream *cons;
+    if (log_type == "has error message") {
+      cons = &std::cerr;
+    } else {
+      cons = &std::cout;
+    } 
+      *cons << "[" << this->name << "] [" << t <<"] " << message << std::endl;
+  }
 }
 
 public:
+  bool can_claim = false;
   virtual ~Handler() = default;
   std::string name = "Uninitialized Handler";
   std::vector<Tuple> claims{}; // should be private, but I need to test...
@@ -114,18 +133,24 @@ public:
   }
 
   void ffi_init(uint8_t *buffer) {
+    can_claim = true;
     claims.clear();
     init();
     write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+    can_claim = false;
   }
 
   void ffi_register_init(uint8_t *buffer) {
+    can_claim = true;
     claims.clear();
     register_initial_tuples();
     write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+    can_claim = false;
   }
 
   void ffi_handle(uint8_t *buffer) {
+
+    can_claim = true;
     // Initialize
     claims.clear();
 
@@ -138,6 +163,8 @@ public:
 
     // Serialize
     write_tuple_noun_vec_to_buffer<Tuple>(buffer, 0, claims);
+
+    can_claim = false;
   }
 };
 
