@@ -211,9 +211,9 @@ protected:
       auto img_view = static_cast<VkImageView>(t.at<void *>(5).value());
       auto fb = static_cast<VkFramebuffer>(t.at<void *>(7).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(3).value());
-
-      vkDestroyFramebuffer(logical_device, fb, nullptr);
-      vkDestroyImageView(logical_device, img_view, nullptr);
+      debug << "Freeing image view and frame buffer " << t << end; 
+      // vkDestroyFramebuffer(logical_device, fb, nullptr);
+      // vkDestroyImageView(logical_device, img_view, nullptr);
     }
   }
 };

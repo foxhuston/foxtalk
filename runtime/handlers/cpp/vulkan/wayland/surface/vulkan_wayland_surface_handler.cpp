@@ -155,7 +155,8 @@ protected:
 
       auto surface = static_cast<VkSurfaceKHR>(t.at<void *>(0).value());
       auto instance = static_cast<VkInstance>(t.at<void *>(6).value());
-      vkDestroySurfaceKHR(instance, surface, nullptr);
+      debug << "Freeing surface " << t << end;
+      // vkDestroySurfaceKHR(instance, surface, nullptr);
     }
   }
 

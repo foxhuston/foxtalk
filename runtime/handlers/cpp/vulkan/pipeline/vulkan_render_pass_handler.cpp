@@ -107,8 +107,8 @@ protected:
 
       auto render_pass = static_cast<VkRenderPass>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
-
-      vkDestroyRenderPass(logical_device, render_pass, nullptr);
+      debug << "Freeing render pass " << t << end;
+      // vkDestroyRenderPass(logical_device, render_pass, nullptr);
     }
   }
 };

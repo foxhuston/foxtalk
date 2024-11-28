@@ -142,8 +142,8 @@ protected:
     if (t.matches(2, std::string("vulkan logical device"))) {
 
       auto logical_device = static_cast<VkDevice>(t.at<void *>(0).value());
-
-      vkDestroyDevice(logical_device, nullptr);
+      debug << "Freeing logical device " << t << end;
+      // vkDestroyDevice(logical_device, nullptr);
     }
   }
 

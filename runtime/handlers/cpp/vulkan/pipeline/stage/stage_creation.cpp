@@ -193,12 +193,12 @@ protected:
     if (t.matches(2, std::string("vulkan graphics pipeline"))) {
       
       auto pipeline = static_cast<VkPipeline>(t.at<void *>(0).value());
-      
+       
       auto pipeline_layout = static_cast<VkPipelineLayout>(t.at<void *>(4).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(6).value());
-
-      vkDestroyPipeline(logical_device, pipeline, nullptr);
-      vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
+      debug << "Freeing pipeline and layout " << t << end;
+      // vkDestroyPipeline(logical_device, pipeline, nullptr);
+      // vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
     }
   }
 

@@ -100,17 +100,18 @@ protected:
   void free_tuple(const Tuple &t) override {
     if (t.matches(2, std::string("vulkan instance"))) {
       auto instance = static_cast<VkInstance>(t.at<void *>(0).value());
-      std::cerr << "We should have killed the vulkan instance... but because "
-                   "of the way deletes "
-                   "in vulkan work, we can't actually delete it until "
-                   "everything downstream of it has "
-                   "already been deleted. In Foxtalk, this DOES happen due to "
-                   "the reactive nature  "
-                   "of the reactor, but there's an ordering issue here at "
-                   "play. We should only call free tuple "
-                   "once everything has gone through a tick of it being gone. "
-                << std::endl;
-      vkDestroyInstance(instance, nullptr);
+      // std::cerr << "We should have killed the vulkan instance... but because "
+      //              "of the way deletes "
+      //              "in vulkan work, we can't actually delete it until "
+      //              "everything downstream of it has "
+      //              "already been deleted. In Foxtalk, this DOES happen due to "
+      //              "the reactive nature  "
+      //              "of the reactor, but there's an ordering issue here at "
+      //              "play. We should only call free tuple "
+      //              "once everything has gone through a tick of it being gone. "
+      //           << std::endl;
+      debug << "Freeing vulkan instance " << t << end;
+      // vkDestroyInstance(instance, nullptr);
     }
   }
 };

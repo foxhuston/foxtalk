@@ -180,6 +180,11 @@ protected:
       }
       auto swapchainCreationResult = vkCreateSwapchainKHR(
           logical_device, &create_info, nullptr, &swapchain);
+      if  (swapchainCreationResult == VK_ERROR_NATIVE_WINDOW_IN_USE_KHR) {
+        debug << "Tried to create a new swapchain, but the surface hasn't been recreated yet... so, just resserting the old one for now" << end;
+        reuse_swapchain();
+        return;
+      }
       if (swapchainCreationResult != VK_SUCCESS) {
         err << "Error creating swapchain! Result: " << swapchainCreationResult << end;
         return;
@@ -228,13 +233,16 @@ protected:
       std::cout << "Created new swapchain with version " << version << std::endl;
       claim(std::move(Tuple{std::move(imageNouns)}));
     } else {
+      reuse_swapchain();
+    }
+  }
 
+  void reuse_swapchain() {
       std::vector<TupleNoun> tmp;
       std::copy(last_created_swapchain_nouns.begin(),
                 last_created_swapchain_nouns.end(), std::back_inserter(tmp));
       debug << "Reusing swapchain with version " << last_created_swapchain_nouns[4].get<double_t>().value() << end;
       claim(std::move(Tuple{std::move(tmp)}));
-    }
   }
 
   void init() override {
@@ -271,9 +279,9 @@ protected:
 
       auto swapchain = static_cast<VkSwapchainKHR>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(6).value());
-
+      debug << "Freeing swapchain " << t << end;
       // vkDestroySwapchainKHR(logical_device, swapchain, nullptr);
-    }
+    } 
   }
 };
 

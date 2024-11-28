@@ -17,7 +17,7 @@ public:
   bool poll() override {
     // std::cout << "in poll" << std::endl;
     if (logical_device == nullptr || swapchain == nullptr ||
-        render_pass == nullptr) {
+        render_pass == nullptr || graphics_pipeline == nullptr) {
       return false;
     }
 
@@ -208,34 +208,6 @@ protected:
     }
     if (last_width < 0) {
       last_width = surface_extent.width;
-    }
-
-    if (last_width != surface_extent.width ||
-        last_height != surface_extent.height) {
-      out_of_date_swapchain_version = swapchain_version;
-      last_width = surface_extent.width;
-      last_height = surface_extent.height;
-      debug << "Surface extent changed! " << last_width << "x"
-                << last_height << "... marking swapchain out of date"
-                << end;
-      claim({{{"swapchain"},
-              {"at version"},
-              {swapchain_version},
-              {"is out of date"}}});
-      return;
-    }
-
-    if (swapchain_version == out_of_date_swapchain_version) {
-      err << "Swapchain at version " << swapchain_version
-          << " is STILL out of date... not rendering yet." << end;
-
-      claim({{{"swapchain"},
-              {"at version"},
-              {swapchain_version},
-              {"is out of date"}}});
-
-      is_ready_to_render = false;
-      return;
     }
 
     if (vk_fence_status == VK_SUCCESS && is_ready_to_render &&

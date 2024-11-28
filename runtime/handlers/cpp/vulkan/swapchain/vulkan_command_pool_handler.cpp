@@ -97,8 +97,9 @@ protected:
 
       auto cmd_pool = static_cast<VkCommandPool>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
-      vkDestroyCommandPool(logical_device, cmd_pool, nullptr);
-    }
+      debug << "Freeing command pool " << t << end;
+      // vkDestroyCommandPool(logical_device, cmd_pool, nullptr);
+    } 
   }
 };
 

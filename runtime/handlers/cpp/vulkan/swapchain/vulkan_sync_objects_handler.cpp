@@ -112,16 +112,16 @@ protected:
 
       auto semaphore = static_cast<VkSemaphore>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
-
-      vkDestroySemaphore(logical_device, semaphore, nullptr);
+      debug << "Freeing semaphore " << t << end;
+      // vkDestroySemaphore(logical_device, semaphore, nullptr);
     }
 
     if (t.matches(2, std::string("vulkan fence"))) {
 
       auto fence = static_cast<VkFence>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(4).value());
-
-      vkDestroyFence(logical_device, fence, nullptr);
+      debug << "Freeing fence " << t << end;
+      // vkDestroyFence(logical_device, fence, nullptr);
     }
   }
 };
