@@ -4,6 +4,7 @@
 #include <foxtalk_handler.hpp>
 #include <set>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 
 const std::vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
@@ -20,7 +21,10 @@ struct QueueFamilyIndices {
 class VulkanLogicalDeviceHandler : public Handler {
 
 protected:
-  VkSurfaceKHR surface{};
+  VkDevice logical_device{};
+  QueueFamilyIndices indices{};
+  VkQueue graphicsQueue{};
+  VkQueue presentQueue{};
   void handle(const std::vector<Tuple> &queryResults) override {
     auto surface_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -32,9 +36,8 @@ protected:
       return;
     }
 
-    surface =
+    auto surface =
         static_cast<VkSurfaceKHR>(surface_tuple->at<void *>(0).value());
-
 
     auto result_data = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -51,7 +54,7 @@ protected:
     // auto queue_count = result.at<uint64_t>(6);
     auto dev = static_cast<VkPhysicalDevice>(result.at<void *>(0).value());
 
-    auto queue_families = findQueueFamilies(dev);
+    auto queue_families = findQueueFamilies(dev, surface);
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     std::set<uint32_t> uniqueQueueFamilies = {
         queue_families.graphicsFamily.value(),
@@ -79,34 +82,49 @@ protected:
     createInfo.ppEnabledExtensionNames = required_extensions.data();
     createInfo.enabledExtensionCount = required_extensions.size();
 
-    // if enableValidationLayers
-    // createInfo.enabledLayerCount =
-    //     static_cast<uint32_t>(validationLayers.size());
-    // createInfo.ppEnabledLayerNames = validationLayers.data();
+    auto validation_layer_tuple = std::find_if(
+        queryResults.begin(), queryResults.end(), [](const Tuple &result) {
+          return result.at<std::string>(2) == "validation layers";
+        });
 
-    // else...
-    createInfo.enabledLayerCount = 0;
-
-    VkDevice logical_device;
+    if (surface_tuple != queryResults.end()) {
+      createInfo.enabledLayerCount =
+          static_cast<uint32_t>(validationLayers.size());
+      createInfo.ppEnabledLayerNames = validationLayers.data();
+      // required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    } else {
+      createInfo.enabledLayerCount = 0;
+    }
 
     auto device = static_cast<VkPhysicalDevice>(result.at<void *>(0).value());
 
-    if (vkCreateDevice(device, &createInfo, nullptr, &logical_device) !=
-        VK_SUCCESS) {
-      throw std::runtime_error("failed to create logical device!");
+    
+    if (
+      logical_device != VK_NULL_HANDLE && 
+      graphicsQueue != VK_NULL_HANDLE && 
+      presentQueue != VK_NULL_HANDLE && 
+      indices.graphicsFamily == queue_families.graphicsFamily &&
+      indices.presentFamily == queue_families.presentFamily ) {
+      debug << "Already have a logical device, re-asserting logical device!" << end;
+      claim_device();
+      return;
     }
-
-    VkQueue graphicsQueue;
+    debug << "Creating new logical device! " << end;
+    indices = queue_families;
+    auto r = vkCreateDevice(device, &createInfo, nullptr, &logical_device);
+    if (r != VK_SUCCESS) {
+      err << "failed to create logical device: " << r << end;
+      return;
+    }
+ 
     vkGetDeviceQueue(logical_device, queue_families.graphicsFamily.value(), 0,
                      &graphicsQueue);
 
-
-    VkQueue presentQueue;
     if (queue_families.graphicsFamily == queue_families.presentFamily) {
       presentQueue = graphicsQueue;
     } else {
       vkGetDeviceQueue(logical_device, queue_families.presentFamily.value(), 0,
-                      &presentQueue);
+                       &presentQueue);
     }
 
     claim({{
@@ -124,11 +142,29 @@ protected:
     }});
   }
 
+  void claim_device() {
+    
+    claim({{
+        {logical_device},
+        {"is the"},
+        {"vulkan logical device"},
+        {"with graphics queue"},
+        {graphicsQueue},
+        {"with family index"},
+        {(uint64_t)indices.graphicsFamily.value()},
+        {"with present queue"},
+        {presentQueue},
+        {"with family index"},
+        {(uint64_t)indices.presentFamily.value()},
+    }});
+  }
+
   void init() override {
     claim({{TupleNoun::query(),
             {"is a"},
             {"vk surface khr"},
             TupleNoun::prefix()}});
+    claim({{{"vulkan"}, {"should have"}, {"validation layers"}}});
 
     claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
     claim({{TupleNoun::query(),
@@ -147,41 +183,42 @@ protected:
     }
   }
 
-// Taken directly from vulkan tutorial
-QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
-  QueueFamilyIndices indices;
+  // Taken directly from vulkan tutorial
+  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    QueueFamilyIndices indices;
 
-  uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                             nullptr);
 
-  std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
-                                           queueFamilies.data());
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                             queueFamilies.data());
 
-  int i = 0;
-  for (const auto &queueFamily : queueFamilies) {
-    // std::cout << queueFamily.queueCount << " eee " << queueFamily.queueFlags << std::endl;
-    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.graphicsFamily = i;
+    int i = 0;
+    for (const auto &queueFamily : queueFamilies) {
+      // std::cout << queueFamily.queueCount << " eee " <<
+      // queueFamily.queueFlags << std::endl;
+      if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        indices.graphicsFamily = i;
+      }
+
+      VkBool32 presentSupport = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+      if (presentSupport) {
+        indices.presentFamily = i;
+      }
+
+      if (indices.is_complete()) {
+        break;
+      }
+
+      i++;
     }
 
-    VkBool32 presentSupport = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-
-    if (presentSupport) {
-      indices.presentFamily = i;
-    }
-
-    if (indices.is_complete()) {
-      break;
-    }
-
-    i++;
+    return indices;
   }
-
-  return indices;
-}
-
 };
 
 FOXTALK_FFI_HANDLER_REG(VulkanLogicalDeviceHandler);

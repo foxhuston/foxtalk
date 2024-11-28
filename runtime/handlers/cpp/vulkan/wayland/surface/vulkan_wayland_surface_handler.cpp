@@ -109,6 +109,9 @@ protected:
     wl_surface *surface =
         static_cast<wl_surface *>(wayland_tuple->at<void *>(4).value());
 
+    auto width = wayland_tuple->at<uint64_t>(6).value();
+    auto height = wayland_tuple->at<uint64_t>(8).value();
+
     // debug << "Found all three tuples" << end;
     auto get_wayland_presentation_support =
         (PFN_vkGetPhysicalDeviceWaylandPresentationSupportKHR)
@@ -142,7 +145,11 @@ protected:
               {"with surface pixel format value"},
               {(uint64_t)maybe_chosen_surface_format.value()},
               {"for instance"},
-              {instance}}});
+              {instance},
+              {"with width"},
+              {width},
+              {"and height"},
+              {height}}});
 
       return;
     }
@@ -171,6 +178,10 @@ protected:
             {"is a"},
             {"wayland display"},
             {"with wl_surface"},
+            TupleNoun::query(),
+            {"with width"},
+            TupleNoun::query(),
+            {"and height"},
             TupleNoun::query()}});
   }
 };

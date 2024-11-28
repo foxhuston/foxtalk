@@ -173,24 +173,23 @@ protected:
       xdg_toplevel_set_title(ft_xdg_toplevel, "Testing from Foxtalk");
       wl_surface_commit(surface);
     } else {
-       wl_display_prepare_read(display);
-       wl_display_read_events(display);
+      wl_display_prepare_read(display);
+      wl_display_read_events(display);
     }
     if (display != nullptr && surface != nullptr) {
 
-      claim({{{display},
-              {"is a"},
-              {"wayland display"},
-              {"with wl_surface"},
-              {surface}}});
+      claim({{
+          {display},
+          {"is a"},
+          {"wayland display"},
+          {"with wl_surface"},
+          {surface},
+          {"with width"},
+          {(uint64_t)current_width},
+          {"and height"},
+          {(uint64_t)current_height},
+      }});
     }
-
-    claim({{
-        {"available surface has width"},
-        {(uint64_t)current_width},
-        {"and height"},
-        {(uint64_t)current_height},
-    }});
   }
 
   void free_tuple(const Tuple &t) override {}

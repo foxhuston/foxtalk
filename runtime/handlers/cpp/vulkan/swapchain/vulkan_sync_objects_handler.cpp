@@ -14,9 +14,9 @@ protected:
   std::vector<VkFence> in_flight_fences{};
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 3) {
-      return;
-    }
+    image_available_semaphores.clear();
+    render_finished_semaphores.clear();
+    in_flight_fences.clear();
 
     auto frames_in_flight_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -31,18 +31,20 @@ protected:
 
     auto frames_in_flight = frames_in_flight_tuple->at<uint64_t>(2).value();
 
-    auto logical_device_tuple = std::find_if(
+    
+    auto swapchain_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-          return result.at<std::string>(2) == "vulkan logical device";
+          return result.at<std::string>(2) == "vulkan swapchain";
         });
 
-    if (logical_device_tuple == queryResults.end()) {
-      err << "Query results did not include the vulkan logical device" << end;
+    if (swapchain_tuple == queryResults.end()) {
+      err << "Query results did not include a vulkan swapchain" << end;
       return;
     }
 
     auto logical_device =
-        static_cast<VkDevice>(logical_device_tuple->at<void *>(0).value());
+        static_cast<VkDevice>(swapchain_tuple->at<void *>(10).value());
+
 
     for (uint64_t i = 0; i < frames_in_flight; i++) {
       VkSemaphoreCreateInfo semaphore_create_info{
@@ -94,13 +96,25 @@ protected:
   }
 
   void init() override {
+    
     claim({{TupleNoun::query(),
-            {"is the"},
-            {"vulkan logical device"},
+            {"is a"},
+            {"vulkan swapchain"},
+            {"at version"},
+            TupleNoun::query(),
+            {"for surface of width"},
+            TupleNoun::query(),
+            {"and height"},
+            TupleNoun::query(),
+            {"for device"},
+            TupleNoun::query(),
+            {"with pixel format value"},
+            TupleNoun::query(),
+            {"with"},
+            TupleNoun::query(),
+            {"images"},
             TupleNoun::prefix()}});
-
-    claim({{TupleNoun::query(), {"is the"}, {"vulkan instance"}}});
-
+            
     claim({{{"vulkan"},
             {"should have"},
             TupleNoun::query(),

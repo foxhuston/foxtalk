@@ -11,10 +11,6 @@ public:
 protected:
   VkRenderPass render_pass{};
   void handle(const std::vector<Tuple> &queryResults) override {
-    if (queryResults.size() != 3) {
-      return;
-    }
-
     auto logical_device_tuple = std::find_if(
         queryResults.begin(), queryResults.end(), [](const Tuple &result) {
           return result.at<std::string>(2) == "vulkan logical device";

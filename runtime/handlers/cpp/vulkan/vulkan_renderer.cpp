@@ -39,8 +39,6 @@ protected:
   std::vector<VkSemaphore> render_complete_semaphores{};
   VkDevice logical_device{};
   VkSwapchainKHR swapchain{};
-  double swapchain_version = -2;
-  std::optional<double> out_of_date_swapchain_version = std::nullopt;
   VkResult vk_fence_status = VK_ERROR_UNKNOWN;
   VkRenderPass render_pass{};
   VkExtent2D surface_extent{};
@@ -51,27 +49,21 @@ protected:
 
   // TODO TOMORROW (THANKSGIVING):
   //   Pass the image index of the buffers created in the swapchain
-  // in the tuple, and use the same index here. I think this will solve the current bug.
+  // in the tuple, and use the same index here. I think this will solve the
+  // current bug.
   std::vector<VkFramebuffer> buffers{};
-
-  uint64_t last_width = -1;
-  uint64_t last_height = -1;
 
   bool is_ready_to_render = false;
 
   void handle(const std::vector<Tuple> &queryResults) override {
-    claim({{{"last render attempt at"},
-            {get_time_as_double()},
-            {"with fence status of"},
-            {(int64_t)vk_fence_status}}});
-    // std::cout << " In handle of renderer. Current frame: " << current_frame
-    //           << std::endl;
-
     if (!is_ready_to_render || !is_called_from_poll) {
+
+      is_ready_to_render = false;
       command_buffers.clear();
       fences.clear();
       img_available_semaphores.clear();
       render_complete_semaphores.clear();
+      swapchain = nullptr;
       for (const auto &a : queryResults) {
         if (a.matches(2, std::string("vulkan command pool"))) {
           command_buffers.emplace_back(
@@ -102,25 +94,6 @@ protected:
         err << "Fences not found in query results" << end;
         return;
       }
-
-      auto surface_extent_tuple = std::find_if(
-          queryResults.begin(), queryResults.end(), [](const Tuple &result) {
-            return result.at<std::string>(0) == "available surface has width";
-          });
-
-      if (surface_extent_tuple == queryResults.end()) {
-        err << "Query results did not include the available surface extent"
-            << end;
-        return;
-      }
-
-      auto width = surface_extent_tuple->at<uint64_t>(1).value();
-      auto height = surface_extent_tuple->at<uint64_t>(3).value();
-
-      surface_extent = VkExtent2D{
-          .width = (uint32_t)width,
-          .height = (uint32_t)height,
-      };
 
       auto logical_device_tuple = std::find_if(
           queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -169,10 +142,28 @@ protected:
 
       swapchain =
           static_cast<VkSwapchainKHR>(swapchain_tuple->at<void *>(0).value());
-      swapchain_version = swapchain_tuple->at<double_t>(4).value();
 
-      logical_device =
-          static_cast<VkDevice>(swapchain_tuple->at<void *>(6).value());
+      auto swapchain_logical_device =
+          static_cast<VkDevice>(swapchain_tuple->at<void *>(10).value());
+
+      if (logical_device != swapchain_logical_device) {
+        err << "Logical device in swapchain tuple (" << swapchain_logical_device
+            << ") does not match the logical "
+               "device in the logical device tuple ("
+            << logical_device << "). " << end;
+        return;
+      }
+
+      auto width = swapchain_tuple->at<uint64_t>(6).value();
+      auto height = swapchain_tuple->at<uint64_t>(8).value();
+
+      surface_extent = VkExtent2D{
+          .width = (uint32_t)width,
+          .height = (uint32_t)height,
+      };
+
+      auto swapchain_image_count = swapchain_tuple->at<uint64_t>(14).value();
+      buffers.resize(swapchain_image_count);
 
       auto pipeline_tuple = std::find_if(
           queryResults.begin(), queryResults.end(), [](const Tuple &result) {
@@ -187,27 +178,34 @@ protected:
       graphics_pipeline =
           static_cast<VkPipeline>(pipeline_tuple->at<void *>(0).value());
 
+      int found_images = 0;
       for (auto &t : queryResults) {
         if (!t.matches(1, std::string("is a vulkan image"))) {
           continue;
         }
-        buffers.emplace_back(
-            static_cast<VkFramebuffer>(t.at<void *>(7).value()));
+        auto img_index = t.at<uint64_t>(5).value();
+        auto frame_buffer = static_cast<VkFramebuffer>(t.at<void *>(9).value());
+        auto b_swapchain =
+            static_cast<VkSwapchainKHR>(t.at<void *>(11).value());
+
+        if (b_swapchain != swapchain) {
+          err << "Buffer swapchain does not match the current swapchain" << end;
+          is_ready_to_render = false;
+          return;
+        }
+        found_images++;
+        buffers[img_index] = frame_buffer;
+        // }
+        // buffers.emplace_back(
+        //     static_cast<VkFramebuffer>(t.at<void *>(7).value()));
       }
-      if (buffers.size() <= 0) {
-        err << "No frame buffers found in the query results" << end;
+      if (found_images != swapchain_image_count) {
+        err << "Only " << found_images << " found in the tuple db... expected" << swapchain_image_count << end;
         return;
       }
       debug << "Got all tuples with " << buffers.size() << " frame buffers"
             << end;
       is_ready_to_render = true;
-    }
-
-    if (last_height < 0) {
-      last_height = surface_extent.height;
-    }
-    if (last_width < 0) {
-      last_width = surface_extent.width;
     }
 
     if (vk_fence_status == VK_SUCCESS && is_ready_to_render &&
@@ -222,33 +220,21 @@ protected:
     is_called_from_poll = false;
 
     uint32_t imageIndex;
-    auto result = vkAcquireNextImageKHR(logical_device, swapchain, UINT64_MAX,
+    auto result = vkAcquireNextImageKHR(logical_device, swapchain, 1,
                                         img_available_semaphores[current_frame],
                                         VK_NULL_HANDLE, &imageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-      debug << "Need to recreate swapchain! Version: " << swapchain_version
-                << end;
-      claim({{{"swapchain"},
-              {"at version"},
-              {swapchain_version},
-              {"is out of date"}}});
-              is_ready_to_render = false;
-      return;
-    } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-      std::cerr
-          << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: "
-          << result << std::endl;
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
       err << "vkAcquireNextImageKHR returend a vkresult that wasn't expected: "
           << result << end;
 
-              is_ready_to_render = false;
+      is_ready_to_render = false;
       return;
     }
     debug << "About to reset fences! Should have been called from poll... "
-                 "cur frame: "
-              << current_frame << "dims: " << surface_extent.width << "x"
-              << surface_extent.height << end;
+             "cur frame: "
+          << current_frame << "dims: " << surface_extent.width << "x"
+          << surface_extent.height << end;
     vkResetFences(logical_device, 1, &fences[current_frame]);
 
     vkResetCommandBuffer(command_buffers[current_frame],
@@ -310,14 +296,23 @@ protected:
             {"is a"},
             {"vulkan render pass"},
             TupleNoun::prefix()}});
+
     claim({{TupleNoun::query(),
             {"is a"},
             {"vulkan swapchain"},
             {"at version"},
             TupleNoun::query(),
+            {"for surface of width"},
+            TupleNoun::query(),
+            {"and height"},
+            TupleNoun::query(),
             {"for device"},
             TupleNoun::query(),
             {"with pixel format value"},
+            TupleNoun::query(),
+            {"with"},
+            TupleNoun::query(),
+            {"images"},
             TupleNoun::prefix()}});
 
     claim({{TupleNoun::query(),
@@ -340,16 +335,11 @@ protected:
             {"vulkan logical device"},
             TupleNoun::prefix()}});
 
-    claim({{
-        {"available surface has width"},
-        TupleNoun::query(),
-        {"and height"},
-        TupleNoun::prefix(),
-    }});
-
     claim({{TupleNoun::query(),
             {"is a vulkan image"},
             {"for device"},
+            TupleNoun::query(),
+            {"at index"},
             TupleNoun::query(),
             {"with image view"},
             TupleNoun::query(),
