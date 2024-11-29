@@ -9,7 +9,7 @@ protected:
   {
     bool should_include_validation_layers = true;
     uint64_t num_frames_in_flight = 2;
-    claim({{{"vulkan"}, {"should be"}, {"running"}}});
+    claim({{{"vulkan"}, {"should be"}, {"running"}, {"on"}, {"wayland"}}});
     claim({{{"vulkan"}, {"should have"}, {num_frames_in_flight}, {"frames in flight"}}});
     if (should_include_validation_layers) {
       claim({{{"vulkan"}, {"should have"}, {"validation layers"}}});

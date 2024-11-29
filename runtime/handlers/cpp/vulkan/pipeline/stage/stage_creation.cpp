@@ -197,8 +197,8 @@ protected:
       auto pipeline_layout = static_cast<VkPipelineLayout>(t.at<void *>(4).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(6).value());
       debug << "Freeing pipeline and layout " << t << end;
-      // vkDestroyPipeline(logical_device, pipeline, nullptr);
-      // vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
+      vkDestroyPipeline(logical_device, pipeline, nullptr);
+      vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
     }
   }
 

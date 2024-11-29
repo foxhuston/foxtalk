@@ -179,7 +179,7 @@ protected:
 
       auto logical_device = static_cast<VkDevice>(t.at<void *>(0).value());
       debug << "Freeing logical device " << t << end;
-      // vkDestroyDevice(logical_device, nullptr);
+      vkDestroyDevice(logical_device, nullptr);
     }
   }
 

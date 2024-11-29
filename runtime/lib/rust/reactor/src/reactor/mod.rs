@@ -1,6 +1,7 @@
 pub mod utils;
 pub mod query_engine;
 pub mod reactor_program;
+mod provenance;
 
 use crate::reactor::query_engine::QueryEngine;
 use crate::reactor::reactor_program::{Program, ProgramInfo};
@@ -46,6 +47,7 @@ pub struct Reactor<Q, QE, O>
     query_engine: QE,
     
     generated_programs: FxHashMap<O, ReactorProgramId>,
+    freeing_counters: Vec<(ReactorProgramId, O, u64)>,
     current_program_id: u64,
 }
 
@@ -57,6 +59,7 @@ impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgr
             ref_counts: FxHashMap::default(),
             query_engine,
             generated_programs: FxHashMap::default(),
+            freeing_counters: Vec::default(),
             current_program_id: 0,
         }
     }
@@ -235,9 +238,137 @@ impl<Q, O: ReactorData + GeneratesProgram<O, Q>, QE: QueryEngine<O, ReactorProgr
 
 #[cfg(test)]
 mod tests {
-    use crate::test::{SimpleQuery, SimpleQueryEngine};
     use super::*;
+    use crate::test::{SimpleQuery, SimpleQueryEngine};
 
+    #[test]
+    pub fn provenance_traveled_before_free_o() {
+
+        #[derive(Clone)]
+        struct TestHandler {
+            range_query: RangeQuery,
+            free_o_called_on: Vec<u64>
+        }
+
+        impl TestHandler {
+            fn new(min: u64, max: u64) -> Self {
+                Self {
+                    range_query: RangeQuery {
+                        min,
+                        max
+                    },
+                    free_o_called_on: Vec::default()
+                }
+            }
+        }
+        #[derive(PartialEq, Eq, Clone, Debug, Hash)]
+        struct RangeQuery {
+            min: u64,
+            max: u64
+        }
+        impl SimpleQuery<u64> for RangeQuery {
+            fn query(&self, o: &u64) -> bool {
+                *o >= self.min && *o <= self.max
+            }
+        }
+
+        impl Program<u64, RangeQuery> for TestHandler {
+            fn query(&mut self) -> RangeQuery {
+                self.range_query.clone()
+            }
+            fn handle(&mut self, o: &FxHashSet<u64>) -> FxHashSet<u64> {
+                o.iter().map(|x| {
+                    if !self.free_o_called_on.is_empty() {
+                        x * 100
+                    } else {
+                        x * 2
+                    }
+                }).collect()
+            }
+            fn free_o(&mut self, o: &u64) -> () {
+                println!("Freeing o: {:?}", o);
+                self.free_o_called_on.push(o.clone());
+            }
+        }
+
+        let paper_query_engine: SimpleQueryEngine<ReactorProgramId, RangeQuery> = SimpleQueryEngine::new();
+        let mut reactor = Reactor::new(paper_query_engine);
+
+        let t1 = TestHandler::new(1, 2);
+        let t1q = t1.range_query.clone();
+        let handler = Box::new(t1);
+        let hid1 = reactor.add_program(handler);
+
+        let t2 = TestHandler::new(4, 4);
+        let t2q = t2.range_query.clone();
+        let handler = Box::new(t2);
+        let hid2 = reactor.add_program(handler);
+
+        let t3 = TestHandler::new(8, 8);
+        let t3q = t3.range_query.clone();
+        let handler = Box::new(t3);
+        let hid3 = reactor.add_program(handler);
+
+
+        let t4 = TestHandler::new(4, 16);
+        let t4q = t4.range_query.clone();
+        let handler = Box::new(t4);
+        let hid4 = reactor.add_program(handler);
+
+        reactor.query_engine.insert_program_for_query(t1q, hid1.clone());
+        reactor.query_engine.insert_program_for_query(t2q, hid2.clone());
+        reactor.query_engine.insert_program_for_query(t3q, hid3.clone());
+        reactor.query_engine.insert_program_for_query(t4q, hid4.clone());
+
+        reactor.tick();
+
+        reactor.insert(1); // h1 will create 2
+        reactor.tick(); // 2 is created, added to h1's I, will create 4
+        reactor.tick(); // 4 is created, added to h2's AND h4's I, will create 8
+        reactor.tick(); // 8 is created, added to h3's AND h4's I, will create 16
+        reactor.tick(); // 16 is created, added to h4's I (would create 32 next tick)
+        reactor.tick(); // 32 is created, not used by any handler.
+
+        assert_eq!(reactor.ref_counts.get(&1).unwrap(), &1);
+        assert_eq!(reactor.ref_counts.get(&2).unwrap(), &1);
+        assert_eq!(reactor.ref_counts.get(&4).unwrap(), &1);
+        assert_eq!(reactor.ref_counts.get(&8).unwrap(), &2);
+        assert_eq!(reactor.ref_counts.get(&16).unwrap(), &2);
+        assert_eq!(reactor.ref_counts.get(&32).unwrap(), &1);
+
+        println!("Removing 1");
+        reactor.remove(1);
+        reactor.tick();
+
+        assert_eq!(reactor.freeing_counters.len(), 1);
+
+
+        // 1 is gone so 2 is now no longer claimed.
+        // 2 is used by h2, whose output is used by h3, whose output is used by h4
+        // So, free_o on 2 should NOT be called until...........
+        reactor.tick();
+        // In the "wrong" version of free_o, we would claim it here. Let's make sure that doesn't happen
+
+        // Now that 2 is gone, 4 is no longer claimed.
+        // 4 is used by h4, whose output is used by h2 and h4, and whose output is used by h4
+        reactor.tick();
+        // Now that 4 is gone, 8 is no longer claimed.
+        // 8 is used by h3, whose output is used by h4
+        reactor.tick();
+        // Now that 8 is gone, 16 is no longer claimed.
+        // 16 is used by h4, so, one more tick...
+        reactor.tick();
+        // and now 32 should have had "free o called on it"
+        reactor.insert(10);
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        reactor.tick();
+        // ........ here!
+
+
+
+    }
     #[test]
     pub fn paper_agg_example() {
         struct PaperHandler {}

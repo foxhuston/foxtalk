@@ -118,7 +118,7 @@ protected:
       auto shader = static_cast<VkShaderModule>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(5).value());
       debug << "Freeing shader module " << t << end;
-      // vkDestroyShaderModule(logical_device, shader, nullptr);
+      vkDestroyShaderModule(logical_device, shader, nullptr);
     }
   }
 

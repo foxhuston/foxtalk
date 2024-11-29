@@ -7,6 +7,7 @@ mod tests {
     use rust_tuple_reactor_serde::tuple::Tuple;
     use rust_tuple_reactor_serde::tuple_noun::TupleNoun;
     use std::path::PathBuf;
+    use std::rc::Rc;
 
     fn linked_lib_path(filename: &str) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -44,7 +45,7 @@ mod tests {
         let mut reactor = Reactor::new(query_engine);
         let handler = unsafe { DynamicallyLoadedProgram::new(linked_lib_path("clock_handler.so").as_path()) }.unwrap();
         let output = handler.get_bootstrap_output();
-        reactor.add_program_with_bootstrap_output(Box::new(handler), output);
+        reactor.add_program_with_bootstrap_output(Rc::new(handler), output);
         reactor.tick();
         reactor.tick();
 

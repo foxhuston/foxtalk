@@ -1,6 +1,6 @@
 use crate::reactor::ReactorData;
-use std::hash::Hash;
 use rustc_hash::FxHashSet;
+use std::hash::Hash;
 
 pub trait Program<O: ReactorData, Q> where Self: Send
 {
@@ -10,6 +10,8 @@ pub trait Program<O: ReactorData, Q> where Self: Send
     fn poll(&mut self) -> bool { false  }
 
     fn free_o(&mut self, _o: &O) -> () {}
+
+    // fn as_any(&self) -> &dyn Any { self }
 }
 
 

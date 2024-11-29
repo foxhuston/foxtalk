@@ -194,7 +194,14 @@ protected:
 
   void free_tuple(const Tuple &t) override {}
 
-  void init() override { claim({{{"foxtalk"}, {"is"}, {"running"}}}); }
+  void init() override {
+    claim({{{"vulkan"},
+            {"should be"},
+            {"running"},
+            {"on"},
+            {"wayland"},
+            TupleNoun::prefix()}});
+  }
 };
 
 FOXTALK_FFI_HANDLER_REG(WaylandInstanceHandler);

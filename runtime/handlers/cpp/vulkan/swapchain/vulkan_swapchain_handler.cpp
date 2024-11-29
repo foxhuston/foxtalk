@@ -270,7 +270,7 @@ protected:
       auto swapchain = static_cast<VkSwapchainKHR>(t.at<void *>(0).value());
       auto logical_device = static_cast<VkDevice>(t.at<void *>(10).value());
       debug << "Freeing swapchain " << t << end;
-      // vkDestroySwapchainKHR(logical_device, swapchain, nullptr);
+      vkDestroySwapchainKHR(logical_device, swapchain, nullptr);
     }
   }
 };

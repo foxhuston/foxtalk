@@ -4,6 +4,7 @@
 
 // pkg-config: vulkan
 
+#include "foxtalk_tuple.h"
 #include <string_view>
 
 #include <foxtalk_handler.hpp>
@@ -93,7 +94,7 @@ protected:
   }
 
   void init() override {
-    claim({{{"vulkan"}, {"should be"}, {"running"}}});
+    claim({{{"vulkan"}, {"should be"}, {"running"}, TupleNoun::prefix()}});
     claim({{{"vulkan"}, {"should have"}, {"validation layers"}}});
   }
 
@@ -111,7 +112,7 @@ protected:
       //              "once everything has gone through a tick of it being gone. "
       //           << std::endl;
       debug << "Freeing vulkan instance " << t << end;
-      // vkDestroyInstance(instance, nullptr);
+      vkDestroyInstance(instance, nullptr);
     }
   }
 };
